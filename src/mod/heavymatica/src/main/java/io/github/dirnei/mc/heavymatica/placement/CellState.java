@@ -24,6 +24,11 @@ public enum CellState {
         return this == UNKNOWN || this == MISSING;
     }
 
+    /** True for the states whose position still needs its item: missing, wrong block and not yet known. */
+    public boolean needsItem() {
+        return this == UNKNOWN || this == MISSING || this == WRONG_BLOCK;
+    }
+
     /** True for the states marked with a coloured box. */
     public boolean mistake() {
         return this == WRONG_BLOCK || this == WRONG_ORIENTATION || this == WRONG_WATER || this == EXTRA;

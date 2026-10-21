@@ -62,7 +62,15 @@ change). `.blueprint` (Structurize) import was out of scope.
     under the crosshair.
   - No mixins: blocks within reach are rechecked every tick, the rest of the placement by a budgeted background scan.
   - Gaps between the regions of a multi-region `.litematic` read as structure voids, so comparison ignores them.
-- **Next up: material list** against the player's own inventory ("4 short"). Works client-only from loaded chunks.
+- **Material list (change `material-list`):** what a locked placement still needs against what the player carries.
+  - Missing, wrong-block and not yet compared positions need their item; turned blocks and wrong water do not.
+  - Only the visible layers count (off, from-to window or follow feet); the in-hand filter has no effect.
+  - Two-cell blocks count once, a double slab as two slabs, candles, sea pickles and snow layers by their amount.
+    Blocks no item places (water, lava, fire, portals) are listed apart under "can't carry".
+  - Carried means the inventory, the offhand and the contents of carried shulker boxes, bundles and other items with
+    NeoForge's item capability. Chests and other containers in the world don't count.
+  - The overlay shows the three largest shortages; K opens the full list with needed, have and short.
+- Step 4 is done. **Next up: material swaps** (still open in step 3), then multiplayer sync.
 
 ### 5. Multiplayer sync
 

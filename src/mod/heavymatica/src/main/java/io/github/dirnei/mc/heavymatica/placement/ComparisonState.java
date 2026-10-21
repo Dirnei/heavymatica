@@ -101,14 +101,16 @@ public final class ComparisonState {
         return counted.get(index);
     }
 
-    public void set(int x, int y, int z, CellState state) {
-        set(index(x, y, z), state);
+    /** Sets a position's state and returns the state it had. */
+    public CellState set(int x, int y, int z, CellState state) {
+        return set(index(x, y, z), state);
     }
 
-    public void set(int index, CellState state) {
+    /** Sets a position's state and returns the state it had. */
+    public CellState set(int index, CellState state) {
         CellState old = CellState.of(cells[index]);
         if (old == state) {
-            return;
+            return old;
         }
         cells[index] = (byte) state.ordinal();
         totals[old.ordinal()]--;
@@ -134,6 +136,7 @@ public final class ComparisonState {
             int rest = index % layer;
             markBoxes(rest % sizeX, y, rest / sizeX);
         }
+        return old;
     }
 
     /** Marks the box sections of a cell and of its neighbours, whose shared faces may appear or disappear. */

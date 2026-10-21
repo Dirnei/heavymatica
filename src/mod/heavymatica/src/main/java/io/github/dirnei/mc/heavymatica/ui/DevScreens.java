@@ -5,10 +5,12 @@ import io.github.dirnei.mc.heavymatica.HeavymaticaClient;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
 import io.github.dirnei.mc.heavymatica.placement.ComparisonState;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
+import io.github.dirnei.mc.heavymatica.placement.MaterialList;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
+import io.github.dirnei.mc.heavymatica.remote.PlacementOverlay;
 import io.github.dirnei.mc.heavymatica.remote.Remotes;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -26,7 +28,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.Block;
 import org.jetbrains.annotations.Nullable;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.common.NeoForge;
@@ -60,6 +65,9 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code selectPlacement=<name>}: select the first placement with that name</li>
  *     <li>{@code logComparison}: log the selected placement's comparison: progress, totals, slowest scan tick</li>
  *     <li>{@code logCell=<x>,<y>,<z>}: log the selected placement's comparison state at a world position</li>
+ *     <li>{@code logMaterials}: log the selected placement's material list, counting the player's items again, and the
+ *     rows of an open material list screen</li>
+ *     <li>{@code logOverlay}: log the placement overlay's lines as text</li>
  *     <li>{@code logScreen}, {@code closeScreen}: log which screen is open, close it</li>
  *     <li>{@code controls}: open the key bindings screen; {@code scroll=<rows>}: scroll the open screen down</li>
  *     <li>{@code hideGui=<true|false>}: hide the HUD like F1</li>
@@ -169,6 +177,13 @@ public final class DevScreens {
             case "up" -> KeyMapping.set(mapping(minecraft, argument).getKey(), false);
             case "logPlacements" -> logPlacements();
             case "logComparison" -> logComparison();
+            case "logMaterials" -> logMaterials(minecraft);
+            case "logOverlay" -> {
+                PlacementSession session = HeavymaticaClient.placements();
+                if (session != null) {
+                    Heavymatica.LOGGER.info("Dev overlay: {}", String.join(" | ", PlacementOverlay.textForDevelopment(minecraft, session)));
+                }
+            }
             case "selectPlacement" -> {
                 PlacementSession session = HeavymaticaClient.placements();
                 if (session != null) {
@@ -278,6 +293,28 @@ public final class DevScreens {
         Heavymatica.LOGGER.info("Dev comparison: {} comparisons, scanning {}, matching {} of {},{}, slowest tick {} us, {} fps", session.comparisonCount(),
                 state.scanning(), state.matching(0, state.sizeY() - 1), state.counted(0, state.sizeY() - 1), totals,
                 session.takeSlowestComparisonTick() / 1000, Minecraft.getInstance().getFps());
+    }
+
+    private static void logMaterials(Minecraft minecraft) {
+        PlacementSession session = HeavymaticaClient.placements();
+        Placement placement = session == null ? null : session.placements().selected().orElse(null);
+        if (session == null || placement == null) {
+            Heavymatica.LOGGER.info("Dev materials: no placement");
+            return;
+        }
+        session.refreshMaterials();
+        MaterialList<Item, Block> list = session.materials(placement);
+        if (list == null) {
+            Heavymatica.LOGGER.info("Dev materials: none ({})", placement.state());
+            return;
+        }
+        Heavymatica.LOGGER.info("Dev materials: visible {}, rows {}, can't carry {}", Layers.visible(placement, PlacementSession.feetLayer(placement)),
+                list.rows().stream().map(row -> BuiltInRegistries.ITEM.getKey(row.item()) + " " + row.needed() + "/" + row.had() + "/" + row.shortage()).toList(),
+                list.cantCarry().stream().map(entry -> BuiltInRegistries.BLOCK.getKey(entry.block()) + " " + entry.count()).toList());
+        if (minecraft.screen instanceof MaterialListScreen screen) {
+            Heavymatica.LOGGER.info("Dev material screen rows: {}", screen.rowsForDevelopment().stream()
+                    .map(row -> BuiltInRegistries.ITEM.getKey(row.item()) + " " + row.needed() + "/" + row.had() + "/" + row.shortage()).toList());
+        }
     }
 
     private static void logCell(net.minecraft.core.BlockPos pos) {

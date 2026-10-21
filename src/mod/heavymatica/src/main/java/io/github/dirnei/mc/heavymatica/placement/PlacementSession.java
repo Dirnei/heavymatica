@@ -21,6 +21,7 @@ import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.storage.LevelResource;
@@ -43,6 +44,7 @@ public final class PlacementSession {
     private final Library library;
     private final GhostMeshes meshes = new GhostMeshes();
     private final Comparisons comparisons = new Comparisons();
+    private final Materials materials = new Materials();
     private final GhostRenderer renderer;
     private final Map<String, SchematicModel> models = new HashMap<>();
     private final Set<String> loading = new HashSet<>();
@@ -83,6 +85,17 @@ public final class PlacementSession {
     /** The placement's comparison with the world; null unless it is locked, loaded and in the player's dimension. */
     public @Nullable WorldComparison comparison(Placement placement) {
         return comparisons.get(placement);
+    }
+
+    /** The material list of the placement's visible layers; null unless it has a {@link #comparison}. */
+    public @Nullable MaterialList<Item, Block> materials(Placement placement) {
+        WorldComparison comparison = comparisons.get(placement);
+        return comparison == null ? null : materials.list(comparison, Layers.visible(placement, feetLayer(placement)));
+    }
+
+    /** Makes the next material list count the player's items again. */
+    public void refreshMaterials() {
+        materials.refreshNow();
     }
 
     /** Comparison count, for development checks. */
@@ -155,6 +168,7 @@ public final class PlacementSession {
         store.tick(System.currentTimeMillis());
         meshes.sweep(placements.all(), this::model);
         comparisons.tick(placements.all(), this::model);
+        materials.tick();
     }
 
     static String worldKey(Minecraft minecraft) {

@@ -12,6 +12,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
@@ -35,12 +36,14 @@ public final class RemoteInput {
 
     private final PlacementSession session;
     private final Runnable openLibrary;
+    private final Runnable openMaterials;
     private final Map<KeyMapping, Integer> heldTicks = new HashMap<>();
     private boolean useHandled;
 
-    public RemoteInput(PlacementSession session, Runnable openLibrary) {
+    public RemoteInput(PlacementSession session, Runnable openLibrary, Runnable openMaterials) {
         this.session = session;
         this.openLibrary = openLibrary;
+        this.openMaterials = openMaterials;
     }
 
     public void register() {
@@ -140,6 +143,16 @@ public final class RemoteInput {
             controller.lockOrUnlock(System.currentTimeMillis());
         }
         Placement selected = session.placements().selected().orElse(null);
+        while (RemoteKeys.MATERIALS.consumeClick()) {
+            if (selected != null && selected.locked()) {
+                openMaterials.run();
+            } else {
+                minecraft.player.sendOverlayMessage(Component.translatable("heavymatica.materials.lock_first"));
+            }
+        }
+        if (minecraft.screen != null) {
+            return;
+        }
         if (selected != null && selected.locked()) {
             layerKeys(controller, PlacementSession.feetLayer(selected));
             return;

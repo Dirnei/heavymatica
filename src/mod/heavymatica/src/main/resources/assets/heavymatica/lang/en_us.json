@@ -133,5 +133,18 @@
   "heavymatica.overlay.hint.lock": "lock",
   "heavymatica.overlay.hint.unlock": "unlock (press twice)",
   "heavymatica.overlay.in_hand.on": "In hand: on",
-  "heavymatica.overlay.hint.follow_height": "height above feet"
+  "heavymatica.overlay.hint.follow_height": "height above feet",
+  "key.heavymatica.materials": "Open material list",
+  "heavymatica.overlay.materials.short": "%s: %s short",
+  "heavymatica.overlay.materials.nothing_short": "Nothing short",
+  "heavymatica.overlay.materials.more": "+%s more short (%s)",
+  "heavymatica.overlay.hint.materials": "material list",
+  "heavymatica.materials.title": "Material list: %s",
+  "heavymatica.materials.item": "Item",
+  "heavymatica.materials.needed": "Needed",
+  "heavymatica.materials.have": "Have",
+  "heavymatica.materials.short": "Short",
+  "heavymatica.materials.cant_carry": "Can't carry",
+  "heavymatica.materials.empty": "Nothing left to place",
+  "heavymatica.materials.lock_first": "Lock the placement first"
 }

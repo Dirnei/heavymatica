@@ -6,6 +6,7 @@ import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
 import io.github.dirnei.mc.heavymatica.placement.ComparisonState;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
+import io.github.dirnei.mc.heavymatica.placement.MaterialList;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
@@ -24,6 +25,8 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -53,6 +56,7 @@ public final class PlacementOverlay {
     private static final int MISTAKE_ORANGE = 0xFFFFA040;
     private static final int MISTAKE_CYAN = 0xFF40E8F8;
     private static final int MISTAKE_MAGENTA = 0xFFFF60FF;
+    private static final int SHORTAGE_LINES = 3;
 
     /** One overlay line: an optional key name in its own colour, then text. */
     record Line(Component key, Component text, int color) {
@@ -105,6 +109,12 @@ public final class PlacementOverlay {
 
     private static final Line SEPARATOR = Line.text(Component.empty(), 0);
 
+    /** The overlay's lines as text, for development checks. */
+    public static List<String> textForDevelopment(Minecraft minecraft, PlacementSession session) {
+        return lines(minecraft, session).stream().filter(line -> line != SEPARATOR)
+                .map(line -> (line.key().getString().isEmpty() ? "" : line.key().getString() + "  ") + line.text().getString()).toList();
+    }
+
     static List<Line> lines(Minecraft minecraft, PlacementSession session) {
         List<Line> lines = new ArrayList<>();
         Optional<Placement> selected = session.placements().selected();
@@ -140,6 +150,10 @@ public final class PlacementOverlay {
             if (comparison != null) {
                 comparisonLines(minecraft, placement, comparison, lines);
             }
+            MaterialList<Item, Block> materials = session.materials(placement);
+            if (materials != null) {
+                shortageLines(materials, lines);
+            }
         }
         lines.add(SEPARATOR);
         if (session.unavailable(placement)) {
@@ -163,6 +177,7 @@ public final class PlacementOverlay {
             }
             lines.add(new Line(pair(RemoteKeys.MOVE_LEFT, RemoteKeys.MOVE_RIGHT), Component.translatable("heavymatica.overlay.hint.layer_mode"), TEXT));
             lines.add(hint(RemoteKeys.IN_HAND, "heavymatica.overlay.hint.in_hand"));
+            lines.add(hint(RemoteKeys.MATERIALS, "heavymatica.overlay.hint.materials"));
             lines.add(hint(RemoteKeys.LOCK, "heavymatica.overlay.hint.unlock"));
             return lines;
         }
@@ -224,6 +239,22 @@ public final class PlacementOverlay {
                 lines.add(Line.text(Component.translatable("heavymatica.overlay.expected", block(comparison.expectedAt(hit.getBlockPos()))), MUTED));
                 lines.add(Line.text(Component.translatable("heavymatica.overlay.found", block(minecraft.level.getBlockState(hit.getBlockPos()))), MUTED));
             }
+        }
+    }
+
+    /** The largest shortages of the visible layers, or that nothing is short. */
+    private static void shortageLines(MaterialList<Item, Block> materials, List<Line> lines) {
+        MaterialList.Shortages<Item> shortages = materials.shortages(SHORTAGE_LINES);
+        if (shortages.none()) {
+            lines.add(Line.text(Component.translatable("heavymatica.overlay.materials.nothing_short"), ANCHORED));
+            return;
+        }
+        for (MaterialList.Row<Item> row : shortages.top()) {
+            lines.add(Line.text(Component.translatable("heavymatica.overlay.materials.short", row.item().getName(row.item().getDefaultInstance()),
+                    row.shortage()), WARNING));
+        }
+        if (shortages.more() > 0) {
+            lines.add(Line.text(Component.translatable("heavymatica.overlay.materials.more", shortages.more(), name(RemoteKeys.MATERIALS)), MUTED));
         }
     }
 

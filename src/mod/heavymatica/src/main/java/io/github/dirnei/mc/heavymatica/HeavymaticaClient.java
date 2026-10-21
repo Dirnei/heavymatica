@@ -25,6 +25,7 @@ import io.github.dirnei.mc.heavymatica.remote.Remotes;
 import io.github.dirnei.mc.heavymatica.thumbnail.ThumbnailSpike;
 import io.github.dirnei.mc.heavymatica.ui.DevScreens;
 import io.github.dirnei.mc.heavymatica.ui.LibraryScreen;
+import io.github.dirnei.mc.heavymatica.ui.MaterialListScreen;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.UUID;
@@ -128,6 +129,13 @@ public final class HeavymaticaClient {
         }
     }
 
+    private static void openMaterials() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.screen == null && placements != null) {
+            minecraft.setScreen(new MaterialListScreen(placements));
+        }
+    }
+
     private static void registerKeys(RegisterKeyMappingsEvent event) {
         event.registerCategory(CATEGORY);
         event.register(OPEN_LIBRARY);
@@ -154,7 +162,7 @@ public final class HeavymaticaClient {
             holder[0] = library;
             placements = new PlacementSession(new PlacementStore(data.resolve("placements"), json), library, Remotes::held);
             placements.register();
-            new RemoteInput(placements, HeavymaticaClient::openLibrary).register();
+            new RemoteInput(placements, HeavymaticaClient::openLibrary, HeavymaticaClient::openMaterials).register();
             account.restore();
             library.loadStored();
         });

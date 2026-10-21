@@ -38,9 +38,10 @@ public final class RemoteKeys {
     public static final KeyMapping REMOVE = key("remove", GLFW.GLFW_KEY_DELETE);
     public static final KeyMapping LOCK = key("lock", GLFW.GLFW_KEY_L);
     public static final KeyMapping IN_HAND = key("in_hand", GLFW.GLFW_KEY_I);
+    public static final KeyMapping MATERIALS = key("materials", GLFW.GLFW_KEY_K);
 
     public static final List<KeyMapping> ALL = List.of(MOVE_FORWARD, MOVE_BACK, MOVE_LEFT, MOVE_RIGHT, MOVE_UP, MOVE_DOWN, ROTATE, MIRROR, REMOVE, LOCK,
-            IN_HAND);
+            IN_HAND, MATERIALS);
 
     private RemoteKeys() {
     }
