@@ -53,13 +53,9 @@ public final class HeavymaticaConfig {
             .comment("Show only the placement's name and state in the overlay, without details and key hints.")
             .define("compact", false);
 
-    private static final ModConfigSpec.IntValue LAYERS_FOLLOW_OFFSET = BUILDER
-            .pop()
-            .comment("In follow feet, how many layers above the player's feet still show.")
-            .push("layers")
-            .defineInRange("followOffset", 1, 0, 8);
-
     private static final ModConfigSpec.DoubleValue LAYERS_HOTBAR_OPACITY = BUILDER
+            .pop()
+            .push("layers")
             .comment("With the in-hand filter, the opacity of blocks matching other hotbar items, as a share of the ghost opacity.")
             .defineInRange("hotbarOpacity", 0.33, 0.05, 1.0);
 
@@ -110,10 +106,6 @@ public final class HeavymaticaConfig {
 
     public static boolean overlayCompact() {
         return OVERLAY_COMPACT.get();
-    }
-
-    public static int layersFollowOffset() {
-        return LAYERS_FOLLOW_OFFSET.get();
     }
 
     public static float layersHotbarOpacity() {

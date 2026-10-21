@@ -115,7 +115,7 @@
   "heavymatica.overlay.unlock_again": "press again to unlock",
   "heavymatica.overlay.layers.all": "Layers: all %s",
   "heavymatica.overlay.layers.from_to": "Layers %s-%s of %s",
-  "heavymatica.overlay.layers.follow": "Follow feet: %s-%s of %s",
+  "heavymatica.overlay.layers.follow": "Follow feet +%s: %s-%s of %s",
   "heavymatica.overlay.in_hand.off": "In hand: off",
   "heavymatica.overlay.hint.window": "layer window",
   "heavymatica.overlay.hint.window_size": "window size",
@@ -123,5 +123,6 @@
   "heavymatica.overlay.hint.in_hand": "in-hand filter",
   "heavymatica.overlay.hint.lock": "lock",
   "heavymatica.overlay.hint.unlock": "unlock (press twice)",
-  "heavymatica.overlay.in_hand.on": "In hand: on"
+  "heavymatica.overlay.in_hand.on": "In hand: on",
+  "heavymatica.overlay.hint.follow_height": "height above feet"
 }

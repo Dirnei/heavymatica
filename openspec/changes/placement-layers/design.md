@@ -28,7 +28,7 @@ The current state this builds on:
 ### D1. Model
 
 `Placement.State` gains `LOCKED`. `Placement` gains two fields:
-- `Layers layers`: a record of mode (`OFF`, `FROM_TO`, `FOLLOW`), `bottom` and `top`. `bottom = -1` means the window has never been set.
+- `Layers layers`: a record of mode (`OFF`, `FROM_TO`, `FOLLOW`), `bottom`, `top` and `followOffset`. `bottom = -1` means the window has never been set. `followOffset` defaults to 1 and is limited to 0..16.
 - `boolean inHand`.
 
 Both default to `OFF` / `false`, and both survive unlocking, so locking again restores the same view (spec "Unlocking shows the whole ghost"). They take effect only while LOCKED.
@@ -42,7 +42,7 @@ New `PlacementController` operations, all acting on the selected placement only:
 - `unlock(now)`: two presses within 3 s, like `remove`.
 - `cycleLayers(direction, feetLayer)`: switches between OFF, FROM_TO and FOLLOW. The first switch to FROM_TO sets a one-layer window at `clamp(feetLayer)`.
 - `moveWindow(direction)`: keeps the window size, stops at 0 and at height - 1.
-- `resizeWindow(direction)`: top only, never below the bottom or above height - 1.
+- `resizeWindow(direction)`: in FROM_TO the top only, never below the bottom or above height - 1. In FOLLOW it changes `followOffset` instead.
 - `toggleInHand()`.
 
 Existing rules change:
@@ -51,7 +51,7 @@ Existing rules change:
 
 The two-press logic is shared: a pending action (REMOVE or UNLOCK) with a placement ID and a deadline. Selecting another placement clears it, and the overlay reads it to show "press again".
 
-`Layers.visible(placement, feetLayer)` returns the inclusive range of shown layers, or all layers when OFF or not LOCKED. FOLLOW gives `0 .. clamp(feetLayer + offset)`. The feet layer is `floor(player y) - placement.y`, computed by the caller each frame. The offset comes from config, so it is passed in.
+`Layers.visible(placement, feetLayer)` returns the inclusive range of shown layers, or all layers when OFF or not LOCKED. FOLLOW gives `0 .. clamp(feetLayer + followOffset)`. Showing everything below the feet fits the planned world comparison, which hides blocks that are already built correctly. The feet layer is `floor(player y) - placement.y`, computed by the caller each frame.
 
 `RemoteInput` routes the arrow and numpad keys by state. LOCKED goes to the layer operations: up/down moves the window with key repeat, left/right cycles the mode, and + / - resizes. All other states go to the existing movement. L and I are new key mappings in the existing `HOLDING_REMOTE` context.
 
@@ -102,12 +102,11 @@ The placement JSON gains optional fields: `locked` (Boolean), `layers` (`{ mode,
 
 Overlay:
 - The LOCKED badge.
-- A layer line: `Layers 4-6 of 12`, `Follow feet: 0-4 of 12` or `Layers: all`.
+- A layer line: `Layers 4-6 of 12`, `Follow feet +1: 0-4 of 12` or `Layers: all`.
 - An in-hand line: `In hand: on` or `In hand: off`. The overlay only shows while the remote is held, so naming the held block would always say the remote.
 - Hints for LOCKED: arrows up/down for the window, arrows left/right for the mode, numpad + / - for its size, I for in-hand and L for unlock (twice). The pending-unlock note replaces the hints, like the remove note.
 
 New client config entries:
-- `layers.followOffset`: default 1, range 0 to 8.
 - `layers.hotbarOpacity`: default 0.33, a factor of the ghost opacity, range 0.05 to 1.
 
 ## Risks / Trade-offs

@@ -24,6 +24,10 @@
 - [x] 5.1 Build one layer by hand in singleplayer: lock a placement, switch to follow feet with in-hand on, climb while placing blocks, then rejoin; verify the shown layers follow the player, the held block shows normally, and after rejoining the placement is still LOCKED with the same settings
 - [x] 5.2 Update `ROADMAP.md` step 3 to describe locking and layers and mark layers as done; verify the file reads consistently
 
+## 6. Follow offset per placement
+
+- [x] 6.1 Move the follow offset from config into `Layers` (default 1, 0..16), let numpad + / - change it in follow feet, and show it in the overlay line; verify unit tests for raising, lowering and clamping the offset and the visible range following it, and in `runClient` that numpad + in follow feet shows one more layer
+
 ## Workflow follow-up
 
 - Commit the implementation once all tasks are done (Conventional Commits, for example `feat(placement): add locking and layer views`).

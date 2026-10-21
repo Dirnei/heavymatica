@@ -183,9 +183,9 @@ public final class PlacementController {
             Layers.Mode mode = layers.mode().step(direction);
             if (mode == Layers.Mode.FROM_TO && !layers.windowSet()) {
                 int layer = Layers.clamp(feetLayer, placement.height() - 1);
-                placements.update(placement.with(new Layers(mode, layer, layer)));
+                placements.update(placement.with(layers.withMode(mode).withWindow(layer, layer)));
             } else {
-                placements.update(placement.with(new Layers(mode, layers.bottom(), layers.top())));
+                placements.update(placement.with(layers.withMode(mode)));
             }
         });
     }
@@ -196,16 +196,21 @@ public final class PlacementController {
             Layers layers = placement.layers();
             int size = layers.top() - layers.bottom();
             int bottom = Math.max(0, Math.min(layers.bottom() + direction, placement.height() - 1 - size));
-            placements.update(placement.with(new Layers(layers.mode(), bottom, bottom + size)));
+            placements.update(placement.with(layers.withWindow(bottom, bottom + size)));
         });
     }
 
-    /** Raises or lowers the top of the from-to window; it keeps at least one layer. */
+    /**
+     * Raises or lowers the top of the from-to window, which keeps at least one layer; in follow feet, raises or lowers
+     * the follow offset instead.
+     */
     public void resizeWindow(int direction) {
+        locked().filter(placement -> placement.layers().mode() == Layers.Mode.FOLLOW).ifPresent(placement -> placements.update(
+                placement.with(placement.layers().withFollowOffset(placement.layers().followOffset() + direction))));
         fromTo().ifPresent(placement -> {
             Layers layers = placement.layers();
             int top = Math.max(layers.bottom(), Math.min(layers.top() + direction, placement.height() - 1));
-            placements.update(placement.with(new Layers(layers.mode(), layers.bottom(), top)));
+            placements.update(placement.with(layers.withWindow(layers.bottom(), top)));
         });
     }
 

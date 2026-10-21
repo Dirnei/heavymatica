@@ -43,7 +43,7 @@ class LockedPlacementTest {
 
     private Placement lockedFromTo(int bottom, int top) {
         Placement placement = locked();
-        placements.update(placement.with(new Layers(Mode.FROM_TO, bottom, top)));
+        placements.update(placement.with(new Layers(Mode.FROM_TO, bottom, top, 1)));
         return selected();
     }
 
@@ -117,15 +117,15 @@ class LockedPlacementTest {
         // Feet at y 68 next to a placement whose bottom is at y 64: layer 4.
         locked();
         controller.cycleLayers(1, 4);
-        assertEquals(new Layers(Mode.FROM_TO, 4, 4), selected().layers());
-        assertEquals(new Range(4, 4), Layers.visible(selected(), 4, 1));
+        assertEquals(new Layers(Mode.FROM_TO, 4, 4, 1), selected().layers());
+        assertEquals(new Range(4, 4), Layers.visible(selected(), 4));
     }
 
     @Test
     void fromToBelowThePlacementStartsAtLayerZero() {
         locked();
         controller.cycleLayers(1, -3);
-        assertEquals(new Layers(Mode.FROM_TO, 0, 0), selected().layers());
+        assertEquals(new Layers(Mode.FROM_TO, 0, 0, 1), selected().layers());
     }
 
     @Test
@@ -134,27 +134,27 @@ class LockedPlacementTest {
         controller.cycleLayers(1, 0);
         controller.cycleLayers(1, 0);
         controller.cycleLayers(1, 9);
-        assertEquals(new Layers(Mode.FROM_TO, 4, 6), selected().layers());
+        assertEquals(new Layers(Mode.FROM_TO, 4, 6, 1), selected().layers());
     }
 
     @Test
     void movingTheWindowKeepsItsSize() {
         lockedFromTo(4, 6);
         controller.moveWindow(1);
-        assertEquals(new Range(5, 7), Layers.visible(selected(), 0, 1));
+        assertEquals(new Range(5, 7), Layers.visible(selected(), 0));
         controller.moveWindow(-1);
         controller.moveWindow(-1);
-        assertEquals(new Range(3, 5), Layers.visible(selected(), 0, 1));
+        assertEquals(new Range(3, 5), Layers.visible(selected(), 0));
     }
 
     @Test
     void theWindowStopsAtTheTopAndBottom() {
         lockedFromTo(9, 11);
         controller.moveWindow(1);
-        assertEquals(new Range(9, 11), Layers.visible(selected(), 0, 1));
-        placements.update(selected().with(new Layers(Mode.FROM_TO, 0, 2)));
+        assertEquals(new Range(9, 11), Layers.visible(selected(), 0));
+        placements.update(selected().with(new Layers(Mode.FROM_TO, 0, 2, 1)));
         controller.moveWindow(-1);
-        assertEquals(new Range(0, 2), Layers.visible(selected(), 0, 1));
+        assertEquals(new Range(0, 2), Layers.visible(selected(), 0));
     }
 
     @Test
@@ -162,14 +162,52 @@ class LockedPlacementTest {
         lockedFromTo(4, 4);
         controller.resizeWindow(1);
         controller.resizeWindow(1);
-        assertEquals(new Range(4, 6), Layers.visible(selected(), 0, 1));
+        assertEquals(new Range(4, 6), Layers.visible(selected(), 0));
         controller.resizeWindow(-1);
         controller.resizeWindow(-1);
         controller.resizeWindow(-1);
-        assertEquals(new Range(4, 4), Layers.visible(selected(), 0, 1));
-        placements.update(selected().with(new Layers(Mode.FROM_TO, 10, 11)));
+        assertEquals(new Range(4, 4), Layers.visible(selected(), 0));
+        placements.update(selected().with(new Layers(Mode.FROM_TO, 10, 11, 1)));
         controller.resizeWindow(1);
-        assertEquals(new Range(10, 11), Layers.visible(selected(), 0, 1));
+        assertEquals(new Range(10, 11), Layers.visible(selected(), 0));
+    }
+
+    @Test
+    void followOffsetChangesWithPlusAndMinus() {
+        // Feet at layer 3: default offset 1 shows 0-4, numpad + shows 0-5.
+        locked();
+        controller.cycleLayers(-1, 3);
+        assertEquals(Mode.FOLLOW, selected().layers().mode());
+        assertEquals(new Range(0, 4), Layers.visible(selected(), 3));
+        controller.resizeWindow(1);
+        assertEquals(new Range(0, 5), Layers.visible(selected(), 3));
+        controller.resizeWindow(-1);
+        controller.resizeWindow(-1);
+        assertEquals(0, selected().layers().followOffset());
+        assertEquals(new Range(0, 3), Layers.visible(selected(), 3));
+    }
+
+    @Test
+    void followOffsetStaysWithinZeroAndSixteen() {
+        locked();
+        controller.cycleLayers(-1, 0);
+        for (int i = 0; i < 5; i++) {
+            controller.resizeWindow(-1);
+        }
+        assertEquals(0, selected().layers().followOffset());
+        for (int i = 0; i < 30; i++) {
+            controller.resizeWindow(1);
+        }
+        assertEquals(Layers.MAX_FOLLOW_OFFSET, selected().layers().followOffset());
+    }
+
+    @Test
+    void followOffsetDoesNotChangeTheFromToWindow() {
+        lockedFromTo(4, 6);
+        controller.cycleLayers(1, 0);
+        controller.resizeWindow(1);
+        controller.cycleLayers(-1, 0);
+        assertEquals(new Layers(Mode.FROM_TO, 4, 6, 2), selected().layers());
     }
 
     @Test
@@ -196,9 +234,9 @@ class LockedPlacementTest {
         controller.toggleInHand();
         controller.lockOrUnlock(1_000);
         controller.lockOrUnlock(1_100);
-        assertEquals(new Range(0, 11), Layers.visible(selected(), 0, 1));
+        assertEquals(new Range(0, 11), Layers.visible(selected(), 0));
         controller.lockOrUnlock(2_000);
-        assertEquals(new Range(4, 6), Layers.visible(selected(), 0, 1));
+        assertEquals(new Range(4, 6), Layers.visible(selected(), 0));
         assertTrue(selected().inHand());
     }
 

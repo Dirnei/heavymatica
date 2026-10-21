@@ -65,7 +65,7 @@ While a remote is held and the selected LOCKED placement is in from-to, numpad +
 - **THEN** the window stays layer 4 only
 
 ### Requirement: Follow feet
-In follow feet, the placement SHALL show the layers from 0 up to the layer at the player's feet plus a configurable offset (default 1), clamped into the placement. It SHALL update as the player moves up or down, whatever the player holds.
+In follow feet, the placement SHALL show the layers from 0 up to the layer at the player's feet plus the placement's follow offset, clamped into the placement. Offset 0 is the layer the player stands on and 2 is head height. The offset SHALL default to 1. It SHALL update as the player moves up or down, whatever the player holds.
 
 #### Scenario: Standing on layer 3
 - **WHEN** the player's feet are at layer 3 of a locked placement in follow feet with the default offset
@@ -74,6 +74,17 @@ In follow feet, the placement SHALL show the layers from 0 up to the layer at th
 #### Scenario: Below the placement
 - **WHEN** the player's feet are below the placement's bottom and the offset is 1
 - **THEN** only layer 0 shows
+
+### Requirement: Changing the follow offset
+While a remote is held and the selected LOCKED placement is in follow feet, numpad + SHALL raise its follow offset by one and numpad - SHALL lower it by one, between 0 and 16. The offset SHALL be kept per placement.
+
+#### Scenario: Up to head height
+- **WHEN** the follow offset is 1, the player's feet are at layer 3 and the player presses numpad +
+- **THEN** layers 0 to 5 show
+
+#### Scenario: Only the layer stood on
+- **WHEN** the follow offset is 1 and the player presses numpad - twice
+- **THEN** the offset is 0 and the shown layers end at the layer the player stands on
 
 ### Requirement: In-hand filter
 While the selected placement is LOCKED and a remote is held, the I key SHALL toggle its in-hand filter. With the filter on, the placement SHALL show the blocks matching the player's held item at normal opacity, and the blocks matching the other hotbar items at a configurable lower opacity (default one third). Other blocks SHALL NOT show. An item matches a block when it places that block, in any block state.

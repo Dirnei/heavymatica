@@ -2,7 +2,6 @@ package io.github.dirnei.mc.heavymatica.ui;
 
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaClient;
-import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
@@ -238,8 +237,7 @@ public final class DevScreens {
         for (Placement placement : session.placements().all()) {
             Heavymatica.LOGGER.info("Dev placement: {} {} {} bounds {} rotation {} mirror {} in {} layers {} visible {} in-hand {}{}", placement.name(),
                     placement.source(), placement.state(), PlacementTransform.bounds(placement), placement.rotation(), placement.mirror(),
-                    placement.dimension(), placement.layers(), Layers.visible(placement, PlacementSession.feetLayer(placement),
-                            HeavymaticaConfig.layersFollowOffset()), placement.inHand(), session.unavailable(placement) ? " (unavailable)" : "");
+                    placement.dimension(), placement.layers(), Layers.visible(placement, PlacementSession.feetLayer(placement)), placement.inHand(), session.unavailable(placement) ? " (unavailable)" : "");
         }
     }
 

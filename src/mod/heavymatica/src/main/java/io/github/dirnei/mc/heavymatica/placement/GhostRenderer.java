@@ -82,7 +82,7 @@ final class GhostRenderer {
                 Vector3f offset = new Vector3f((float) (bounds.minX() - camera.x), (float) (bounds.minY() - camera.y), (float) (bounds.minZ() - camera.z));
                 GhostCells cells = GhostMeshes.usesCells(placement) ? meshes.cells(placement, model) : null;
                 if (cells != null) {
-                    Layers.Range layers = Layers.visible(placement, PlacementSession.feetLayer(placement), HeavymaticaConfig.layersFollowOffset());
+                    Layers.Range layers = Layers.visible(placement, PlacementSession.feetLayer(placement));
                     ToDoubleFunction<Block> alpha = placement.inHand() ? inHand(opacity) : block -> opacity;
                     int full = cells.draw(event.getModelViewMatrix(), offset, layers, block -> alpha.applyAsDouble(block) >= opacity ? opacity : 0.0);
                     int dimmed = cells.draw(event.getModelViewMatrix(), offset, layers, block -> {

@@ -31,8 +31,11 @@ public final class PlacementStore {
     }
 
     record PlacementJson(UUID id, SourceJson source, String name, int width, int height, int length, int pivotX2, int y, int pivotZ2,
-                         Turn rotation, Flip mirror, String dimension, @Nullable Boolean locked, @Nullable Layers layers,
+                         Turn rotation, Flip mirror, String dimension, @Nullable Boolean locked, @Nullable LayersJson layers,
                          @Nullable Boolean inHand) {
+    }
+
+    record LayersJson(Layers.@Nullable Mode mode, int bottom, int top, @Nullable Integer followOffset) {
     }
 
     record FileJson(int version, List<PlacementJson> placements) {
@@ -161,7 +164,8 @@ public final class PlacementStore {
         };
         return new PlacementJson(placement.id(), source, placement.name(), placement.width(), placement.height(), placement.length(),
                 placement.pivotX2(), placement.y(), placement.pivotZ2(), placement.rotation(), placement.mirror(), placement.dimension(),
-                placement.locked(), placement.layers(), placement.inHand());
+                placement.locked(), new LayersJson(placement.layers().mode(), placement.layers().bottom(), placement.layers().top(),
+                placement.layers().followOffset()), placement.inHand());
     }
 
     private static Placement fromJson(PlacementJson read) {
@@ -175,7 +179,15 @@ public final class PlacementStore {
         }
         return new Placement(read.id(), source, read.name(), read.width(), read.height(), read.length(), read.pivotX2(), read.y(), read.pivotZ2(),
                 read.rotation(), read.mirror(), read.dimension(), Boolean.TRUE.equals(read.locked()) ? State.LOCKED : State.ANCHORED, 0,
-                read.layers() == null || read.layers().mode() == null ? Layers.NONE : read.layers(), Boolean.TRUE.equals(read.inHand()));
+                layers(read.layers()), Boolean.TRUE.equals(read.inHand()));
+    }
+
+    private static Layers layers(@Nullable LayersJson read) {
+        if (read == null || read.mode() == null) {
+            return Layers.NONE;
+        }
+        int followOffset = read.followOffset() == null ? Layers.DEFAULT_FOLLOW_OFFSET : read.followOffset();
+        return new Layers(read.mode(), read.bottom(), read.top(), 0).withFollowOffset(followOffset);
     }
 
     private static <T> T require(@Nullable T value) {

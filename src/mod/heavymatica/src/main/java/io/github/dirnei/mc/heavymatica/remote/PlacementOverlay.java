@@ -139,8 +139,13 @@ public final class PlacementOverlay {
             return lines;
         }
         if (placement.locked()) {
-            lines.add(new Line(pair(RemoteKeys.MOVE_FORWARD, RemoteKeys.MOVE_BACK), Component.translatable("heavymatica.overlay.hint.window"), TEXT));
-            lines.add(new Line(pair(RemoteKeys.MOVE_UP, RemoteKeys.MOVE_DOWN), Component.translatable("heavymatica.overlay.hint.window_size"), TEXT));
+            Layers.Mode mode = placement.layers().mode();
+            if (mode == Layers.Mode.FROM_TO) {
+                lines.add(new Line(pair(RemoteKeys.MOVE_FORWARD, RemoteKeys.MOVE_BACK), Component.translatable("heavymatica.overlay.hint.window"), TEXT));
+                lines.add(new Line(pair(RemoteKeys.MOVE_UP, RemoteKeys.MOVE_DOWN), Component.translatable("heavymatica.overlay.hint.window_size"), TEXT));
+            } else if (mode == Layers.Mode.FOLLOW) {
+                lines.add(new Line(pair(RemoteKeys.MOVE_UP, RemoteKeys.MOVE_DOWN), Component.translatable("heavymatica.overlay.hint.follow_height"), TEXT));
+            }
             lines.add(new Line(pair(RemoteKeys.MOVE_LEFT, RemoteKeys.MOVE_RIGHT), Component.translatable("heavymatica.overlay.hint.layer_mode"), TEXT));
             lines.add(hint(RemoteKeys.IN_HAND, "heavymatica.overlay.hint.in_hand"));
             lines.add(hint(RemoteKeys.LOCK, "heavymatica.overlay.hint.unlock"));
@@ -171,11 +176,12 @@ public final class PlacementOverlay {
 
     private static Component layersText(Placement placement) {
         int height = placement.height();
-        Layers.Range range = Layers.visible(placement, PlacementSession.feetLayer(placement), HeavymaticaConfig.layersFollowOffset());
+        Layers.Range range = Layers.visible(placement, PlacementSession.feetLayer(placement));
         return switch (placement.layers().mode()) {
             case OFF -> Component.translatable("heavymatica.overlay.layers.all", height);
             case FROM_TO -> Component.translatable("heavymatica.overlay.layers.from_to", range.from(), range.to(), height);
-            case FOLLOW -> Component.translatable("heavymatica.overlay.layers.follow", range.from(), range.to(), height);
+            case FOLLOW -> Component.translatable("heavymatica.overlay.layers.follow", placement.layers().followOffset(), range.from(), range.to(),
+                    height);
         };
     }
 

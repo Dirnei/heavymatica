@@ -94,7 +94,7 @@ class PlacementStoreTest {
     void lockedPlacementKeepsItsLayers() {
         PlacementStore store = new PlacementStore(directory, json);
         store.open(PLAYER, "sp-a");
-        Placement locked = placement(new PlacementSource.Local("bb"), State.LOCKED).with(new Layers(Layers.Mode.FROM_TO, 4, 6)).withInHand(true);
+        Placement locked = placement(new PlacementSource.Local("bb"), State.LOCKED).with(new Layers(Layers.Mode.FOLLOW, 4, 6, 3)).withInHand(true);
         store.changed(List.of(locked), 0);
         store.flush();
         assertEquals(List.of(locked), new PlacementStore(directory, json).open(PLAYER, "sp-a"));
