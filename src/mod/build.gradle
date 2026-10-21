@@ -96,7 +96,6 @@ subprojects {
         }
     }
 
-    // Expands the neoforge.mods.toml template with the shared versions.
     def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
         def replaceProperties = [
                 minecraft_version      : rootProject.minecraft_version,

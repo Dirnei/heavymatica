@@ -5,7 +5,7 @@ namespace Heavymatica.Cloud.Infrastructure.Contract;
 /// <summary>
 /// The raw request body of a binary operation (octet-stream or PNG). NSwag types binary bodies as
 /// <see cref="IFormFile"/>; this implementation reads straight from the request without buffering,
-/// so uploads keep backpressure (D2, D5). The stream can be read once.
+/// so uploads keep backpressure. The stream can be read once.
 /// </summary>
 internal sealed class StreamingBody(HttpRequest request) : IFormFile
 {

@@ -1,6 +1,6 @@
 package io.github.dirnei.mc.heavymatica.formats;
 
-/** Why a schematic file was rejected. Each code matches the contract's ProblemCode of the same wire name. */
+/** Each code matches the contract's ProblemCode of the same wire name. */
 public enum RejectionCode {
     UNSUPPORTED_FORMAT("unsupported_format"),
     FILE_TOO_LARGE("file_too_large"),

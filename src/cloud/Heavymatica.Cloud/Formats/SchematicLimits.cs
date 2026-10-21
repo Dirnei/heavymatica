@@ -1,6 +1,5 @@
 namespace Heavymatica.Cloud.Formats;
 
-/// <summary>Size limits from the schematic-formats spec.</summary>
 public static class SchematicLimits
 {
     public const long MaxFileBytes = 16L * 1024 * 1024;

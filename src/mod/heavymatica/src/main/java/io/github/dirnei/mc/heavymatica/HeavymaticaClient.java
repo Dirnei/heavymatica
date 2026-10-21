@@ -51,13 +51,11 @@ import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
-/** Client entrypoint: config, keys, the overlay and the client services (account, library, placements). */
 @Mod(value = Heavymatica.MOD_ID, dist = Dist.CLIENT)
 public final class HeavymaticaClient {
 
     public static final KeyMapping.Category CATEGORY = new KeyMapping.Category(Identifier.fromNamespaceAndPath(Heavymatica.MOD_ID, "heavymatica"));
 
-    /** Opens the library; H unless the player changes it. */
     public static final KeyMapping OPEN_LIBRARY = new KeyMapping("key.heavymatica.open_library", KeyConflictContext.IN_GAME,
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, CATEGORY);
 
@@ -76,7 +74,7 @@ public final class HeavymaticaClient {
         DevScreens.registerIfRequested();
     }
 
-    /** The cloud account; available after client setup. */
+    /** Available after client setup. */
     public static CloudAccount account() {
         if (account == null) {
             throw new IllegalStateException("Heavymatica's client services are not set up yet.");
@@ -84,7 +82,7 @@ public final class HeavymaticaClient {
         return account;
     }
 
-    /** The schematic library; available after client setup. */
+    /** Available after client setup. */
     public static Library library() {
         if (library == null) {
             throw new IllegalStateException("Heavymatica's client services are not set up yet.");
@@ -92,7 +90,7 @@ public final class HeavymaticaClient {
         return library;
     }
 
-    /** The placements of the current world; null before client setup. */
+    /** Null before client setup. */
     public static @Nullable PlacementSession placements() {
         return placements;
     }

@@ -26,7 +26,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The placements of the world or server the player is in (D8): loaded on join, saved while playing and on leaving,
+ * The placements of the world or server the player is in: loaded on join, saved while playing and on leaving,
  * with each pinned version loaded through the library. Versions that cannot be loaded stay as outlines and are tried
  * again when the library changes, for example when the cloud comes back. Game thread only.
  */

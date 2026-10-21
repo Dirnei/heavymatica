@@ -10,10 +10,9 @@ using MongoDB.Driver;
 namespace Heavymatica.Cloud.Features.Schematics.Upload;
 
 /// <summary>
-/// Uploads a schematic or a new version (cloud/schematic-storage, D5). The order makes failures invisible: quota is
-/// reserved before anything is stored and released on any later failure, the blob is stored before the version
-/// document, and the version only becomes visible once both exist. A failure leaves at most an orphan blob for the
-/// sweeper.
+/// The order makes failures invisible: quota is reserved before anything is stored and released on any later
+/// failure, the blob is stored before the version document, and the version only becomes visible once both exist.
+/// A failure leaves at most an orphan blob for the sweeper.
 /// </summary>
 internal sealed class UploadSchematic(UploadSpool spool, IMongoDatabase database, Quota quota, BlobStore blobs, TimeProvider time)
 {

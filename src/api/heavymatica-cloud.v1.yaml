@@ -462,7 +462,7 @@ components:
       type: string
       description: Stable reason code. Clients map it to a localized message.
       enum:
-        # Schematic file rejections (schematic-formats)
+        # Schematic file rejections
         - unsupported_format
         - file_too_large
         - decompressed_too_large

@@ -11,7 +11,6 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Heavymatica.Cloud.Tests.Features.Schematics;
 
-/// <summary>cloud/schematic-storage: listing, access, organizing, links, thumbnails, deletion and sweeping.</summary>
 [Trait("Category", "Integration")]
 public sealed class LibraryTests(CloudInfrastructure infrastructure) : IDisposable
 {

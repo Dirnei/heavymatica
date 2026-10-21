@@ -17,7 +17,6 @@ import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** client/schematic-library: read-through cache, integrity and size limit. */
 class SchematicCacheTest {
 
     @TempDir

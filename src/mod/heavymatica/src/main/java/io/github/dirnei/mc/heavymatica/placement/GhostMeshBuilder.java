@@ -16,7 +16,7 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * Tessellates a ghost off the render thread (D6): every block of a view of size {@code sx x sy x sz} that is not air,
+ * Tessellates a ghost off the render thread: every block of a view of size {@code sx x sy x sz} that is not air,
  * has a model and is not fully hidden by full opaque neighbours. Like vanilla section compiling, this only reads models
  * and may run on a worker thread.
  */

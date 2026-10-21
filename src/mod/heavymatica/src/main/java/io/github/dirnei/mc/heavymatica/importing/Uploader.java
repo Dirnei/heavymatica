@@ -9,9 +9,9 @@ import java.util.function.Function;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Uploads local entries to the cloud (client/schematic-import): as a new schematic or as a new version of one. Only a
- * successful upload turns the entry into a cloud schematic; a failed one keeps it local. A thumbnail is rendered
- * and attached afterwards; when that fails the upload still counts.
+ * Uploads local entries to the cloud as a new schematic or as a new version of one. Only a successful upload turns the
+ * entry into a cloud schematic; a failed one keeps it local. A thumbnail is rendered and attached afterwards; when that
+ * fails the upload still counts.
  */
 public final class Uploader {
 
@@ -27,8 +27,6 @@ public final class Uploader {
     }
 
     /**
-     * Uploads the entry.
-     *
      * @param schematicId the cloud schematic to add a version to, or null for a new schematic named after the entry
      */
     public CompletableFuture<UploadResult> upload(LocalLibrary.LocalEntry entry, @Nullable String schematicId) {

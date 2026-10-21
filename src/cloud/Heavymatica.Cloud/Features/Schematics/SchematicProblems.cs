@@ -9,7 +9,7 @@ internal static class SchematicProblems
 {
     /// <summary>
     /// The same answer for a schematic that does not exist and one owned by another account, so nobody can probe
-    /// for other players' schematics (cloud/schematic-storage, owner-only access).
+    /// for other players' schematics.
     /// </summary>
     public static ObjectResult NotFound() =>
         Problems.Result(StatusCodes.Status404NotFound, ProblemCode.Not_found, "No such schematic or version.");

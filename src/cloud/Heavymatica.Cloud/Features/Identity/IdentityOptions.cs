@@ -1,6 +1,5 @@
 namespace Heavymatica.Cloud.Features.Identity;
 
-/// <summary>Configuration section <c>Identity</c>.</summary>
 internal sealed class IdentityOptions
 {
     public const string Section = "Identity";

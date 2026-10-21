@@ -23,7 +23,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** client/schematic-library: one list for cloud and local entries, filters, stored listing and offline use. */
 class LibraryTest {
 
     private static final UUID PLAYER = UUID.fromString("8667ba71-b85a-4004-af54-457a9734eed7");

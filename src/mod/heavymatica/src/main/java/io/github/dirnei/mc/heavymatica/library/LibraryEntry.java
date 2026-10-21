@@ -8,7 +8,7 @@ import java.util.Locale;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * One card in the library: a cloud schematic (its latest version) or a local-only entry (client/schematic-library).
+ * One card in the library: a cloud schematic (its latest version) or a local-only entry.
  *
  * @param id cloud schematic ID, or the content hash of a local entry
  */

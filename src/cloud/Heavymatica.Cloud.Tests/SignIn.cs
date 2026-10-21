@@ -37,7 +37,6 @@ internal static class SignIn
         return (await response.Content.ReadFromJsonAsync<Session>(Json, TestContext.Current.CancellationToken))!;
     }
 
-    /// <summary>A client that sends the session's access token.</summary>
     public static HttpClient Authorize(this HttpClient client, string accessToken)
     {
         ArgumentNullException.ThrowIfNull(client);

@@ -3,7 +3,6 @@ using MongoDB.Driver;
 
 namespace Heavymatica.Cloud.Features.Account;
 
-/// <summary>A player's account, keyed by the Minecraft UUID Mojang reported (D9).</summary>
 internal sealed class AccountDocument
 {
     public const string Collection = "accounts";

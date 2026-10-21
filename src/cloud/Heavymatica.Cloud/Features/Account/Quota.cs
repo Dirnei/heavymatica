@@ -4,14 +4,13 @@ using MongoDB.Driver;
 namespace Heavymatica.Cloud.Features.Account;
 
 /// <summary>
-/// Storage quota: every stored version and thumbnail counts toward <c>usedBytes</c>. Reservations are a single
-/// conditional increment, so concurrent uploads can never take an account over its quota (D5).
+/// Every stored version and thumbnail counts toward <c>usedBytes</c>. Reservations are a single conditional
+/// increment, so concurrent uploads can never take an account over its quota.
 /// </summary>
 internal sealed class Quota(IMongoDatabase database)
 {
     private readonly IMongoCollection<AccountDocument> accounts = AccountDocument.In(database);
 
-    /// <summary>Adds <paramref name="bytes"/> to the account's usage if it stays within the quota.</summary>
     public async Task<bool> TryReserveAsync(string accountId, long bytes, CancellationToken cancellationToken)
     {
         var fits = new BsonDocument("$expr", new BsonDocument("$lte", new BsonArray

@@ -11,7 +11,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Heavymatica.Cloud.Features.Schematics;
 
-/// <summary>Implements the contract's Schematics operations by forwarding to the schematic slices.</summary>
 internal sealed class SchematicsApi(
     IHttpContextAccessor http,
     ListSchematics list,

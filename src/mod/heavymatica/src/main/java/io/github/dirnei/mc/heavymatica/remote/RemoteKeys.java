@@ -10,9 +10,8 @@ import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * The placement keys (D3). They live in {@link #HOLDING_REMOTE}, so they only act while a remote is in the main hand
- * and no screen is open, and never show as conflicting with bindings outside that context. Shift is read when a key
- * is pressed rather than bound, so rebinding keeps the Shift variants.
+ * The placement keys. They live in {@link #HOLDING_REMOTE}, so they only act while a remote is in the main hand
+ * and no screen is open. Shift is read when a key is pressed rather than bound, so rebinding keeps the Shift variants.
  */
 public final class RemoteKeys {
 

@@ -6,7 +6,6 @@ using OpenTelemetry.Trace;
 
 namespace Heavymatica.Cloud.Infrastructure;
 
-/// <summary>Telemetry and health endpoints every deployment of the service gets.</summary>
 internal static class ServiceDefaults
 {
     private const string LiveTag = "live";

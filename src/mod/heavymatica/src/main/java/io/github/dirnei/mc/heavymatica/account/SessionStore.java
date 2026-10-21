@@ -11,8 +11,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Cloud sessions on disk, one file per Minecraft UUID ({@code sessions/<uuid>.json}, D4), so a session is only ever
- * used by the Minecraft account that signed in.
+ * Cloud sessions on disk, one file per Minecraft UUID ({@code sessions/<uuid>.json}); a session is only ever used by
+ * the Minecraft account that signed in.
  */
 public final class SessionStore {
 

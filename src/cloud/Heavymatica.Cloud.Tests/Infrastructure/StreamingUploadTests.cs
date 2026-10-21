@@ -15,7 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Heavymatica.Cloud.Tests.Infrastructure;
 
 /// <summary>
-/// Uploads must reach the slice as a live stream (D2, D5). The client sends the first MiB and then waits until
+/// Uploads must reach the slice as a live stream. The client sends the first MiB and then waits until
 /// the slice has read from the body before sending the rest. If anything buffered the whole body before calling
 /// the slice, the client would never get that signal and the upload would time out.
 /// </summary>

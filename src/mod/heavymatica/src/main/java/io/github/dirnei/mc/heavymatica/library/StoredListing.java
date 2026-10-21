@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * The last known cloud listing of each Minecraft account ({@code library/<uuid>/listing.json}, D10), shown while the
- * cloud is unreachable or the session expired, and deleted when the player signs out.
+ * The last known cloud listing of each Minecraft account ({@code library/<uuid>/listing.json}), shown while the cloud
+ * is unreachable or the session expired, and deleted when the player signs out.
  */
 public final class StoredListing {
 

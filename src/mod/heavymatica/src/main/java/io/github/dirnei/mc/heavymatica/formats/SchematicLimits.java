@@ -4,7 +4,7 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-/** Size limits from the schematic-formats spec, identical to the cloud's. */
+/** Size limits; must stay identical to the cloud's. */
 public final class SchematicLimits {
 
     public static final long MAX_FILE_BYTES = 16L * 1024 * 1024;

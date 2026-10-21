@@ -4,7 +4,7 @@ using MongoDB.Driver;
 
 namespace Heavymatica.Cloud.Features.Identity;
 
-/// <summary>An issued sign-in challenge. Expired documents are removed by a TTL index.</summary>
+/// <summary>Expired documents are removed by a TTL index.</summary>
 internal sealed class ChallengeDocument
 {
     public const string Collection = "challenges";

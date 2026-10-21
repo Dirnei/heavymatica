@@ -17,7 +17,7 @@ import net.minecraft.util.Util;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Ghost meshes by (content hash, rotation, mirror) (D6). Building runs on a worker; until it is done a placement keeps
+ * Ghost meshes by (content hash, rotation, mirror). Building runs on a worker; until it is done a placement keeps
  * drawing the mesh it showed before. Meshes no live placement needs are freed, and everything is dropped when block
  * models are reloaded. Render thread only.
  */

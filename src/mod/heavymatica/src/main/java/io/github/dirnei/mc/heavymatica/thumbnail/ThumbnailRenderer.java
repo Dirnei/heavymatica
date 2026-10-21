@@ -32,7 +32,7 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * Renders a schematic into a 256 x 256 PNG with a fixed isometric camera (D12), offscreen: block models are
+ * Renders a schematic into a 256 x 256 PNG with a fixed isometric camera, offscreen: block models are
  * tessellated like moving blocks, drawn into a texture of our own and read back from the GPU. Must be called on the
  * render thread. Only the visible surface is drawn, up to {@link #BLOCK_BUDGET} blocks.
  */

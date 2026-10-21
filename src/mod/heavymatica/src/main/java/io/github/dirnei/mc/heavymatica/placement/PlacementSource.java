@@ -9,7 +9,6 @@ public sealed interface PlacementSource {
     record Cloud(String schematicId, int version, String sha256) implements PlacementSource {
     }
 
-    /** A local-only library entry. */
     record Local(String sha256) implements PlacementSource {
     }
 }

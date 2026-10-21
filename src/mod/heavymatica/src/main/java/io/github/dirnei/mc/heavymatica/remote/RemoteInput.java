@@ -22,7 +22,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Turns the remote's input into placement changes (D4): takes right-click while a remote is held (cancelled before
+ * Turns the remote's input into placement changes: takes right-click while a remote is held (cancelled before
  * vanilla sends anything to the server), reads the placement keys with key repeat for moves, and keeps a FOLLOWING
  * placement on the crosshair.
  */

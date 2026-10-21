@@ -6,8 +6,7 @@ using MongoDB.Driver;
 namespace Heavymatica.Cloud.Features.Schematics.Sweeper;
 
 /// <summary>
-/// Removes blobs no version refers to: leftovers of failed uploads and anything a deletion missed. Only blobs older
-/// than <see cref="StorageOptions.OrphanAge"/> are touched, so an upload in flight never loses its blob (D5).
+/// Only blobs older than <see cref="StorageOptions.OrphanAge"/> are touched, so an upload in flight never loses its blob.
 /// </summary>
 internal sealed class BlobSweeper(IMongoDatabase database, BlobStore blobs, TimeProvider time, IOptions<StorageOptions> options)
 {

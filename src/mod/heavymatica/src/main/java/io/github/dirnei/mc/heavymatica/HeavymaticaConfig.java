@@ -81,7 +81,7 @@ public final class HeavymaticaConfig {
         return CACHE_SIZE_MIB.get() * 1024L * 1024L;
     }
 
-    /** The configured remote item's ID; whether such an item exists is checked when it is used. */
+    /** Whether such an item exists is checked when it is used. */
     public static String remoteItem() {
         return REMOTE_ITEM.get();
     }

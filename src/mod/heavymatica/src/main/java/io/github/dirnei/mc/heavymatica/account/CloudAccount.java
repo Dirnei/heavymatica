@@ -18,12 +18,11 @@ import java.util.function.Supplier;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The player's Heavymatica Cloud account in the game (client/cloud-account). Signs in with the Minecraft account the
- * game runs with, keeps the session per Minecraft UUID, refreshes it quietly and signs out. Makes no network call
- * until the player signs in for the first time.
+ * The player's cloud account, one session per Minecraft UUID. Makes no network call until the player signs in for the
+ * first time.
  *
- * <p>Implements {@link TokenSource} for the {@link #client()} feature code uses. Sign-in and refresh go through a
- * separate client without a token, so a 401 from them can never trigger another refresh.
+ * <p>Sign-in and refresh must go through a separate client without a token, so a 401 from them can never trigger
+ * another refresh.
  */
 public final class CloudAccount implements TokenSource {
 
@@ -82,7 +81,6 @@ public final class CloudAccount implements TokenSource {
         return status == Status.SIGNED_IN;
     }
 
-    /** The signed-in player's name, usage and quota, when known. */
     public Optional<Account> account() {
         return Optional.ofNullable(account);
     }
@@ -131,7 +129,6 @@ public final class CloudAccount implements TokenSource {
                 });
     }
 
-    /** Fetches the current usage and quota. */
     public CompletableFuture<Account> refreshAccount() {
         return client.call(apis -> apis.account().getMe()).thenApply(fresh -> {
             account = fresh;

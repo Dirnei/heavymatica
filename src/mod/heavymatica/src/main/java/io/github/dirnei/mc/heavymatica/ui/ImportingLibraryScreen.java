@@ -21,7 +21,7 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The library screen with importing and uploading (client/schematic-import): files dropped on the screen or picked
+ * The library screen with importing and uploading: files dropped on the screen or picked
  * from the schematic folders become local entries; local entries upload as a new schematic or a new version.
  */
 public final class ImportingLibraryScreen extends LibraryScreen {

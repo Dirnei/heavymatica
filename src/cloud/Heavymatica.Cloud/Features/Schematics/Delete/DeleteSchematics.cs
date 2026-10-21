@@ -8,8 +8,7 @@ using MongoDB.Driver;
 namespace Heavymatica.Cloud.Features.Schematics.Delete;
 
 /// <summary>
-/// Deletes a whole schematic or a single version. Usage is released at once; a file blob is removed when no other
-/// version of the account still refers to it (D5), so issued links stop working no later than their expiry.
+/// Usage is released at once; a file blob is removed only when no other version of the account refers to it.
 /// </summary>
 internal sealed class DeleteSchematics(IMongoDatabase database, Quota quota, BlobStore blobs)
 {

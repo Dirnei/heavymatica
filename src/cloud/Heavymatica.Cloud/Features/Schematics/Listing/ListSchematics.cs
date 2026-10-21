@@ -10,8 +10,7 @@ using MongoDB.Driver;
 namespace Heavymatica.Cloud.Features.Schematics.Listing;
 
 /// <summary>
-/// The caller's schematics, newest change first, filtered by name text, folder and tag (D8). Pages continue from an
-/// opaque cursor over (updatedAt, id), so inserts between pages never repeat or skip entries.
+/// Pages continue from an opaque cursor over (updatedAt, id), so inserts between pages never repeat or skip entries.
 /// </summary>
 internal sealed class ListSchematics(IMongoDatabase database)
 {

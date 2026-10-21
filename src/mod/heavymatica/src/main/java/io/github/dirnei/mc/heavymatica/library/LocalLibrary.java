@@ -20,9 +20,8 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * Local-only library entries (client/schematic-import): each keeps its own copy of the file under
- * {@code local/<sha256>.<ext>}, so it stays usable when the source file is moved or deleted, and works signed out.
- * Never evicted (D10).
+ * Local-only library entries: each keeps its own copy of the file under {@code local/<sha256>.<ext>}, independent of
+ * the source file, and works signed out. Never evicted.
  */
 public final class LocalLibrary {
 
@@ -50,7 +49,6 @@ public final class LocalLibrary {
         return entries.stream().filter(entry -> entry.sha256().equals(sha256)).findFirst();
     }
 
-    /** The entry's own copy of the file. */
     public Path file(LocalEntry entry) {
         return directory.resolve(entry.sha256() + "." + entry.extension());
     }

@@ -6,7 +6,6 @@ import net.neoforged.fml.common.Mod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Mod entrypoint for Heavymatica. */
 @Mod(Heavymatica.MOD_ID)
 public final class Heavymatica {
 

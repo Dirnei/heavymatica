@@ -11,7 +11,7 @@ import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 
 /**
- * The ghost pipeline (D7): vanilla's block shader with translucent blending, depth test on and depth write off, so
+ * Vanilla's block shader with translucent blending, depth test on and depth write off, so
  * real blocks hide ghosts and ghosts never hide each other. The alpha comes from the colour modulator.
  */
 public final class GhostPipeline {

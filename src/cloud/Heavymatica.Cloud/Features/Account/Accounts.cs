@@ -3,16 +3,13 @@ using MongoDB.Driver;
 
 namespace Heavymatica.Cloud.Features.Account;
 
-/// <summary>Configuration section <c>Storage</c> values the account needs.</summary>
 internal sealed class QuotaOptions
 {
     public const string Section = "Storage";
 
-    /// <summary>Quota of a new account; 100 MiB unless configured.</summary>
     public long DefaultQuotaBytes { get; set; } = 100L * 1024 * 1024;
 }
 
-/// <summary>Accounts, keyed by Minecraft UUID.</summary>
 internal sealed class Accounts(IMongoDatabase database, TimeProvider time, IOptions<QuotaOptions> quota)
 {
     private readonly IMongoCollection<AccountDocument> accounts = AccountDocument.In(database);

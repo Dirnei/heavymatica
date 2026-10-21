@@ -6,8 +6,7 @@ namespace Heavymatica.Cloud.Features.Identity;
 
 /// <summary>
 /// Refresh tokens. A token is <c>{sessionId}.{secret}</c>; only the SHA-256 of the current token is stored.
-/// Exchanging a token rotates it; presenting a token that was already exchanged revokes the whole session,
-/// because it means the token was copied (D3).
+/// Exchanging a token rotates it; presenting a token that was already exchanged revokes the whole session.
 /// </summary>
 internal sealed class Sessions(IMongoDatabase database, TimeProvider time)
 {

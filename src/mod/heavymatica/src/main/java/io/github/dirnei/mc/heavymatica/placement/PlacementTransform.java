@@ -5,7 +5,7 @@ import io.github.dirnei.mc.heavymatica.placement.Placement.State;
 import io.github.dirnei.mc.heavymatica.placement.Placement.Turn;
 
 /**
- * Placement math, free of the game (D5): bounds from the doubled pivot, rotating and mirroring in place, moving relative
+ * Placement math, free of the game: bounds from the doubled pivot, rotating and mirroring in place, moving relative
  * to the camera, following the crosshair, and mapping placed blocks back to schematic positions. Mirroring is applied
  * before rotating, in schematic-local space, like vanilla structure templates.
  */
@@ -131,7 +131,6 @@ public final class PlacementTransform {
         return placement.with(2 * targetX + 1, targetY + placement.followOffset(), 2 * targetZ + 1);
     }
 
-    /** Fixes the placement where it is. */
     public static Placement anchor(Placement placement) {
         return placement.with(State.ANCHORED, 0);
     }

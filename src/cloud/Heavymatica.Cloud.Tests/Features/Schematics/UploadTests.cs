@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Heavymatica.Cloud.Tests.Features.Schematics;
 
-/// <summary>cloud/schematic-storage: uploads, validation, versions, identical re-uploads and quota (D5).</summary>
 [Trait("Category", "Integration")]
 public sealed class UploadTests(CloudInfrastructure infrastructure) : IDisposable
 {

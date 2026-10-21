@@ -21,16 +21,15 @@ import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
 /**
- * The only way feature code talks to the Heavymatica Cloud (D4). Wraps the client generated from the contract:
- * adds the bearer token, refreshes it once when the cloud answers 401, turns failures into {@link CloudException}
- * and completes every call on the given executor (the render thread in game), so callers never block a frame.
+ * The only way feature code talks to the cloud. Adds the bearer token, refreshes it once when the cloud answers 401,
+ * turns failures into {@link CloudException} and completes every call on the given executor (the render thread in
+ * game), so callers never block a frame.
  *
- * <p>The generated client cannot send raw binary bodies (it serializes them as JSON), so the three binary
- * operations are sent here by hand while still using the generated models for their answers.
+ * <p>The generated client cannot send raw binary bodies (it serializes them as JSON), so the binary operations are
+ * sent by hand.
  */
 public final class CloudClient {
 
-    /** The generated APIs, sharing one HTTP client and one token interceptor. */
     public record Apis(AuthApi auth, AccountApi account, SchematicsApi schematics) {
     }
 
@@ -70,7 +69,6 @@ public final class CloudClient {
         return json;
     }
 
-    /** Sends a call through the generated APIs. */
     public <T> CompletableFuture<T> call(Call<T> call) {
         return deliver(withRefresh(() -> {
             try {
@@ -81,21 +79,18 @@ public final class CloudClient {
         }));
     }
 
-    /** Uploads a file as a new schematic (operation {@code uploadSchematic}). */
     public CompletableFuture<UploadResult> uploadSchematic(String name, Path file) {
         return deliver(withRefresh(() -> sendBinary("POST",
                 "/v1/schematics?name=" + URLEncoder.encode(name, StandardCharsets.UTF_8), "application/octet-stream", publisher(file))
                 .thenApply(body -> read(body, UploadResult.class))));
     }
 
-    /** Uploads a file as a new version of an existing schematic (operation {@code uploadVersion}). */
     public CompletableFuture<UploadResult> uploadVersion(String schematicId, Path file) {
         return deliver(withRefresh(() -> sendBinary("POST",
                 "/v1/schematics/" + segment(schematicId) + "/versions", "application/octet-stream", publisher(file))
                 .thenApply(body -> read(body, UploadResult.class))));
     }
 
-    /** Attaches a PNG thumbnail to a version (operation {@code attachThumbnail}). */
     public CompletableFuture<Void> attachThumbnail(String schematicId, int versionNumber, byte[] png) {
         return deliver(withRefresh(() -> sendBinary("PUT",
                 "/v1/schematics/" + segment(schematicId) + "/versions/" + versionNumber + "/thumbnail", "image/png",

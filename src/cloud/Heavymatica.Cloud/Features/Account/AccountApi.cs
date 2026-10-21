@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Heavymatica.Cloud.Features.Account;
 
-/// <summary>Implements the contract's Account operations.</summary>
 internal sealed class AccountApi(Accounts accounts, IHttpContextAccessor http) : IAccountController
 {
     public async Task<ActionResult<Contract.Account>> GetMeAsync(CancellationToken cancellationToken = default)

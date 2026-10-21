@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace Heavymatica.Cloud.Features.Identity;
 
 /// <summary>
-/// A stand-in for Mojang's session server, mapped only in Development (D3). Dev clients have no Microsoft-signed
+/// A stand-in for Mojang's session server, mapped only in Development. Dev clients have no Microsoft-signed
 /// session, so they join through <c>/dev/mojang/session/minecraft/join</c> with any token; the service then asks
 /// <c>hasJoined</c> here instead of at Mojang. It accepts every join, so it must never be reachable in production.
 /// </summary>

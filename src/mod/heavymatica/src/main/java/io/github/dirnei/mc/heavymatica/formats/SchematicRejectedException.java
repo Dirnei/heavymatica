@@ -1,6 +1,5 @@
 package io.github.dirnei.mc.heavymatica.formats;
 
-/** Thrown while reading when a file breaks a format rule or limit. */
 public final class SchematicRejectedException extends RuntimeException {
 
     private final RejectionCode code;

@@ -13,9 +13,9 @@ import java.util.Objects;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The canonical model every accepted file is read into (schematic-formats, D6): a size, a block state at every
- * position as an index into {@link #palette()} (x fastest, then z, then y), block entities by position, and the data
- * version when the file records one. Independent of the game, so it can be built, tested and cached anywhere.
+ * The canonical model every accepted file is read into: a size, a block state at every position as an index into
+ * {@link #palette()} (x fastest, then z, then y), block entities by position, and the data version when the file
+ * records one. Independent of the game.
  */
 public final class SchematicModel {
 

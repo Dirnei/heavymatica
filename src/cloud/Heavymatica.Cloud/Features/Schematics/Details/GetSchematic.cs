@@ -4,7 +4,6 @@ using MongoDB.Driver;
 
 namespace Heavymatica.Cloud.Features.Schematics.Details;
 
-/// <summary>A schematic the caller owns, with all its versions, oldest first.</summary>
 internal sealed class GetSchematic(IMongoDatabase database)
 {
     private readonly IMongoCollection<SchematicDocument> schematics = SchematicDocument.In(database);

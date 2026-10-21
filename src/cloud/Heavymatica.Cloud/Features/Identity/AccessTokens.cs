@@ -6,7 +6,6 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Heavymatica.Cloud.Features.Identity;
 
-/// <summary>Issues the service's ES256 access tokens and describes how to validate them (D3).</summary>
 internal sealed class AccessTokens
 {
     public const string AccountClaim = "sub";
@@ -53,8 +52,7 @@ internal sealed class AccessTokens
 }
 
 /// <summary>
-/// The ES256 key pair. Outside Development the private key must come from configuration, so every instance signs
-/// with the same key and later game-server tokens can be checked with the public key alone.
+/// Outside Development the private key must come from configuration, so every instance signs with the same key.
 /// </summary>
 internal sealed class SigningKey : IDisposable
 {

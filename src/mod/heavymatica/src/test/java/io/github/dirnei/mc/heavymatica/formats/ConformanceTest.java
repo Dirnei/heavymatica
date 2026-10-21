@@ -17,7 +17,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-/** Reads every file of the shared conformance set and compares the result with its expected JSON (D7). */
+/** Reads every file of the shared conformance set and compares the result with its expected JSON. */
 class ConformanceTest {
 
     private static final Path CONFORMANCE = locate();

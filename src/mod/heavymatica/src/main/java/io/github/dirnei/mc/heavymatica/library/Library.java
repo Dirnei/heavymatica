@@ -28,9 +28,9 @@ import java.util.function.Supplier;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The player's library: their cloud schematics and local-only entries in one list (client/schematic-library). Keeps
- * the last known cloud listing for offline use, serves version files and thumbnails through the read-through cache,
- * and organizes cloud schematics. Every call completes on the completion executor and never blocks the caller.
+ * The player's cloud schematics and local-only entries in one list. Keeps the last known cloud listing for offline
+ * use and serves version files and thumbnails through the read-through cache. Every call completes on the completion
+ * executor and never blocks the caller.
  */
 public final class Library {
 

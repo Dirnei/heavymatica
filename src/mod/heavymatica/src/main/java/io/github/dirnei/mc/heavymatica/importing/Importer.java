@@ -15,9 +15,9 @@ import java.util.function.Supplier;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Imports schematic files into the library as local-only entries (client/schematic-import). Every file is validated
- * first; a rejected file changes nothing. A file identical to an entry already in the library is reported with that
- * entry instead of being imported, unless the player imports it anyway.
+ * Imports schematic files into the library as local-only entries. Every file is validated first; a rejected file
+ * changes nothing. A file identical to an entry already in the library is reported with that entry instead of being
+ * imported, unless the player imports it anyway.
  */
 public final class Importer {
 
@@ -28,8 +28,6 @@ public final class Importer {
     }
 
     /**
-     * The result for one file.
-     *
      * @param match  the library entry a duplicate matches
      * @param reason why the file was rejected
      */

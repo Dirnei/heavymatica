@@ -21,7 +21,7 @@ import org.joml.Vector4f;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * A ghost's block geometry on the GPU (D6), in placement-local coordinates: drawn every frame with the placement's
+ * A ghost's block geometry on the GPU, in placement-local coordinates: drawn every frame with the placement's
  * position as model offset, so moving a placement never rebuilds it.
  */
 public final class GhostMesh implements AutoCloseable {

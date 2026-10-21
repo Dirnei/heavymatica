@@ -13,9 +13,8 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipException;
 
 /**
- * Reads any supported schematic file into a {@link SchematicModel}, or rejects it with a
- * {@link SchematicRejectedException} carrying the reason code (schematic-formats, D6). Produces the same results as
- * the cloud's reader for every file of the shared conformance set.
+ * Must produce the same results as the cloud's reader for every file of the shared conformance set, including the
+ * reason code of a {@link SchematicRejectedException}.
  */
 public final class SchematicReader {
 

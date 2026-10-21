@@ -10,9 +10,8 @@ import java.util.function.Consumer;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The placements of the current world or server and the one selected placement (client/schematic-placement). Kept
- * most recently selected or created first, which is also the order the rendering budget is spent in (D7). Not
- * thread-safe: used on the game thread only.
+ * The placements of the current world or server and the one selected placement. Kept most recently selected or created
+ * first, which is also the order the rendering budget is spent in. Not thread-safe: used on the game thread only.
  */
 public final class Placements {
 

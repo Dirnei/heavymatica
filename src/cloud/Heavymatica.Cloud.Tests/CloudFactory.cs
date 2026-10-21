@@ -35,7 +35,6 @@ public class CloudFactory : WebApplicationFactory<ServiceAssembly>
     /// <summary>When set, replaces the service clock, so tests can move time forward.</summary>
     public FakeTimeProvider? Clock { get; init; }
 
-    /// <summary>Overrides configuration for this factory, for example limits or the Mojang address.</summary>
     public CloudFactory With(string key, string? value)
     {
         settings[key] = value;

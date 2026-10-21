@@ -29,7 +29,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The contract is served as written (D2). -->
+    <!-- The contract is served as written. -->
     <EmbeddedResource Include="$(ContractFile)" LogicalName="heavymatica-cloud.v1.yaml" />
   </ItemGroup>
 
@@ -44,7 +44,7 @@
   </Target>
 
   <!--
-    Controllers and DTOs generated from the contract (D2). Each tag becomes a controller that
+    Controllers and DTOs generated from the contract. Each tag becomes a controller that
     forwards to an I<Tag>Controller interface, implemented by the feature slices.
   -->
   <PropertyGroup>

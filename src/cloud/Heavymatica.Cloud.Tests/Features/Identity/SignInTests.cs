@@ -7,7 +7,6 @@ using MongoDB.Driver;
 
 namespace Heavymatica.Cloud.Tests.Features.Identity;
 
-/// <summary>cloud/identity: challenge, Mojang verification, single use, expiry and accounts (D3).</summary>
 [Trait("Category", "Integration")]
 public sealed class SignInTests(CloudInfrastructure infrastructure) : IDisposable
 {

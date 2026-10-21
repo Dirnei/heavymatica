@@ -5,13 +5,12 @@ using MongoDB.Driver;
 
 namespace Heavymatica.Cloud.Infrastructure.Mongo;
 
-/// <summary>Creates a slice's indexes at startup. Each slice registers its own (D9).</summary>
+/// <summary>Creates a slice's indexes at startup. Each slice registers its own.</summary>
 internal interface IMongoIndexes
 {
     Task CreateAsync(IMongoDatabase database, CancellationToken cancellationToken);
 }
 
-/// <summary>MongoDB client, database, conventions, index creation and health check.</summary>
 internal static class MongoServices
 {
     public const string ConnectionName = "heavymatica";

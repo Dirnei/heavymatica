@@ -2,7 +2,6 @@ package io.github.dirnei.mc.heavymatica.account;
 
 import io.github.dirnei.mc.heavymatica.cloud.model.ProblemCode;
 
-/** Why a sign-in failed, as the player is told (client/cloud-account). Each has a translation key. */
 public enum SignInFailure {
     /** The game's account cannot be verified, for example an offline-mode game. */
     UNVERIFIABLE_ACCOUNT("heavymatica.account.error.unverifiable"),
@@ -34,7 +33,6 @@ public enum SignInFailure {
         return UNEXPECTED;
     }
 
-    /** A sign-in that failed for {@link #failure()}. */
     public static final class SignInException extends RuntimeException {
         private final SignInFailure failure;
 

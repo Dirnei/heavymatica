@@ -22,8 +22,8 @@ internal sealed class SpooledUpload(string path, long size, string sha256) : IDi
 }
 
 /// <summary>
-/// Streams an upload body to a temporary file with Akka.Streams (D5): backpressure reaches the client, at most
-/// 16 MiB is accepted, and the SHA-256 is computed on the way, so the file is never held in memory.
+/// Streams an upload body to a temporary file: backpressure reaches the client and the SHA-256 is computed on the
+/// way, so the file is never held in memory.
 /// </summary>
 internal sealed class UploadSpool(ActorSystem system)
 {

@@ -30,7 +30,6 @@ public static class RejectionCodes
     };
 }
 
-/// <summary>Thrown while reading when a file breaks a format rule or limit.</summary>
 public sealed class SchematicRejectedException : Exception
 {
     public SchematicRejectedException(RejectionCode code, string message)

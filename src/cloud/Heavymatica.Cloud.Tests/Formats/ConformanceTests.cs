@@ -3,7 +3,7 @@ using Heavymatica.Cloud.Formats;
 
 namespace Heavymatica.Cloud.Tests.Formats;
 
-/// <summary>Reads every file of the shared conformance set and compares the result with its expected JSON (D7).</summary>
+/// <summary>Reads every file of the shared conformance set and compares the result with its expected JSON.</summary>
 public sealed class ConformanceTests
 {
     public static TheoryData<string> Fixtures()

@@ -21,7 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** client/cloud-account against a stub cloud and a fake Mojang join. */
+/** Runs against a stub cloud and a fake Mojang join. */
 class CloudAccountTest {
 
     private static final UUID PLAYER = UUID.fromString("8667ba71-b85a-4004-af54-457a9734eed7");

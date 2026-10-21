@@ -6,7 +6,7 @@ using MongoDB.Driver;
 
 namespace Heavymatica.Cloud.Features.Schematics.Organize;
 
-/// <summary>Renames, moves and tags a schematic. Changes the schematic only, never a version.</summary>
+/// <summary>Changes the schematic only, never a version.</summary>
 internal sealed class OrganizeSchematic(IMongoDatabase database, TimeProvider time)
 {
     private const int MaxTags = 20;

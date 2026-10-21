@@ -4,13 +4,11 @@ using Microsoft.Extensions.Options;
 
 namespace Heavymatica.Cloud.Features.Identity;
 
-/// <summary>A player as Mojang's session server reports them.</summary>
 internal sealed record MojangProfile(Guid Id, string Name);
 
 /// <summary>Mojang could not be asked: unreachable, timed out or answered with an error.</summary>
 internal sealed class MojangUnavailableException(string message, Exception? inner = null) : Exception(message, inner);
 
-/// <summary>Asks Mojang's session server whether a player joined a server ID (D3).</summary>
 internal sealed class MojangSessions(HttpClient http, IOptions<IdentityOptions> options)
 {
     public const string HttpClientName = "mojang";

@@ -9,7 +9,6 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Heavymatica.Cloud.Tests.Features.Identity;
 
-/// <summary>cloud/identity: access tokens, refresh rotation, sign-out, rate limiting and the DevMojang boundary.</summary>
 [Trait("Category", "Integration")]
 public sealed class TokenTests(CloudInfrastructure infrastructure) : IDisposable
 {

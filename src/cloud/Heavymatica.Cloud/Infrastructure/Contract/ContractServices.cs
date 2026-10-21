@@ -5,7 +5,6 @@ using Heavymatica.Cloud.Features.Schematics;
 
 namespace Heavymatica.Cloud.Infrastructure.Contract;
 
-/// <summary>Wires the controllers generated from the contract to the feature slices that implement them.</summary>
 internal static class ContractServices
 {
     public static IServiceCollection AddContract(this IServiceCollection services)
@@ -19,7 +18,7 @@ internal static class ContractServices
         return services;
     }
 
-    /// <summary>Maps the generated controllers and serves the contract exactly as written (D2).</summary>
+    /// <summary>Maps the generated controllers and serves the contract exactly as written.</summary>
     public static WebApplication MapContract(this WebApplication app)
     {
         app.MapControllers().Add(IdentityServices.ConfigureAuthEndpoint);

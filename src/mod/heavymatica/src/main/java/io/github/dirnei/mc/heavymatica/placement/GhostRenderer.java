@@ -19,7 +19,7 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Vector3f;
 
 /**
- * Draws the placements of the current dimension (D7): ghost meshes within the block budget, spent most recently
+ * Draws the placements of the current dimension: ghost meshes within the block budget, spent most recently
  * selected first, and box outlines coloured by state. A FOLLOWING placement only shows while the remote is held.
  */
 final class GhostRenderer {

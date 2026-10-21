@@ -30,7 +30,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** client/schematic-import: import folders, validation, local copies, duplicates and uploads. */
 class ImportingTest {
 
     @TempDir

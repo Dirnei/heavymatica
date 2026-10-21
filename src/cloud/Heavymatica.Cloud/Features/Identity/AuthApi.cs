@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Heavymatica.Cloud.Features.Identity;
 
-/// <summary>Implements the contract's Auth operations: the sign-in handshake, token rotation and sign-out (D3).</summary>
 internal sealed class AuthApi(
     Challenges challenges,
     MojangSessions mojang,

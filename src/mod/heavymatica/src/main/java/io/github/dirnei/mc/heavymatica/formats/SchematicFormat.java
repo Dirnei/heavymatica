@@ -1,6 +1,6 @@
 package io.github.dirnei.mc.heavymatica.formats;
 
-/** The file formats Heavymatica reads. The wire names match the contract's SchematicFormat. */
+/** The wire names match the contract's SchematicFormat. */
 public enum SchematicFormat {
     LITEMATICA("litematica"),
     SPONGE("sponge"),

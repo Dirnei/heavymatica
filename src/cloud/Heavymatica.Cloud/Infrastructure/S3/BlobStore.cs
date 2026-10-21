@@ -7,7 +7,6 @@ using Microsoft.Extensions.Options;
 
 namespace Heavymatica.Cloud.Infrastructure.S3;
 
-/// <summary>Configuration section <c>S3</c>: any S3-compatible store (MinIO locally).</summary>
 internal sealed class S3Options
 {
     public const string Section = "S3";
@@ -24,10 +23,8 @@ internal sealed class S3Options
     public string Bucket { get; set; } = "heavymatica";
 }
 
-/// <summary>A stored object as a listing reports it.</summary>
 internal sealed record StoredBlob(string Key, long Size, DateTimeOffset LastModified);
 
-/// <summary>Blob storage for schematic files and thumbnails. Bytes never pass through the API on download (D5).</summary>
 internal sealed class BlobStore(IAmazonS3 s3, IOptions<S3Options> options)
 {
     private string Bucket => options.Value.Bucket;

@@ -2,10 +2,6 @@ using System.IO.Compression;
 
 namespace Heavymatica.Cloud.Formats;
 
-/// <summary>
-/// Reads any supported schematic file into a <see cref="SchematicModel"/>, or rejects it with a
-/// <see cref="SchematicRejectedException"/> carrying the reason code (schematic-formats, D6).
-/// </summary>
 public static class SchematicReader
 {
     private static readonly byte[] GzipMagic = [0x1f, 0x8b];

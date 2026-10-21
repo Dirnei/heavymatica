@@ -32,13 +32,13 @@ import net.minecraft.util.Util;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The schematic library (client/schematic-library, D11): search, folder and tag filters, a card grid of cloud and
- * local entries, details of the selected entry, and organizing actions. Everything loads in the background; the
- * screen shows loading, offline and error states instead of waiting.
+ * The schematic library: search, folder and tag filters, a card grid of cloud and local entries, details of the
+ * selected entry, and organizing actions. Everything loads in the background; the screen shows loading, offline and
+ * error states instead of waiting.
  */
 public class LibraryScreen extends Screen {
 
-    /** Starts a placement of a loaded version (client/schematic-placement); called on the game thread. */
+    /** Starts a placement of a loaded version; called on the game thread. */
     @FunctionalInterface
     public interface Placer {
         void place(PlacementSource source, String name, SchematicModel model);

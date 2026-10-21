@@ -2,7 +2,6 @@ using Heavymatica.Cloud.Contract;
 
 namespace Heavymatica.Cloud.Features.Schematics;
 
-/// <summary>Documents to contract DTOs.</summary>
 internal static class SchematicMapping
 {
     public static Contract.Version ToContract(this VersionDocument version) => new()

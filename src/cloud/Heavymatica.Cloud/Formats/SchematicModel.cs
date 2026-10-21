@@ -13,7 +13,7 @@ public enum SchematicFormat
 public readonly record struct BlockPosition(int X, int Y, int Z);
 
 /// <summary>
-/// The canonical model every accepted file is read into (schematic-formats, D6): a size, a block state at every
+/// The canonical model every accepted file is read into: a size, a block state at every
 /// position as an index into <see cref="Palette"/> (x fastest, then z, then y), block entities by position, and
 /// the data version when the file records one.
 /// </summary>

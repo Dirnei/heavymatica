@@ -3,7 +3,7 @@ package io.github.dirnei.mc.heavymatica.placement;
 import java.util.UUID;
 
 /**
- * One schematic version put into the world (client/schematic-placement). Positions are stored as a doubled pivot (D5):
+ * One schematic version put into the world. Positions are stored as a doubled pivot:
  * twice the centre of the footprint on x and z, and the bottom y, so rotating around the centre never drifts. Bounds
  * are derived through {@link PlacementTransform}.
  *

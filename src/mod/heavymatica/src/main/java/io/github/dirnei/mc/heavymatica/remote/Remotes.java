@@ -13,7 +13,7 @@ import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * What counts as a remote (D2): the configured item, or any item in {@link #TAG}. The core registers no items; the tag
+ * What counts as a remote: the configured item, or any item in {@link #TAG}. The core registers no items; the tag
  * comes from the server's data, so on servers without Heavymatica only the configured item works.
  */
 public final class Remotes {

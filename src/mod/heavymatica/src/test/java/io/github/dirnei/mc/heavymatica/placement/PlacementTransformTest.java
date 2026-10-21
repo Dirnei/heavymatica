@@ -48,7 +48,7 @@ class PlacementTransformTest {
 
     @Test
     void rotatingTurnsTheFootprintAroundItsCentre() {
-        // Spec: an anchored 5 x 3 x 9 placement rotated clockwise becomes 9 x 5 around the same centre (rounded down).
+        // an anchored 5 x 3 x 9 placement rotated clockwise becomes 9 x 5 around the same centre (rounded down).
         Placement start = at(placement(5, 3, 9, State.ANCHORED), 0, 64, 0);
         Bounds before = PlacementTransform.bounds(start);
         Placement turned = PlacementTransform.rotate(start, true);
@@ -160,7 +160,7 @@ class PlacementTransformTest {
 
     @Test
     void shiftMovesTenBlocks() {
-        // Spec: Shift + left arrow while facing north moves 10 blocks west.
+        // Shift + left arrow while facing north moves 10 blocks west.
         Placement start = at(placement(4, 3, 6, State.ANCHORED), 0, 64, 0);
         Bounds after = PlacementTransform.bounds(PlacementTransform.move(start, Relative.LEFT, 180, 10));
         assertEquals(-10, after.minX());
@@ -179,7 +179,7 @@ class PlacementTransformTest {
 
     @Test
     void followingCentresOnTheTargetBlock() {
-        // Spec: looking at the top of 10, 63, 20 puts the bottom layer at y 64, centred on x 10, z 20.
+        // looking at the top of 10, 63, 20 puts the bottom layer at y 64, centred on x 10, z 20.
         Placement following = placement(5, 4, 3, State.FOLLOWING);
         Bounds bounds = PlacementTransform.bounds(PlacementTransform.follow(following, 10, 64, 20));
         assertEquals(64, bounds.minY());
@@ -191,7 +191,7 @@ class PlacementTransformTest {
 
     @Test
     void followOffsetIsKeptWhileFollowing() {
-        // Spec: numpad - twice while following puts the ghost two blocks below the target as it keeps following.
+        // numpad - twice while following puts the ghost two blocks below the target as it keeps following.
         Placement following = placement(3, 3, 3, State.FOLLOWING);
         following = PlacementTransform.moveVertical(PlacementTransform.moveVertical(following, -1), -1);
         assertEquals(-2, following.followOffset());

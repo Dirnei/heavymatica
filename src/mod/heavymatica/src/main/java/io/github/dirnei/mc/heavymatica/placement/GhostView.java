@@ -22,7 +22,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * A schematic as placed: positions are in the rotated box (0-based) and block states are mirrored, then rotated, like
- * vanilla structure templates (D5). Fully lit and block-only, for ghost meshes. Unknown blocks read as air.
+ * vanilla structure templates. Fully lit and block-only, for ghost meshes. Unknown blocks read as air.
  */
 final class GhostView implements BlockAndTintGetter {
 

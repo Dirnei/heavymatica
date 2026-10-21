@@ -16,7 +16,7 @@ import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Anchored placements of one player in one world or on one server (D8): {@code placements/<player>/<world key>.json}.
+ * Anchored placements of one player in one world or on one server: {@code placements/<player>/<world key>.json}.
  * FOLLOWING placements are never written. Saving is debounced: a change is written at most once every
  * {@link #SAVE_DELAY_MILLIS}, and {@link #flush()} writes what is pending (on disconnect).
  */

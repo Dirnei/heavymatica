@@ -20,8 +20,7 @@ if (persistent)
     minio.WithDataVolume();
 }
 
-// The service gets explicit configuration instead of Aspire client integrations,
-// so it runs the same way outside Aspire.
+// Explicit configuration instead of Aspire client integrations: the service must also run outside Aspire.
 var cloud = builder.AddProject<Projects.Heavymatica_Cloud>("cloud");
 cloud
     .WithReference(database)

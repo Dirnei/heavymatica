@@ -14,8 +14,8 @@ import java.util.zip.ZipException;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Big-endian (Java edition) NBT, only the shapes schematic readers need. A small reader of our own rather than
- * Minecraft's, so the limits match the cloud's reader exactly and the formats run without the game (D6).
+ * Big-endian (Java edition) NBT, only the shapes schematic readers need. Independent of Minecraft: its limits must
+ * match the cloud's reader exactly, and the formats run without the game.
  */
 public final class Nbt {
 
@@ -28,7 +28,6 @@ public final class Nbt {
     private Nbt() {
     }
 
-    /** An NBT value. */
     public sealed interface Tag permits Number, Floating, Text, ByteArray, IntArray, LongArray, ListTag, Compound {
     }
 

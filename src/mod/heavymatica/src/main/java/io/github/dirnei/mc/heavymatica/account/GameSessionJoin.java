@@ -7,7 +7,7 @@ import net.minecraft.client.Minecraft;
 
 /**
  * Joins through the game's own session service, exactly as joining a multiplayer server does. The Minecraft access
- * token goes to Mojang here and nowhere else (client/cloud-account).
+ * token goes to Mojang here and nowhere else.
  */
 public final class GameSessionJoin implements SessionJoin {
 

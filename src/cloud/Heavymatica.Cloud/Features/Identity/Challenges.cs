@@ -12,7 +12,6 @@ internal enum ChallengeOutcome
     Expired,
 }
 
-/// <summary>Sign-in challenges: issued with a random server ID, accepted at most once, within 60 seconds.</summary>
 internal sealed class Challenges(IMongoDatabase database, TimeProvider time, IOptions<IdentityOptions> options)
 {
     private readonly IMongoCollection<ChallengeDocument> challenges = ChallengeDocument.In(database);

@@ -2,7 +2,7 @@
 
 apply plugin: 'org.openapi.generator'
 
-// The cloud client is generated from the contract (D2) and never committed.
+// The cloud client is generated from the contract and never committed.
 def generatedClient = layout.buildDirectory.dir('generated/openapi')
 
 openApiGenerate {

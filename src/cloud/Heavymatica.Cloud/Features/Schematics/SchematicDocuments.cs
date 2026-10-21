@@ -5,7 +5,7 @@ using MongoDB.Driver;
 
 namespace Heavymatica.Cloud.Features.Schematics;
 
-/// <summary>A schematic: its name, folder, tags and a copy of its latest version for single-query listings (D9).</summary>
+/// <summary>Holds a copy of its latest version for single-query listings.</summary>
 internal sealed class SchematicDocument
 {
     public const string Collection = "schematics";
@@ -23,7 +23,6 @@ internal sealed class SchematicDocument
 
     public List<string> Tags { get; set; } = [];
 
-    /// <summary>The number the next uploaded version gets.</summary>
     public int NextVersion { get; set; }
 
     public required VersionDocument Latest { get; set; }

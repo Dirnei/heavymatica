@@ -10,7 +10,7 @@ import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * What the remote's inputs do to the placements (D4), free of the game: the caller turns key presses, clicks and the
+ * What the remote's inputs do to the placements, free of the game: the caller turns key presses, clicks and the
  * crosshair into these calls. Every method acts on the selected placement only.
  */
 public final class PlacementController {
@@ -24,7 +24,6 @@ public final class PlacementController {
         NOTHING,
     }
 
-    /** What a press of the remove key did. */
     public enum Remove {
         /** Pressed once on an anchored placement: press again within {@link #REMOVE_WINDOW_MILLIS}. */
         CONFIRM,
@@ -61,7 +60,6 @@ public final class PlacementController {
         return placement;
     }
 
-    /** Right-click with the remote, see the resolution table in D4. */
     public Use use(boolean sneaking, String dimension, Ray ray) {
         Optional<Placement> selected = placements.selected();
         if (selected.isPresent() && selected.get().following()) {

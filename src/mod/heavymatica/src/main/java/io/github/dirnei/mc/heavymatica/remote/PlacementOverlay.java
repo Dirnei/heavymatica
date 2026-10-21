@@ -25,7 +25,7 @@ import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * The HUD panel shown while the remote is held (D9): the selected placement's name, version, state badge, position,
+ * The HUD panel shown while the remote is held: the selected placement's name, version, state badge, position,
  * rotation and mirror, and hints for the keys that work in its state, naming the keys the player actually bound.
  */
 public final class PlacementOverlay {

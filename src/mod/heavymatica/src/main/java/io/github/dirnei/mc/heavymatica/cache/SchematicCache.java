@@ -19,14 +19,12 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Read-through cache of downloaded version files and thumbnails, keyed by content hash (client/schematic-library,
- * D10). Version files are verified against their SHA-256 when stored and when read; a file that does not match is
- * discarded. The cache stays within its size by evicting the least recently used files. Local-only entries live
- * elsewhere and are never touched.
+ * Read-through cache of downloaded version files and thumbnails, keyed by content hash. Version files are verified
+ * against their SHA-256 when stored and when read; a file that does not match is discarded. The cache stays within its
+ * size by evicting the least recently used files. Local-only entries live elsewhere and are never touched.
  */
 public final class SchematicCache {
 
-    /** What the cache index remembers about one file. */
     public record Entry(long size, long lastAccess) {
     }
 
@@ -213,7 +211,6 @@ public final class SchematicCache {
         }
     }
 
-    /** A download did not match its content hash. */
     public static final class CorruptDownloadException extends RuntimeException {
         public CorruptDownloadException(String message) {
             super(message);
