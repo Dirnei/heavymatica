@@ -3,11 +3,14 @@ package io.github.dirnei.mc.heavymatica.remote;
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
+import io.github.dirnei.mc.heavymatica.placement.CellState;
+import io.github.dirnei.mc.heavymatica.placement.ComparisonState;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
+import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -19,7 +22,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jetbrains.annotations.Nullable;
@@ -42,6 +49,10 @@ public final class PlacementOverlay {
     private static final int FOLLOWING = 0xFFFFD040;
     private static final int ANCHORED = 0xFF40E060;
     private static final int LOCKED = 0xFF40D0F0;
+    private static final int MISTAKE_RED = 0xFFFF5050;
+    private static final int MISTAKE_ORANGE = 0xFFFFA040;
+    private static final int MISTAKE_CYAN = 0xFF40E8F8;
+    private static final int MISTAKE_MAGENTA = 0xFFFF60FF;
 
     /** One overlay line: an optional key name in its own colour, then text. */
     record Line(Component key, Component text, int color) {
@@ -125,6 +136,10 @@ public final class PlacementOverlay {
         if (placement.locked()) {
             lines.add(Line.text(layersText(placement), TEXT));
             lines.add(Line.text(inHandText(placement), TEXT));
+            WorldComparison comparison = session.comparison(placement);
+            if (comparison != null) {
+                comparisonLines(minecraft, placement, comparison, lines);
+            }
         }
         lines.add(SEPARATOR);
         if (session.unavailable(placement)) {
@@ -183,6 +198,48 @@ public final class PlacementOverlay {
             case FOLLOW -> Component.translatable("heavymatica.overlay.layers.follow", placement.layers().followOffset(), range.from(), range.to(),
                     height);
         };
+    }
+
+    /** Progress, layer progress, the mistake counts and, when the crosshair is on a mistake, what belongs there. */
+    private static void comparisonLines(Minecraft minecraft, Placement placement, WorldComparison comparison, List<Line> lines) {
+        ComparisonState state = comparison.state();
+        if (state.scanning()) {
+            lines.add(Line.text(Component.translatable("heavymatica.overlay.progress.scanning"), MUTED));
+        } else {
+            lines.add(Line.text(progress("heavymatica.overlay.progress", state.matching(0, state.sizeY() - 1), state.counted(0, state.sizeY() - 1)), TEXT));
+            if (placement.layers().mode() != Layers.Mode.OFF) {
+                Layers.Range range = Layers.visible(placement, PlacementSession.feetLayer(placement));
+                lines.add(Line.text(progress("heavymatica.overlay.progress.layers", state.matching(range.from(), range.to()),
+                        state.counted(range.from(), range.to())), TEXT));
+            }
+        }
+        lines.add(Line.text(Component.empty()
+                .append(count(state, CellState.WRONG_BLOCK, "wrong_block", MISTAKE_RED)).append("  ")
+                .append(count(state, CellState.WRONG_ORIENTATION, "wrong_orientation", MISTAKE_ORANGE)).append("  ")
+                .append(count(state, CellState.WRONG_WATER, "wrong_water", MISTAKE_CYAN)).append("  ")
+                .append(count(state, CellState.EXTRA, "extra", MISTAKE_MAGENTA)), TEXT));
+        if (minecraft.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK && minecraft.level != null) {
+            CellState target = comparison.stateAt(hit.getBlockPos());
+            if (target != null && target.mistake()) {
+                lines.add(Line.text(Component.translatable("heavymatica.overlay.expected", block(comparison.expectedAt(hit.getBlockPos()))), MUTED));
+                lines.add(Line.text(Component.translatable("heavymatica.overlay.found", block(minecraft.level.getBlockState(hit.getBlockPos()))), MUTED));
+            }
+        }
+    }
+
+    private static Component progress(String key, int matching, int counted) {
+        int percent = counted == 0 ? 100 : (int) (matching * 100L / counted);
+        return Component.translatable(key, percent, matching, counted);
+    }
+
+    private static Component count(ComparisonState state, CellState cell, String name, int color) {
+        return Component.translatable("heavymatica.overlay.count." + name, state.total(cell)).withColor(color & 0xFFFFFF);
+    }
+
+    private static Component block(BlockState state) {
+        String details = WorldComparison.details(state);
+        MutableComponent name = state.getBlock().getName().copy();
+        return details.isEmpty() ? name : name.append(" (" + details + ")");
     }
 
     private static Component inHandText(Placement placement) {

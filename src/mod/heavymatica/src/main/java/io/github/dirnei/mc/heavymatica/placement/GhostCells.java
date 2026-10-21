@@ -6,7 +6,6 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import java.util.ArrayList;
@@ -15,12 +14,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.ToDoubleFunction;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.geom.builders.UVPair;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.block.BlockStateModelSet;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.ARGB;
 import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.ColorResolver;
 import net.minecraft.world.level.LightLayer;
@@ -33,12 +34,14 @@ import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.world.level.material.FluidState;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.jetbrains.annotations.Nullable;
 
 /**
  * A ghost split into one buffer per block (any state), with its quads ordered by layer, so any layer range of any block
  * draws as one call. Each block is meshed as if everything outside its own block type and layer were air, so slices
- * never show holes.
+ * never show holes. Every vertex carries its cell index (x fastest, then z, then y) in its lightmap coordinates, for
+ * {@link GhostPipeline#GHOST_MASKED}.
  */
 final class GhostCells implements AutoCloseable {
 
@@ -53,12 +56,12 @@ final class GhostCells implements AutoCloseable {
     }
 
     /**
-     * Draws the layers in {@code layers}; {@code alpha} gives each block's opacity, 0 or less to skip it. Returns how
-     * many block types were drawn.
+     * Draws the layers in {@code layers}; {@code alpha} gives each block's opacity, 0 or less to skip it, and
+     * {@code mask} hides cells (see {@link ComparisonState#mask()}). Returns how many block types were drawn.
      */
-    int draw(Matrix4fc modelView, Vector3f offset, Layers.Range layers, ToDoubleFunction<Block> alpha) {
+    int draw(Matrix4fc modelView, Vector3f offset, Layers.Range layers, ToDoubleFunction<Block> alpha, GpuBuffer mask) {
         int drawn = 0;
-        try (GhostDraw draw = new GhostDraw(modelView, offset)) {
+        try (GhostDraw draw = new GhostDraw(modelView, offset, mask)) {
             for (Cell cell : cells) {
                 float opacity = (float) alpha.applyAsDouble(cell.block());
                 if (opacity > 0.0F) {
@@ -115,7 +118,7 @@ final class GhostCells implements AutoCloseable {
                         if (hidden(cellView, pos)) {
                             continue;
                         }
-                        Builder builder = builders.computeIfAbsent(state.getBlock(), block -> new Builder(block, view.sizeY()));
+                        Builder builder = builders.computeIfAbsent(state.getBlock(), block -> new Builder(block, view.sizeX(), view.sizeY(), view.sizeZ()));
                         BlockPos fixed = pos.immutable();
                         renderer.tesselateBlock(builder::put, x, y, z, cellView, fixed, state, models.get(state), state.getSeed(fixed));
                     }
@@ -146,12 +149,15 @@ final class GhostCells implements AutoCloseable {
         private final Block block;
         private final ByteBufferBuilder bytes = new ByteBufferBuilder(1 << 12);
         private final BufferBuilder buffer = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
-        private final PoseStack pose = new PoseStack();
+        private final int sizeX;
+        private final int sizeZ;
         private final int[] layerStart;
         private int quads;
 
-        Builder(Block block, int height) {
+        Builder(Block block, int sizeX, int height, int sizeZ) {
             this.block = block;
+            this.sizeX = sizeX;
+            this.sizeZ = sizeZ;
             this.layerStart = new int[height + 1];
         }
 
@@ -159,11 +165,17 @@ final class GhostCells implements AutoCloseable {
             layerStart[layer] = quads;
         }
 
+        /** Like {@code putBakedQuad}, with the cell index written where the lightmap coordinates go. */
         void put(float x, float y, float z, BakedQuad quad, QuadInstance instance) {
-            pose.pushPose();
-            pose.translate(x, y, z);
-            buffer.putBakedQuad(pose.last(), quad, instance);
-            pose.popPose();
+            int cell = (int) x + sizeX * ((int) z + sizeZ * (int) y);
+            Vector3f normal = quad.direction().getUnitVec3f().get(new Vector3f());
+            for (int vertex = 0; vertex < 4; vertex++) {
+                Vector3fc position = quad.position(vertex);
+                long uv = quad.packedUV(vertex);
+                int color = ARGB.multiply(instance.getColor(vertex), quad.bakedColors().color(vertex));
+                buffer.addVertex(position.x() + x, position.y() + y, position.z() + z, color, UVPair.unpackU(uv), UVPair.unpackV(uv),
+                        instance.overlayCoords(), cell, normal.x(), normal.y(), normal.z());
+            }
             quads++;
         }
 

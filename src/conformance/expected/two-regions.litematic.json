@@ -1,5 +1,5 @@
 {
-  "note": "Two regions; the model covers their bounding box and the gap is air.",
+  "note": "Two regions; the model covers their bounding box and the gap is structure void.",
   "format": "litematica",
   "size": [
     7,
@@ -7,7 +7,7 @@
     6
   ],
   "dataVersion": 4671,
-  "paletteDigest": "9f956d2790a7ee66fe92f56fa440e025b4db25fee928285c83d5aa6d0a3db5ed",
+  "paletteDigest": "86cc8183d2b53309e0693713c17785e539f17847103059ea512b5893844614c9",
   "blockTotal": 30,
   "blockCounts": {
     "minecraft:bricks": 12,

@@ -2,10 +2,13 @@ package io.github.dirnei.mc.heavymatica.ui;
 
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaClient;
+import io.github.dirnei.mc.heavymatica.placement.CellState;
+import io.github.dirnei.mc.heavymatica.placement.ComparisonState;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
+import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
 import io.github.dirnei.mc.heavymatica.remote.Remotes;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -54,6 +57,9 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code press=<key mapping>}, {@code down=<key mapping>}, {@code up=<key mapping>}: press, hold or release a key
  *     mapping by name (for example {@code key.use}, {@code key.heavymatica.rotate}) through Minecraft's key handling</li>
  *     <li>{@code logPlacements}: log the placements, the selection and the ghost mesh count</li>
+ *     <li>{@code selectPlacement=<name>}: select the first placement with that name</li>
+ *     <li>{@code logComparison}: log the selected placement's comparison: progress, totals, slowest scan tick</li>
+ *     <li>{@code logCell=<x>,<y>,<z>}: log the selected placement's comparison state at a world position</li>
  *     <li>{@code logScreen}, {@code closeScreen}: log which screen is open, close it</li>
  *     <li>{@code controls}: open the key bindings screen; {@code scroll=<rows>}: scroll the open screen down</li>
  *     <li>{@code hideGui=<true|false>}: hide the HUD like F1</li>
@@ -162,6 +168,18 @@ public final class DevScreens {
             case "down" -> KeyMapping.set(mapping(minecraft, argument).getKey(), true);
             case "up" -> KeyMapping.set(mapping(minecraft, argument).getKey(), false);
             case "logPlacements" -> logPlacements();
+            case "logComparison" -> logComparison();
+            case "selectPlacement" -> {
+                PlacementSession session = HeavymaticaClient.placements();
+                if (session != null) {
+                    session.placements().all().stream().filter(placement -> placement.name().equals(argument)).findFirst()
+                            .ifPresent(placement -> session.placements().select(placement.id()));
+                }
+            }
+            case "logCell" -> {
+                String[] parts = argument.split(",");
+                logCell(new net.minecraft.core.BlockPos(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2])));
+            }
             case "logScreen" -> Heavymatica.LOGGER.info("Dev screen: {}", minecraft.screen == null ? "none" : minecraft.screen.getClass().getSimpleName());
             case "closeScreen" -> minecraft.setScreen(null);
             case "checkTransform" -> checkTransform();
@@ -239,6 +257,40 @@ public final class DevScreens {
                     placement.source(), placement.state(), PlacementTransform.bounds(placement), placement.rotation(), placement.mirror(),
                     placement.dimension(), placement.layers(), Layers.visible(placement, PlacementSession.feetLayer(placement)), placement.inHand(), session.unavailable(placement) ? " (unavailable)" : "");
         }
+    }
+
+    private static void logComparison() {
+        PlacementSession session = HeavymaticaClient.placements();
+        if (session == null) {
+            return;
+        }
+        Placement placement = session.placements().selected().orElse(null);
+        WorldComparison comparison = placement == null ? null : session.comparison(placement);
+        if (comparison == null) {
+            Heavymatica.LOGGER.info("Dev comparison: none ({} comparisons), {} fps", session.comparisonCount(), Minecraft.getInstance().getFps());
+            return;
+        }
+        ComparisonState state = comparison.state();
+        StringBuilder totals = new StringBuilder();
+        for (CellState cell : CellState.values()) {
+            totals.append(' ').append(cell).append('=').append(state.total(cell));
+        }
+        Heavymatica.LOGGER.info("Dev comparison: {} comparisons, scanning {}, matching {} of {},{}, slowest tick {} us, {} fps", session.comparisonCount(),
+                state.scanning(), state.matching(0, state.sizeY() - 1), state.counted(0, state.sizeY() - 1), totals,
+                session.takeSlowestComparisonTick() / 1000, Minecraft.getInstance().getFps());
+    }
+
+    private static void logCell(net.minecraft.core.BlockPos pos) {
+        PlacementSession session = HeavymaticaClient.placements();
+        Placement placement = session == null ? null : session.placements().selected().orElse(null);
+        WorldComparison comparison = placement == null ? null : session.comparison(placement);
+        if (comparison == null) {
+            Heavymatica.LOGGER.info("Dev cell {}: no comparison", pos.toShortString());
+            return;
+        }
+        CellState state = comparison.stateAt(pos);
+        Heavymatica.LOGGER.info("Dev cell {}: {} expected {} found {}", pos.toShortString(), state,
+                state == null ? "-" : comparison.expectedAt(pos), Minecraft.getInstance().level.getBlockState(pos));
     }
 
     /** Every rotation and mirror of a 4 x 7 footprint against {@code StructureTemplate.transform}, shifted into the box. */

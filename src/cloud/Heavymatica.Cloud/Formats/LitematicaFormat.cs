@@ -3,11 +3,14 @@ namespace Heavymatica.Cloud.Formats;
 /// <summary>
 /// Litematica files. Each region has a corner <c>Position</c> and a signed <c>Size</c>; its blocks are stored
 /// from the region's minimum corner, bit-packed into a long array where entries may span two longs. The model
-/// covers the bounding box of all regions; regions are applied in file order, so later regions win.
+/// covers the bounding box of all regions; regions are applied in file order, so later regions win. Positions no
+/// region covers are structure voids.
 /// </summary>
 internal static class LitematicaFormat
 {
     private sealed record Region(string Name, int[] Min, int[] Size, NbtCompound Tag);
+
+    private const int Uncovered = -1;
 
     public static SchematicModel Read(NbtCompound root)
     {
@@ -32,6 +35,7 @@ internal static class LitematicaFormat
         var palette = new List<string> { BlockStates.Air };
         var paletteIndex = new Dictionary<string, int>(StringComparer.Ordinal) { [BlockStates.Air] = 0 };
         var blocks = new int[width * height * length];
+        Array.Fill(blocks, Uncovered);
         var blockEntities = new Dictionary<BlockPosition, NbtCompound>();
         var skippedEntities = 0;
 
@@ -87,6 +91,20 @@ internal static class LitematicaFormat
             }
 
             skippedEntities += region.Tag.List("Entities")?.Items.Count ?? 0;
+        }
+
+        var voidIndex = Uncovered;
+        for (var i = 0; i < blocks.Length; i++)
+        {
+            if (blocks[i] == Uncovered)
+            {
+                if (voidIndex == Uncovered)
+                {
+                    voidIndex = paletteIndex.TryGetValue(BlockStates.StructureVoid, out var existing) ? existing : Add(BlockStates.StructureVoid);
+                }
+
+                blocks[i] = voidIndex;
+            }
         }
 
         return new SchematicModel(SchematicFormat.Litematica, width, height, length, palette, blocks, blockEntities,

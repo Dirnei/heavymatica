@@ -59,6 +59,13 @@ public final class HeavymaticaConfig {
             .comment("With the in-hand filter, the opacity of blocks matching other hotbar items, as a share of the ghost opacity.")
             .defineInRange("hotbarOpacity", 0.33, 0.05, 1.0);
 
+    private static final ModConfigSpec.IntValue COMPARISON_CELLS_PER_TICK = BUILDER
+            .pop()
+            .push("comparison")
+            .comment("Positions of locked placements compared with the world per tick, besides those within reach of the player.",
+                    "Higher values notice other players' changes sooner and cost more time per tick.")
+            .defineInRange("cellsPerTick", 20_000, 1_000, 1_000_000);
+
     public static final ModConfigSpec SPEC;
 
     public enum OverlaySide {
@@ -110,6 +117,10 @@ public final class HeavymaticaConfig {
 
     public static float layersHotbarOpacity() {
         return LAYERS_HOTBAR_OPACITY.get().floatValue();
+    }
+
+    public static int comparisonCellsPerTick() {
+        return COMPARISON_CELLS_PER_TICK.get();
     }
 
     private static boolean isItemId(Object value) {

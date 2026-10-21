@@ -42,6 +42,7 @@ public final class PlacementSession {
     private final PlacementStore store;
     private final Library library;
     private final GhostMeshes meshes = new GhostMeshes();
+    private final Comparisons comparisons = new Comparisons();
     private final GhostRenderer renderer;
     private final Map<String, SchematicModel> models = new HashMap<>();
     private final Set<String> loading = new HashSet<>();
@@ -77,6 +78,21 @@ public final class PlacementSession {
     /** The placement's schematic once loaded; null while loading or unavailable. */
     public @Nullable SchematicModel model(Placement placement) {
         return models.get(placement.source().sha256());
+    }
+
+    /** The placement's comparison with the world; null unless it is locked, loaded and in the player's dimension. */
+    public @Nullable WorldComparison comparison(Placement placement) {
+        return comparisons.get(placement);
+    }
+
+    /** Comparison count, for development checks. */
+    public int comparisonCount() {
+        return comparisons.size();
+    }
+
+    /** The longest comparison tick since the last call, in nanoseconds, for development checks. */
+    public long takeSlowestComparisonTick() {
+        return comparisons.takeSlowestTickNanos();
     }
 
     /** True when the placement's version could not be loaded (offline and not cached, or deleted). */
@@ -132,11 +148,13 @@ public final class PlacementSession {
         loading.clear();
         unavailable.clear();
         meshes.close();
+        comparisons.close();
     }
 
     private void tick() {
         store.tick(System.currentTimeMillis());
         meshes.sweep(placements.all(), this::model);
+        comparisons.tick(placements.all(), this::model);
     }
 
     static String worldKey(Minecraft minecraft) {

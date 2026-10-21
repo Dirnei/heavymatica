@@ -1,0 +1,18 @@
+{
+  "note": "Air saved inside a region stays air; positions no region covers are structure void.",
+  "format": "litematica",
+  "size": [
+    5,
+    3,
+    3
+  ],
+  "dataVersion": 4671,
+  "paletteDigest": "b5e91a5b28b237351730713a31b304e8db8e079df15abdd63f65da13c52a1fca",
+  "blockTotal": 28,
+  "blockCounts": {
+    "minecraft:oak_log": 2,
+    "minecraft:oak_planks": 26
+  },
+  "blockEntities": [],
+  "skippedEntities": 0
+}

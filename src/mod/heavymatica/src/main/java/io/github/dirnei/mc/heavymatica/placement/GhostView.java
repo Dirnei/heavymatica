@@ -67,9 +67,22 @@ final class GhostView implements BlockAndTintGetter {
         if (pos.getX() < 0 || pos.getY() < 0 || pos.getZ() < 0 || pos.getX() >= sizeX || pos.getY() >= model.height() || pos.getZ() >= sizeZ) {
             return Blocks.AIR.defaultBlockState();
         }
-        int[] schematic = new int[2];
-        PlacementTransform.toSchematic(rotation, mirror, model.width(), model.length(), pos.getX(), pos.getZ(), schematic);
-        return palette[model.blocks()[SchematicModel.index(schematic[0], pos.getY(), schematic[1], model.width(), model.length())]];
+        return palette[paletteIndex(pos.getX(), pos.getY(), pos.getZ(), new int[2])];
+    }
+
+    /** The schematic palette index at a position inside the view; {@code scratch} holds two ints. */
+    int paletteIndex(int x, int y, int z, int[] scratch) {
+        PlacementTransform.toSchematic(rotation, mirror, model.width(), model.length(), x, z, scratch);
+        return model.blocks()[SchematicModel.index(scratch[0], y, scratch[1], model.width(), model.length())];
+    }
+
+    /** A palette entry as placed: mirrored and rotated, air when the game does not know it. */
+    BlockState placed(int paletteIndex) {
+        return palette[paletteIndex];
+    }
+
+    SchematicModel model() {
+        return model;
     }
 
     @Override

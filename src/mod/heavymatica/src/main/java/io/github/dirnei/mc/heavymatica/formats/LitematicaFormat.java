@@ -1,6 +1,7 @@
 package io.github.dirnei.mc.heavymatica.formats;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -8,12 +9,15 @@ import java.util.Map;
 /**
  * Litematica files. Each region has a corner {@code Position} and a signed {@code Size}; its blocks are stored from
  * the region's minimum corner, bit-packed into a long array where entries may span two longs. The model covers the
- * bounding box of all regions; regions are applied in file order, so later regions win.
+ * bounding box of all regions; regions are applied in file order, so later regions win. Positions no region covers
+ * are structure voids.
  */
 final class LitematicaFormat {
 
     private record Region(String name, int[] min, int[] size, Nbt.Compound tag) {
     }
+
+    private static final int UNCOVERED = -1;
 
     private LitematicaFormat() {
     }
@@ -39,6 +43,7 @@ final class LitematicaFormat {
         List<String> palette = new ArrayList<>(List.of(BlockStates.AIR));
         Map<String, Integer> paletteIndex = new HashMap<>(Map.of(BlockStates.AIR, 0));
         int[] blocks = new int[width * height * length];
+        Arrays.fill(blocks, UNCOVERED);
         Map<SchematicModel.Pos, Nbt.Compound> blockEntities = new HashMap<>();
         int skippedEntities = 0;
 
@@ -97,6 +102,19 @@ final class LitematicaFormat {
             }
             Nbt.ListTag entities = region.tag().list("Entities");
             skippedEntities += entities == null ? 0 : entities.items().size();
+        }
+
+        int voidIndex = UNCOVERED;
+        for (int i = 0; i < blocks.length; i++) {
+            if (blocks[i] == UNCOVERED) {
+                if (voidIndex == UNCOVERED) {
+                    voidIndex = paletteIndex.computeIfAbsent(BlockStates.STRUCTURE_VOID, added -> {
+                        palette.add(added);
+                        return palette.size() - 1;
+                    });
+                }
+                blocks[i] = voidIndex;
+            }
         }
 
         return new SchematicModel(SchematicFormat.LITEMATICA, width, height, length, palette, blocks, blockEntities,

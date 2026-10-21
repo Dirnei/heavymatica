@@ -18,9 +18,11 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * Ghost quads of {@link GhostPipeline#GHOST}, each draw with its own opacity, sent as one render pass on close.
+ * Ghost quads of {@link GhostPipeline#GHOST}, or of {@link GhostPipeline#GHOST_MASKED} when a mask is given, each draw
+ * with its own opacity, sent as one render pass on close.
  * Uniforms and the index buffer are written before the pass opens, since nothing may be written while it is open.
  * Render thread only.
  */
@@ -33,12 +35,19 @@ final class GhostDraw implements AutoCloseable {
 
     private final Matrix4fc modelView;
     private final Vector3f offset;
+    private final @Nullable GpuBuffer mask;
     private final List<Quads> draws = new ArrayList<>();
 
     /** @param offset placement minimum corner minus camera position */
     GhostDraw(Matrix4fc modelView, Vector3f offset) {
+        this(modelView, offset, null);
+    }
+
+    /** @param mask one bit per cell, see {@link ComparisonState#mask()}; null to draw every cell */
+    GhostDraw(Matrix4fc modelView, Vector3f offset, @Nullable GpuBuffer mask) {
         this.modelView = modelView;
         this.offset = offset;
+        this.mask = mask;
     }
 
     /** Queues quads {@code firstQuad} up to (excluding) {@code endQuad} of a vertex buffer. */
@@ -66,8 +75,11 @@ final class GhostDraw implements AutoCloseable {
         RenderTarget target = minecraft.getMainRenderTarget();
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Heavymatica ghost",
                 target.getColorTextureView(), OptionalInt.empty(), target.useDepth ? target.getDepthTextureView() : null, OptionalDouble.empty())) {
-            pass.setPipeline(GhostPipeline.GHOST);
+            pass.setPipeline(mask == null ? GhostPipeline.GHOST : GhostPipeline.GHOST_MASKED);
             RenderSystem.bindDefaultUniforms(pass);
+            if (mask != null) {
+                pass.setUniform("GhostMask", mask.slice());
+            }
             pass.bindTexture("Sampler0", minecraft.getTextureManager().getTexture(TextureAtlas.LOCATION_BLOCKS).getTextureView(),
                     RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, FilterMode.LINEAR, FilterMode.NEAREST, true));
             pass.bindTexture("Sampler2", minecraft.gameRenderer.lightmap(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));

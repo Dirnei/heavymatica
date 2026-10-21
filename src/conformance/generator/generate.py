@@ -432,12 +432,13 @@ def write_litematic(regions: list[Region], *, version: int, data_version: int | 
 
 
 def model_from_regions(regions: list[Region]) -> Model:
-    """What a reader must produce: the enclosing box, regions in file order, later regions win."""
+    """What a reader must produce: the enclosing box, regions in file order, later regions win, and
+    structure voids wherever no region reaches."""
     mins = [r.min_corner() for r in regions]
     origin = [min(m[i] for m in mins) for i in range(3)]
     maxs = [tuple(m + s - 1 for m, s in zip(r.min_corner(), r.abs_size())) for r in regions]
     size = [max(mx[i] for mx in maxs) - origin[i] + 1 for i in range(3)]
-    model = Model(*size)
+    model = Model(*size, default=STRUCTURE_VOID)
     for r in regions:
         base = [r.min_corner()[i] - origin[i] for i in range(3)]
         sx, sy, sz = r.abs_size()
@@ -496,7 +497,7 @@ def build():
     add("house-uncompressed.nbt", gzip.decompress(write_structure(h, data_version=DATA_VERSION)),
         expected_for(h, "structure", DATA_VERSION), "Vanilla structure without gzip compression.")
 
-    # Litematica: two non-overlapping regions, gap in between is air.
+    # Litematica: two non-overlapping regions, the gap in between is structure void.
     a = Model(3, 2, 3)
     for p in a.positions():
         a.blocks[p] = "minecraft:stone"
@@ -506,7 +507,16 @@ def build():
     regions = [Region("A", (0, 0, 0), (3, 2, 3), dict(a.blocks)), Region("B", (5, 0, 4), (2, 3, 2), dict(b.blocks))]
     add("two-regions.litematic", write_litematic(regions, version=6, data_version=DATA_VERSION),
         expected_for(model_from_regions(regions), "litematica", DATA_VERSION),
-        "Two regions; the model covers their bounding box and the gap is air.")
+        "Two regions; the model covers their bounding box and the gap is structure void.")
+
+    # Litematica: air saved inside a region stays air next to a structure-void gap.
+    hollow = {(x, y, z): ("minecraft:air" if (x, y, z) == (1, 1, 1) else "minecraft:oak_planks")
+              for x in range(3) for y in range(3) for z in range(3)}
+    regions = [Region("Hollow", (0, 0, 0), (3, 3, 3), hollow),
+               Region("Post", (4, 0, 0), (1, 2, 1), {(0, 0, 0): "minecraft:oak_log", (0, 1, 0): "minecraft:oak_log"})]
+    add("region-air-and-gap.litematic", write_litematic(regions, version=6, data_version=DATA_VERSION),
+        expected_for(model_from_regions(regions), "litematica", DATA_VERSION),
+        "Air saved inside a region stays air; positions no region covers are structure void.")
 
     # Litematica: overlapping regions, the later region wins.
     lower = Region("First", (0, 0, 0), (4, 1, 4), {(x, 0, z): "minecraft:dirt" for x in range(4) for z in range(4)})

@@ -67,9 +67,9 @@ final class GhostMeshes implements AutoCloseable {
         return previous == null ? null : ready.get(previous);
     }
 
-    /** True when the placement draws from cells: locked with a layer setting or the in-hand filter. */
+    /** True when the placement draws from cells: every locked placement, since cells can hide what is already built. */
     static boolean usesCells(Placement placement) {
-        return placement.locked() && (placement.layers().mode() != Layers.Mode.OFF || placement.inHand());
+        return placement.locked();
     }
 
     /** The placement's cells, starting a build when needed; null until they are ready. */

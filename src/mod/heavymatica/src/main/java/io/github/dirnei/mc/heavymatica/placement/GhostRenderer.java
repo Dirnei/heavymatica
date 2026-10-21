@@ -1,5 +1,6 @@
 package io.github.dirnei.mc.heavymatica.placement;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
@@ -81,14 +82,18 @@ final class GhostRenderer {
                 meshesDrawn++;
                 Vector3f offset = new Vector3f((float) (bounds.minX() - camera.x), (float) (bounds.minY() - camera.y), (float) (bounds.minZ() - camera.z));
                 GhostCells cells = GhostMeshes.usesCells(placement) ? meshes.cells(placement, model) : null;
-                if (cells != null) {
+                WorldComparison comparison = cells == null ? null : session.comparison(placement);
+                if (comparison != null) {
                     Layers.Range layers = Layers.visible(placement, PlacementSession.feetLayer(placement));
                     ToDoubleFunction<Block> alpha = placement.inHand() ? inHand(opacity) : block -> opacity;
-                    int full = cells.draw(event.getModelViewMatrix(), offset, layers, block -> alpha.applyAsDouble(block) >= opacity ? opacity : 0.0);
+                    GpuBuffer mask = comparison.mask();
+                    int full = cells.draw(event.getModelViewMatrix(), offset, layers, block -> alpha.applyAsDouble(block) >= opacity ? opacity : 0.0, mask);
                     int dimmed = cells.draw(event.getModelViewMatrix(), offset, layers, block -> {
                         double value = alpha.applyAsDouble(block);
                         return value < opacity ? value : 0.0;
-                    });
+                    }, mask);
+                    comparison.boxes().update();
+                    comparison.boxes().draw(event.getModelViewMatrix(), offset, layers.from(), layers.to());
                     cellsDrawn.append(" ").append(placement.name()).append(" layers ").append(layers.from()).append('-').append(layers.to())
                             .append(": ").append(full).append(" full, ").append(dimmed).append(" dimmed");
                 } else {
