@@ -14,7 +14,7 @@ The placement keys SHALL default to: arrow keys to move horizontally, numpad + a
 - **THEN** the layer window moves up and the placement stays where it is
 
 ### Requirement: Placement overlay
-While a remote is in the main hand and no screen is open, the client SHALL show an overlay on the configured side of the screen (default left). It SHALL show the selected placement's name, version, a state badge (FOLLOWING, ANCHORED or LOCKED), position, rotation and mirror, or "No placement selected" when none is. For a LOCKED placement it SHALL also show the layer setting with its layers and the placement's height (for example `Layers 4-6 of 12` or `Follow feet +1: 0-4 of 12`), and whether the in-hand filter is on.
+While a remote is in the main hand and no screen is open, the client SHALL show an overlay on the configured side of the screen (default left). It SHALL show the selected placement's name, version, a state badge (FOLLOWING, ANCHORED or LOCKED), position, rotation and mirror, or "No placement selected" when none is. For a LOCKED placement it SHALL also show the layer setting with its layers and the placement's height, and whether the in-hand filter is on.
 
 #### Scenario: Anchored placement
 - **WHEN** a player holds the remote and the selected placement `Castle Gate` version 3 is anchored at 128, 64, -40 with rotation 90 and no mirror

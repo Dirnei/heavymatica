@@ -52,6 +52,13 @@ change). `.blueprint` (Structurize) import was out of scope.
 
 ### 4. Hand-build helper
 
+- **Next up: world comparison.** Ghost blocks that already match the world are not drawn; wrong blocks are highlighted
+  (like Litematica). Follow feet keeps showing every layer below the feet, so gaps and mistakes below stay visible.
+  Open decisions:
+  - Wrong block vs. wrong state (for example stairs facing the wrong way): one highlight or two.
+  - Detecting world changes without mixins (NeoForge has no client block-change event): a budgeted background scan
+    plus an immediate check around blocks the player places.
+  - Meshes per 16-block section and block type, so only the affected section rebuilds.
 - Progress in percent; highlight wrong blocks (red) and missing blocks in the current layer.
 - Material list against the player's own inventory ("4 short"). Works client-only from loaded chunks.
 
