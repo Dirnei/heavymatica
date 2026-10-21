@@ -12,6 +12,16 @@ import io.github.dirnei.mc.heavymatica.cloud.client.ApiClient;
 import io.github.dirnei.mc.heavymatica.library.Library;
 import io.github.dirnei.mc.heavymatica.library.LocalLibrary;
 import io.github.dirnei.mc.heavymatica.library.StoredListing;
+import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
+import io.github.dirnei.mc.heavymatica.placement.GhostPipeline;
+import io.github.dirnei.mc.heavymatica.placement.PlacementController;
+import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
+import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
+import io.github.dirnei.mc.heavymatica.placement.PlacementStore;
+import io.github.dirnei.mc.heavymatica.remote.PlacementOverlay;
+import io.github.dirnei.mc.heavymatica.remote.RemoteInput;
+import io.github.dirnei.mc.heavymatica.remote.RemoteKeys;
+import io.github.dirnei.mc.heavymatica.remote.Remotes;
 import io.github.dirnei.mc.heavymatica.thumbnail.ThumbnailSpike;
 import io.github.dirnei.mc.heavymatica.ui.DevScreens;
 import io.github.dirnei.mc.heavymatica.ui.LibraryScreen;
@@ -21,6 +31,10 @@ import java.util.UUID;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.User;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
 import net.neoforged.api.distmarker.Dist;
@@ -30,13 +44,14 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.settings.KeyConflictContext;
 import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
-/** Client entrypoint: config, the library key and the client services (account, library). */
+/** Client entrypoint: config, keys, the overlay and the client services (account, library, placements). */
 @Mod(value = Heavymatica.MOD_ID, dist = Dist.CLIENT)
 public final class HeavymaticaClient {
 
@@ -48,11 +63,14 @@ public final class HeavymaticaClient {
 
     private static @Nullable CloudAccount account;
     private static @Nullable Library library;
+    private static @Nullable PlacementSession placements;
 
     public HeavymaticaClient(IEventBus modEventBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.CLIENT, HeavymaticaConfig.SPEC);
         modEventBus.addListener(HeavymaticaClient::registerKeys);
         modEventBus.addListener(HeavymaticaClient::setup);
+        modEventBus.addListener(GhostPipeline::register);
+        modEventBus.addListener((RegisterGuiLayersEvent event) -> new PlacementOverlay(HeavymaticaClient::placements).register(event));
         NeoForge.EVENT_BUS.addListener(HeavymaticaClient::tick);
         ThumbnailSpike.registerIfRequested();
         DevScreens.registerIfRequested();
@@ -74,18 +92,48 @@ public final class HeavymaticaClient {
         return library;
     }
 
-    /** Heavymatica's files in the game directory (sessions, library, local, cache, import). */
+    /** The placements of the current world; null before client setup. */
+    public static @Nullable PlacementSession placements() {
+        return placements;
+    }
+
+    /** Heavymatica's files in the game directory (sessions, library, local, cache, import, placements). */
     public static Path dataDirectory() {
         return Minecraft.getInstance().gameDirectory.toPath().resolve(Heavymatica.MOD_ID);
     }
 
     public static LibraryScreen libraryScreen() {
-        return new io.github.dirnei.mc.heavymatica.ui.ImportingLibraryScreen(account(), library());
+        return new io.github.dirnei.mc.heavymatica.ui.ImportingLibraryScreen(account(), library(), HeavymaticaClient::place);
+    }
+
+    /** Library Place: a new FOLLOWING placement at the crosshair (or the player's feet), and a hint when no remote is held. */
+    private static void place(PlacementSource source, String name, SchematicModel model) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (placements == null || player == null) {
+            return;
+        }
+        PlacementController.Target at = RemoteInput.crosshairTarget();
+        if (at == null) {
+            BlockPos feet = player.blockPosition();
+            at = new PlacementController.Target(feet.getX(), feet.getY(), feet.getZ());
+        }
+        placements.start(source, name, model, RemoteInput.dimension(), at);
+        if (!Remotes.held()) {
+            player.sendOverlayMessage(Component.translatable("heavymatica.place.hold_remote", new ItemStack(Remotes.configuredItem()).getHoverName()));
+        }
+    }
+
+    private static void openLibrary() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.screen == null && minecraft.player != null && library != null) {
+            minecraft.setScreen(libraryScreen());
+        }
     }
 
     private static void registerKeys(RegisterKeyMappingsEvent event) {
         event.registerCategory(CATEGORY);
         event.register(OPEN_LIBRARY);
+        RemoteKeys.register(event);
     }
 
     private static void setup(FMLClientSetupEvent event) {
@@ -106,6 +154,9 @@ public final class HeavymaticaClient {
                     new SchematicCache(data.resolve("cache"), HeavymaticaConfig.cacheSizeBytes(), Clock.systemUTC(), json),
                     minecraft::execute, Util.backgroundExecutor());
             holder[0] = library;
+            placements = new PlacementSession(new PlacementStore(data.resolve("placements"), json), library, Remotes::held);
+            placements.register();
+            new RemoteInput(placements, HeavymaticaClient::openLibrary).register();
             account.restore();
             library.loadStored();
         });
@@ -114,9 +165,7 @@ public final class HeavymaticaClient {
     private static void tick(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
         while (OPEN_LIBRARY.consumeClick()) {
-            if (minecraft.screen == null && minecraft.player != null && library != null) {
-                minecraft.setScreen(libraryScreen());
-            }
+            openLibrary();
         }
     }
 

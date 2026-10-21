@@ -30,8 +30,8 @@ public final class ImportingLibraryScreen extends LibraryScreen {
     private final Uploader uploader;
     private @Nullable Button upload;
 
-    public ImportingLibraryScreen(CloudAccount account, Library library) {
-        super(account, library);
+    public ImportingLibraryScreen(CloudAccount account, Library library, Placer placer) {
+        super(account, library, placer);
         this.importer = new Importer(library.local(), library::entries);
         this.uploader = new Uploader(account.client(), library.local(), ImportingLibraryScreen::renderThumbnail);
     }

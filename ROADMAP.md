@@ -30,8 +30,16 @@ change). `.blueprint` (Structurize) import was out of scope.
 
 ### 3. Placement UI
 
-- Ghost preview follows the crosshair until locked; then a MineColonies-style control pad (move, rotate, mirror,
-  up/down, confirm), plus dragging the ghost with the mouse.
+- **Placing (change `placement-interaction`):**
+  - A held remote controls placements: a configurable vanilla item (default stick) or anything in the
+    `heavymatica:remotes` item tag; the machines addon adds a real Remote item to the tag later.
+  - Library **Place** starts a ghost that follows the crosshair. Right-click anchors it, sneak + right-click releases
+    it again.
+  - Keyboard instead of an on-screen pad: arrows move relative to the camera (Shift: 10), numpad + / - up and down,
+    R rotate, M mirror, Delete remove (press twice).
+  - Many placements per world; right-click a ghost to select it. A side overlay shows the state and key hints.
+    Anchored placements are saved per world or server.
+- Still open in this step: material swaps and layers (below). Dragging ghosts with the mouse is dropped for now.
 - **Material swaps:** swap by block family, so oak to spruce also turns stairs, slabs, fences, doors and trapdoors and
   keeps their block states. Non-destructive: a swap is a small "variant" stored on top of the original version in the
   cloud.

@@ -1,24 +1,34 @@
 package io.github.dirnei.mc.heavymatica.ui;
 
+import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.account.CloudAccount;
 import io.github.dirnei.mc.heavymatica.account.SignInFailure;
 import io.github.dirnei.mc.heavymatica.cloud.model.Account;
 import io.github.dirnei.mc.heavymatica.cloud.model.OrganizeRequest;
 import io.github.dirnei.mc.heavymatica.cloud.model.SchematicDetails;
+import io.github.dirnei.mc.heavymatica.cloud.model.Version;
+import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
+import io.github.dirnei.mc.heavymatica.formats.SchematicReader;
 import io.github.dirnei.mc.heavymatica.library.Library;
 import io.github.dirnei.mc.heavymatica.library.LibraryEntry;
+import io.github.dirnei.mc.heavymatica.library.LocalLibrary;
+import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Util;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -28,16 +38,25 @@ import org.jetbrains.annotations.Nullable;
  */
 public class LibraryScreen extends Screen {
 
+    /** Starts a placement of a loaded version (client/schematic-placement); called on the game thread. */
+    @FunctionalInterface
+    public interface Placer {
+        void place(PlacementSource source, String name, SchematicModel model);
+    }
+
     private static final int MARGIN = 8;
     private static final int SIDEBAR = 104;
     private static final int ACTION_STEP = 72;
 
     private final CloudAccount account;
     private final Library library;
+    private final Placer placer;
     private final ThumbnailTextures thumbnails;
     private final List<Button> cloudActions = new ArrayList<>();
     private @Nullable Button renameButton;
     private @Nullable Button deleteButton;
+    private @Nullable Button placeButton;
+    private boolean placing;
     private final List<Runnable> subscriptions = new ArrayList<>();
 
     private EditBox search;
@@ -54,10 +73,11 @@ public class LibraryScreen extends Screen {
     private @Nullable Component message;
     private boolean messageIsError;
 
-    public LibraryScreen(CloudAccount account, Library library) {
+    public LibraryScreen(CloudAccount account, Library library, Placer placer) {
         super(Component.translatable("heavymatica.library.title"));
         this.account = account;
         this.library = library;
+        this.placer = placer;
         this.thumbnails = new ThumbnailTextures(library);
     }
 
@@ -91,7 +111,11 @@ public class LibraryScreen extends Screen {
         grid = addRenderableWidget(new CardGrid(SIDEBAR + MARGIN * 2, top, contentWidth, gridHeight, thumbnails, this::available, this::select));
         int detailsTop = top + gridHeight + 6;
         int buttonRow = height - MARGIN - 20;
-        details = addRenderableWidget(new DetailsPanel(SIDEBAR + MARGIN * 2, detailsTop, contentWidth, buttonRow - detailsTop - 4, this::chooseVersion));
+        details = addRenderableOnly(new DetailsPanel(SIDEBAR + MARGIN * 2, detailsTop, contentWidth, buttonRow - detailsTop - 4, this::chooseVersion));
+        // Place sits on the details panel: drawn after it, and asked for clicks before it.
+        placeButton = addRenderableWidget(Button.builder(Component.translatable("heavymatica.library.place"), button -> place())
+                .bounds(SIDEBAR + MARGIN * 2 + contentWidth - DetailsPanel.PLACE_WIDTH - 2, detailsTop + 2, DetailsPanel.PLACE_WIDTH, 20).build());
+        addWidget(details);
 
         cloudActions.clear();
         int x = SIDEBAR + MARGIN * 2;
@@ -269,6 +293,69 @@ public class LibraryScreen extends Screen {
 
     private void updateDetails() {
         details.show(selected, selectedDetails, selectedVersion, detailsStatus);
+        updatePlaceButton();
+    }
+
+    /** The chosen version's content hash; for an older cloud version only once its details are loaded. */
+    private @Nullable String chosenSha256() {
+        if (selected == null) {
+            return null;
+        }
+        if (!selected.cloud() || selectedVersion == selected.version()) {
+            return selected.sha256();
+        }
+        if (selectedDetails == null) {
+            return null;
+        }
+        return selectedDetails.getVersions().stream().filter(version -> version.getNumber() == selectedVersion).map(Version::getSha256)
+                .findFirst().orElse(null);
+    }
+
+    private void updatePlaceButton() {
+        if (placeButton == null) {
+            return;
+        }
+        String sha256 = chosenSha256();
+        placeButton.visible = selected != null;
+        boolean offlineUncached = selected != null && selected.cloud() && sha256 != null && library.cloudState() == Library.CloudState.OFFLINE
+                && !library.cached(sha256);
+        placeButton.active = sha256 != null && !offlineUncached && !placing;
+        placeButton.setTooltip(offlineUncached ? Tooltip.create(Component.translatable("heavymatica.library.needs_connection")) : null);
+    }
+
+    /** Loads the chosen version (cache or download), reads it off the game thread, then closes and starts placing. */
+    private void place() {
+        LibraryEntry entry = selected;
+        String sha256 = chosenSha256();
+        if (entry == null || sha256 == null || placing) {
+            return;
+        }
+        int version = selectedVersion;
+        CompletableFuture<Path> file;
+        PlacementSource source;
+        if (entry.cloud()) {
+            file = library.file(entry.id(), version, sha256);
+            source = new PlacementSource.Cloud(entry.id(), version, sha256);
+        } else {
+            LocalLibrary locals = library.local();
+            file = locals.find(sha256).map(locals::file).map(CompletableFuture::completedFuture)
+                    .orElseGet(() -> CompletableFuture.failedFuture(new IllegalStateException("The local entry is gone")));
+            source = new PlacementSource.Local(sha256);
+        }
+        placing = true;
+        updatePlaceButton();
+        showMessage(Component.translatable("heavymatica.library.loading"));
+        file.thenApplyAsync(SchematicReader::read, Util.backgroundExecutor()).whenComplete((model, failure) -> minecraft.execute(() -> {
+            placing = false;
+            if (failure != null) {
+                Heavymatica.LOGGER.warn("Placing {} version {} failed", entry.name(), version, failure);
+                showMessage(Component.translatable("heavymatica.library.action_failed"), true);
+                updatePlaceButton();
+                return;
+            }
+            minecraft.setScreen(null);
+            placer.place(source, entry.name(), model);
+        }));
     }
 
     private void toggleSignIn() {

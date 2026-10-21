@@ -72,6 +72,11 @@ subprojects {
                 if (quickPlay) {
                     programArguments.addAll('--quickPlayMultiplayer', quickPlay)
                 }
+                // Development aid: open a singleplayer world straight away, for example HEAVYMATICA_QUICKPLAY_WORLD=Testworld.
+                def quickPlayWorld = System.getenv('HEAVYMATICA_QUICKPLAY_WORLD')
+                if (quickPlayWorld) {
+                    programArguments.addAll('--quickPlaySingleplayer', quickPlayWorld)
+                }
             }
             server {
                 server()

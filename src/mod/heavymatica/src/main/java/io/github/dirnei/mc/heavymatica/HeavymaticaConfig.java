@@ -2,6 +2,7 @@ package io.github.dirnei.mc.heavymatica;
 
 import java.net.URI;
 import java.util.Optional;
+import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /** Client config of Heavymatica, written to {@code config/heavymatica-client.toml}. */
@@ -25,7 +26,39 @@ public final class HeavymaticaConfig {
             .push("cache")
             .defineInRange("cacheSizeMiB", 1024, 64, 65_536);
 
+    private static final ModConfigSpec.ConfigValue<String> REMOTE_ITEM = BUILDER
+            .pop()
+            .comment("The item that works as the placement remote while held in the main hand, for example minecraft:blaze_rod.",
+                    "Items in the item tag heavymatica:remotes always work too.")
+            .push("remote")
+            .define("item", "minecraft:stick", HeavymaticaConfig::isItemId);
+
+    private static final ModConfigSpec.DoubleValue GHOST_OPACITY = BUILDER
+            .pop()
+            .comment("Opacity of placement ghosts, from 0.05 (barely visible) to 1 (solid).")
+            .push("ghost")
+            .defineInRange("opacity", 0.45, 0.05, 1.0);
+
+    private static final ModConfigSpec.IntValue GHOST_BLOCK_BUDGET = BUILDER
+            .comment("Visible ghost blocks drawn at most, across all placements. Placements beyond it show as outlines only.")
+            .defineInRange("blockBudget", 300_000, 1_000, 10_000_000);
+
+    private static final ModConfigSpec.EnumValue<OverlaySide> OVERLAY_SIDE = BUILDER
+            .pop()
+            .comment("Screen side of the placement overlay shown while the remote is held.")
+            .push("overlay")
+            .defineEnum("side", OverlaySide.LEFT);
+
+    private static final ModConfigSpec.BooleanValue OVERLAY_COMPACT = BUILDER
+            .comment("Show only the placement's name and state in the overlay, without details and key hints.")
+            .define("compact", false);
+
     public static final ModConfigSpec SPEC;
+
+    public enum OverlaySide {
+        LEFT,
+        RIGHT,
+    }
 
     static {
         BUILDER.pop();
@@ -46,6 +79,31 @@ public final class HeavymaticaConfig {
 
     public static long cacheSizeBytes() {
         return CACHE_SIZE_MIB.get() * 1024L * 1024L;
+    }
+
+    /** The configured remote item's ID; whether such an item exists is checked when it is used. */
+    public static String remoteItem() {
+        return REMOTE_ITEM.get();
+    }
+
+    public static float ghostOpacity() {
+        return GHOST_OPACITY.get().floatValue();
+    }
+
+    public static int ghostBlockBudget() {
+        return GHOST_BLOCK_BUDGET.get();
+    }
+
+    public static OverlaySide overlaySide() {
+        return OVERLAY_SIDE.get();
+    }
+
+    public static boolean overlayCompact() {
+        return OVERLAY_COMPACT.get();
+    }
+
+    private static boolean isItemId(Object value) {
+        return value instanceof String text && Identifier.tryParse(text) != null;
     }
 
     private static boolean isHttpUrl(Object value) {

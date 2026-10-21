@@ -2,6 +2,10 @@ package io.github.dirnei.mc.heavymatica.ui;
 
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaClient;
+import io.github.dirnei.mc.heavymatica.placement.Placement;
+import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
+import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
+import io.github.dirnei.mc.heavymatica.remote.Remotes;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,6 +46,19 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code screenshot=<name>}: save a screenshot as {@code screenshots/<name>.png}</li>
  *     <li>{@code waitWorld}: wait until the player is in a world (see {@code HEAVYMATICA_QUICKPLAY})</li>
  *     <li>{@code pressLibraryKey}: press the library key through Minecraft's key handling</li>
+ *     <li>{@code look=<yaw>,<pitch>}: turn the player's camera</li>
+ *     <li>{@code command=<command>}: run a command on the singleplayer server, for example
+ *     {@code item replace entity @p weapon.mainhand with minecraft:stick}</li>
+ *     <li>{@code hotbar=<0-8>}: select a hotbar slot</li>
+ *     <li>{@code press=<key mapping>}, {@code down=<key mapping>}, {@code up=<key mapping>}: press, hold or release a key
+ *     mapping by name (for example {@code key.use}, {@code key.heavymatica.rotate}) through Minecraft's key handling</li>
+ *     <li>{@code logPlacements}: log the placements, the selection and the ghost mesh count</li>
+ *     <li>{@code logScreen}, {@code closeScreen}: log which screen is open, close it</li>
+ *     <li>{@code controls}: open the key bindings screen; {@code scroll=<rows>}: scroll the open screen down</li>
+ *     <li>{@code hideGui=<true|false>}: hide the HUD like F1</li>
+ *     <li>{@code logButton=<translation key>}: log whether the button with that label is visible and active</li>
+ *     <li>{@code checkTransform}: compare the placement mapping with vanilla's structure template transform</li>
+ *     <li>{@code logConflicts}: log the bindings the controls screen marks as colliding with Heavymatica's keys</li>
  *     <li>{@code quit}: stop the game</li>
  * </ul>
  */
@@ -65,7 +82,8 @@ public final class DevScreens {
 
     private static void tick() {
         Minecraft minecraft = Minecraft.getInstance();
-        if (!started && (minecraft.getOverlay() != null || minecraft.screen == null)) {
+        // Start once loading is over: on a screen, or already in a world (quick play may skip every screen).
+        if (!started && (minecraft.getOverlay() != null || minecraft.screen == null && minecraft.player == null)) {
             return;
         }
         started = true;
@@ -132,6 +150,51 @@ public final class DevScreens {
                 }
             }
             case "pressLibraryKey" -> KeyMapping.click(HeavymaticaClient.OPEN_LIBRARY.getKey());
+            case "command" -> {
+                var server = minecraft.getSingleplayerServer();
+                if (server != null) {
+                    server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), argument));
+                }
+            }
+            case "hotbar" -> minecraft.player.getInventory().setSelectedSlot(Integer.parseInt(argument));
+            case "press" -> KeyMapping.click(mapping(minecraft, argument).getKey());
+            case "down" -> KeyMapping.set(mapping(minecraft, argument).getKey(), true);
+            case "up" -> KeyMapping.set(mapping(minecraft, argument).getKey(), false);
+            case "logPlacements" -> logPlacements();
+            case "logScreen" -> Heavymatica.LOGGER.info("Dev screen: {}", minecraft.screen == null ? "none" : minecraft.screen.getClass().getSimpleName());
+            case "closeScreen" -> minecraft.setScreen(null);
+            case "checkTransform" -> checkTransform();
+            case "logButton" -> {
+                String label = Component.translatable(argument).getString();
+                minecraft.screen.children().stream()
+                        .filter(child -> child instanceof AbstractWidget widget && widget.getMessage().getString().equals(label))
+                        .map(child -> (AbstractWidget) child)
+                        .forEach(widget -> Heavymatica.LOGGER.info("Dev button {}: visible {}, active {}", label, widget.visible, widget.active));
+            }
+            case "hideGui" -> minecraft.options.hideGui = Boolean.parseBoolean(argument);
+            case "logConflicts" -> {
+                for (KeyMapping mine : minecraft.options.keyMappings) {
+                    if (!mine.getName().startsWith("key.heavymatica.")) {
+                        continue;
+                    }
+                    for (KeyMapping other : minecraft.options.keyMappings) {
+                        if (other != mine && mine.same(other) || other.hasKeyModifierConflict(mine)) {
+                            Heavymatica.LOGGER.info("Dev conflict: {} ({}, {}) with {} ({}, {}): same {}, modifier {}, contexts {} / {}, modifiers {} / {}",
+                                    mine.getName(), mine.getKey().getName(), mine.getKeyConflictContext(), other.getName(), other.getKey().getName(),
+                                    other.getKeyConflictContext(), mine.same(other), other.hasKeyModifierConflict(mine),
+                                    mine.getKeyConflictContext().conflicts(other.getKeyConflictContext()),
+                                    other.getKeyConflictContext().conflicts(mine.getKeyConflictContext()), mine.getKeyModifier(), other.getKeyModifier());
+                        }
+                    }
+                }
+            }
+            case "controls" -> minecraft.setScreen(new net.minecraft.client.gui.screens.options.controls.KeyBindsScreen(null, minecraft.options));
+            case "scroll" -> minecraft.screen.mouseScrolled(minecraft.screen.width / 2.0, minecraft.screen.height / 2.0, 0, -Double.parseDouble(argument));
+            case "look" -> {
+                String[] angles = argument.split(",");
+                minecraft.player.setYRot(Float.parseFloat(angles[0]));
+                minecraft.player.setXRot(Float.parseFloat(angles[1]));
+            }
             case "type" -> argument.codePoints().forEach(codepoint -> minecraft.screen.charTyped(new CharacterEvent(codepoint)));
             case "chooseAll" -> {
                 if (minecraft.screen instanceof ImportScreen screen) {
@@ -156,6 +219,63 @@ public final class DevScreens {
             case "quit" -> minecraft.stop();
             default -> Heavymatica.LOGGER.warn("Unknown dev screen step {}", step);
         }
+    }
+
+    private static KeyMapping mapping(Minecraft minecraft, String name) {
+        return Arrays.stream(minecraft.options.keyMappings).filter(mapping -> mapping.getName().equals(name)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No key mapping " + name));
+    }
+
+    private static void logPlacements() {
+        PlacementSession session = HeavymaticaClient.placements();
+        if (session == null) {
+            return;
+        }
+        Heavymatica.LOGGER.info("Dev placements: {} placements, selected {}, {} ghost meshes, remote held {}, last frame {}", session.placements().all().size(),
+                session.placements().selected().map(Placement::name).orElse("none"), session.meshCount(), Remotes.held(), session.lastFrame());
+        for (Placement placement : session.placements().all()) {
+            Heavymatica.LOGGER.info("Dev placement: {} {} {} bounds {} rotation {} mirror {} in {}{}", placement.name(), placement.source(), placement.state(),
+                    PlacementTransform.bounds(placement), placement.rotation(), placement.mirror(), placement.dimension(),
+                    session.unavailable(placement) ? " (unavailable)" : "");
+        }
+    }
+
+    /** Every rotation and mirror of a 4 x 7 footprint against {@code StructureTemplate.transform}, shifted into the box. */
+    private static void checkTransform() {
+        int width = 4;
+        int length = 7;
+        int mismatches = 0;
+        int[] placed = new int[2];
+        for (Placement.Turn turn : Placement.Turn.values()) {
+            for (Placement.Flip flip : Placement.Flip.values()) {
+                net.minecraft.world.level.block.Rotation rotation = net.minecraft.world.level.block.Rotation.values()[turn.ordinal()];
+                net.minecraft.world.level.block.Mirror mirror = net.minecraft.world.level.block.Mirror.values()[flip.ordinal()];
+                int minX = Integer.MAX_VALUE;
+                int minZ = Integer.MAX_VALUE;
+                for (int x = 0; x < width; x++) {
+                    for (int z = 0; z < length; z++) {
+                        net.minecraft.core.BlockPos moved = net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate
+                                .transform(new net.minecraft.core.BlockPos(x, 0, z), mirror, rotation, net.minecraft.core.BlockPos.ZERO);
+                        minX = Math.min(minX, moved.getX());
+                        minZ = Math.min(minZ, moved.getZ());
+                    }
+                }
+                for (int x = 0; x < width; x++) {
+                    for (int z = 0; z < length; z++) {
+                        net.minecraft.core.BlockPos moved = net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate
+                                .transform(new net.minecraft.core.BlockPos(x, 0, z), mirror, rotation, net.minecraft.core.BlockPos.ZERO);
+                        PlacementTransform.toPlaced(turn, flip, width, length, x, z, placed);
+                        if (placed[0] != moved.getX() - minX || placed[1] != moved.getZ() - minZ) {
+                            mismatches++;
+                        }
+                    }
+                }
+            }
+        }
+        net.minecraft.world.level.block.state.BlockState stairs = net.minecraft.world.level.block.Blocks.OAK_STAIRS.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.StairBlock.FACING, net.minecraft.core.Direction.NORTH);
+        Heavymatica.LOGGER.info("Dev transform check: {} mismatches; north stairs turned clockwise face {}", mismatches,
+                stairs.rotate(net.minecraft.world.level.block.Rotation.CLOCKWISE_90).getValue(net.minecraft.world.level.block.StairBlock.FACING));
     }
 
     /** Clicks through the screen's normal input handling, like the mouse would. */

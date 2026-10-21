@@ -22,7 +22,7 @@ import org.jetbrains.annotations.Nullable;
  * A schematic as a fully lit, block-only world for block model rendering. Blocks the game does not know (other
  * mods, removed blocks) read as air, so a thumbnail still renders everything else.
  */
-final class SchematicView implements BlockAndTintGetter {
+public final class SchematicView implements BlockAndTintGetter {
 
     /** Plains grass and foliage, since a schematic has no biome. */
     private static final int DEFAULT_TINT = 0xFF91BD59;
@@ -36,7 +36,7 @@ final class SchematicView implements BlockAndTintGetter {
         this.palette = model.palette().stream().map(state -> resolved.computeIfAbsent(state, SchematicView::resolve)).toArray(BlockState[]::new);
     }
 
-    static BlockState resolve(String state) {
+    public static BlockState resolve(String state) {
         try {
             return BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK, state, false).blockState();
         } catch (CommandSyntaxException e) {
