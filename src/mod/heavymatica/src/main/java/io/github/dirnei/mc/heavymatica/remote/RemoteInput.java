@@ -1,5 +1,6 @@
 package io.github.dirnei.mc.heavymatica.remote;
 
+import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementController;
 import io.github.dirnei.mc.heavymatica.placement.PlacementController.Target;
@@ -150,18 +151,27 @@ public final class RemoteInput {
                 minecraft.player.sendOverlayMessage(Component.translatable("heavymatica.materials.lock_first"));
             }
         }
+        boolean wheel = false;
+        while (RemoteKeys.WHEEL.consumeClick()) {
+            wheel = true;
+        }
+        if (wheel && minecraft.screen == null) {
+            openWheel(minecraft.player, selected);
+        }
         if (minecraft.screen != null) {
             return;
         }
+        boolean shift = minecraft.hasShiftDown();
         if (selected != null && selected.locked()) {
-            layerKeys(controller, PlacementSession.feetLayer(selected));
+            layerKeys(controller, PlacementSession.feetLayer(selected), shift);
             return;
         }
-        while (RemoteKeys.IN_HAND.consumeClick()) {
-            // Only a locked placement has an in-hand filter.
+        for (KeyMapping lockedOnly : new KeyMapping[] {RemoteKeys.IN_HAND, RemoteKeys.CYCLE_LAYERS}) {
+            while (lockedOnly.consumeClick()) {
+                // Only a locked placement has layers and an in-hand filter.
+            }
         }
         double yaw = minecraft.player.getYRot();
-        boolean shift = minecraft.hasShiftDown();
         repeating(RemoteKeys.MOVE_FORWARD, () -> controller.move(Relative.FORWARD, yaw, shift));
         repeating(RemoteKeys.MOVE_BACK, () -> controller.move(Relative.BACK, yaw, shift));
         repeating(RemoteKeys.MOVE_LEFT, () -> controller.move(Relative.LEFT, yaw, shift));
@@ -179,25 +189,50 @@ public final class RemoteInput {
         }
     }
 
-    /** On a locked placement the arrows and numpad + / - work on its layers; rotate, mirror and remove do nothing. */
-    private void layerKeys(PlacementController controller, int feetLayer) {
+    /**
+     * On a locked placement up / down and numpad + / - work on its layers; left / right, rotate, mirror and remove do
+     * nothing.
+     */
+    private void layerKeys(PlacementController controller, int feetLayer, boolean shift) {
         repeating(RemoteKeys.MOVE_FORWARD, () -> controller.moveWindow(1));
         repeating(RemoteKeys.MOVE_BACK, () -> controller.moveWindow(-1));
         repeating(RemoteKeys.MOVE_UP, () -> controller.resizeWindow(1));
         repeating(RemoteKeys.MOVE_DOWN, () -> controller.resizeWindow(-1));
-        while (RemoteKeys.MOVE_RIGHT.consumeClick()) {
-            controller.cycleLayers(1, feetLayer);
-        }
-        while (RemoteKeys.MOVE_LEFT.consumeClick()) {
-            controller.cycleLayers(-1, feetLayer);
+        while (RemoteKeys.CYCLE_LAYERS.consumeClick()) {
+            controller.cycleLayers(shift ? -1 : 1, feetLayer);
         }
         while (RemoteKeys.IN_HAND.consumeClick()) {
             controller.toggleInHand();
         }
-        for (KeyMapping ignored : new KeyMapping[] {RemoteKeys.ROTATE, RemoteKeys.MIRROR, RemoteKeys.REMOVE}) {
+        for (KeyMapping ignored : new KeyMapping[] {RemoteKeys.MOVE_LEFT, RemoteKeys.MOVE_RIGHT, RemoteKeys.ROTATE, RemoteKeys.MIRROR, RemoteKeys.REMOVE}) {
             while (ignored.consumeClick()) {
-                // Drop presses; a locked placement does not rotate, mirror or get removed.
+                // Drop presses; a locked placement does not move, rotate, mirror or get removed.
             }
+        }
+    }
+
+    private void openWheel(LocalPlayer player, @Nullable Placement selected) {
+        RadialMenu.Selection selection = selected == null ? RadialMenu.Selection.NONE
+                : new RadialMenu.Selection(switch (selected.state()) {
+                    case FOLLOWING -> RadialMenu.State.FOLLOWING;
+                    case ANCHORED -> RadialMenu.State.ANCHORED;
+                    case LOCKED -> RadialMenu.State.LOCKED;
+                }, selected.name(), selected.layers().mode(), selected.inHand());
+        Minecraft.getInstance().setScreen(new RadialMenuScreen(new RadialMenu(HeavymaticaConfig.wheelMode(), selection), this::run, player.input.keyPresses));
+    }
+
+    /** Runs a wheel command on the selected placement; the wheel has closed already. */
+    private void run(RadialMenu.Command command) {
+        PlacementController controller = session.controller();
+        switch (command) {
+            case OPEN_LIBRARY -> openLibrary.run();
+            case OPEN_MATERIAL_LIST -> openMaterials.run();
+            case CANCEL, REMOVE -> controller.removeNow();
+            case LOCK -> controller.lock();
+            case UNLOCK -> controller.unlock();
+            case TOGGLE_IN_HAND -> controller.toggleInHand();
+            case LAYERS_OFF, LAYERS_FROM_TO, LAYERS_FOLLOW -> session.placements().selected()
+                    .ifPresent(placement -> controller.setLayerMode(command.layerMode(), PlacementSession.feetLayer(placement)));
         }
     }
 

@@ -37,7 +37,8 @@ import org.lwjgl.glfw.GLFW;
 
 /**
  * The HUD panel shown while the remote is held: the selected placement's name, version, state badge, position,
- * rotation and mirror, and hints for the keys that work in its state, naming the keys the player actually bound.
+ * rotation and mirror, and hints for the keys that work in its state, naming the keys the player actually bound. Actions
+ * on the wheel only get a hint when the player bound a key for them.
  */
 public final class PlacementOverlay {
 
@@ -123,6 +124,7 @@ public final class PlacementOverlay {
             if (!HeavymaticaConfig.overlayCompact()) {
                 lines.add(SEPARATOR);
                 lines.add(hint(minecraft.options.keyUse, "heavymatica.overlay.hint.select"));
+                lines.add(hint(RemoteKeys.WHEEL, "heavymatica.overlay.hint.menu"));
             }
             return lines;
         }
@@ -175,10 +177,11 @@ public final class PlacementOverlay {
             } else if (mode == Layers.Mode.FOLLOW) {
                 lines.add(new Line(pair(RemoteKeys.MOVE_UP, RemoteKeys.MOVE_DOWN), Component.translatable("heavymatica.overlay.hint.follow_height"), TEXT));
             }
-            lines.add(new Line(pair(RemoteKeys.MOVE_LEFT, RemoteKeys.MOVE_RIGHT), Component.translatable("heavymatica.overlay.hint.layer_mode"), TEXT));
-            lines.add(hint(RemoteKeys.IN_HAND, "heavymatica.overlay.hint.in_hand"));
-            lines.add(hint(RemoteKeys.MATERIALS, "heavymatica.overlay.hint.materials"));
-            lines.add(hint(RemoteKeys.LOCK, "heavymatica.overlay.hint.unlock"));
+            lines.add(hint(RemoteKeys.WHEEL, "heavymatica.overlay.hint.menu"));
+            boundHint(lines, RemoteKeys.CYCLE_LAYERS, "heavymatica.overlay.hint.cycle_layers");
+            boundHint(lines, RemoteKeys.IN_HAND, "heavymatica.overlay.hint.in_hand");
+            boundHint(lines, RemoteKeys.MATERIALS, "heavymatica.overlay.hint.materials");
+            boundHint(lines, RemoteKeys.LOCK, "heavymatica.overlay.hint.unlock");
             return lines;
         }
         if (placement.following()) {
@@ -197,10 +200,11 @@ public final class PlacementOverlay {
             lines.add(new Line(Component.translatable("heavymatica.overlay.key.sneak_use", minecraft.options.keyShift.getTranslatedKeyMessage(),
                     minecraft.options.keyUse.getTranslatedKeyMessage()), Component.translatable("heavymatica.overlay.hint.release"), TEXT));
         }
+        lines.add(hint(RemoteKeys.WHEEL, "heavymatica.overlay.hint.menu"));
         if (!placement.following()) {
-            lines.add(hint(RemoteKeys.LOCK, "heavymatica.overlay.hint.lock"));
+            boundHint(lines, RemoteKeys.LOCK, "heavymatica.overlay.hint.lock");
         }
-        lines.add(hint(RemoteKeys.REMOVE, placement.following() ? "heavymatica.overlay.hint.cancel" : "heavymatica.overlay.hint.remove"));
+        boundHint(lines, RemoteKeys.REMOVE, placement.following() ? "heavymatica.overlay.hint.cancel" : "heavymatica.overlay.hint.remove");
         return lines;
     }
 
@@ -254,7 +258,9 @@ public final class PlacementOverlay {
                     row.shortage()), WARNING));
         }
         if (shortages.more() > 0) {
-            lines.add(Line.text(Component.translatable("heavymatica.overlay.materials.more", shortages.more(), name(RemoteKeys.MATERIALS)), MUTED));
+            lines.add(Line.text(RemoteKeys.MATERIALS.isUnbound()
+                    ? Component.translatable("heavymatica.overlay.materials.more_wheel", shortages.more(), name(RemoteKeys.WHEEL))
+                    : Component.translatable("heavymatica.overlay.materials.more", shortages.more(), name(RemoteKeys.MATERIALS)), MUTED));
         }
     }
 
@@ -283,6 +289,13 @@ public final class PlacementOverlay {
 
     private static Line hint(KeyMapping key, String text) {
         return new Line(name(key), Component.translatable(text), TEXT);
+    }
+
+    /** A hint for an action that is also on the wheel, only when the player bound a key for it. */
+    private static void boundHint(List<Line> lines, KeyMapping key, String text) {
+        if (!key.isUnbound()) {
+            lines.add(hint(key, text));
+        }
     }
 
     /** The bound key's name; keypad keys get a "Num" prefix, since their names alone ("+") match main keys. */

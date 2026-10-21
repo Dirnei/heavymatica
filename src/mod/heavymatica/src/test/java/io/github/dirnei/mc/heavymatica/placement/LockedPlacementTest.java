@@ -249,4 +249,63 @@ class LockedPlacementTest {
         assertEquals(Remove.REMOVED, controller.remove(2_100));
         assertTrue(placements.all().isEmpty());
     }
+
+    @Test
+    void lockLocksOnlyAnAnchoredPlacement() {
+        controller.start(new PlacementSource.Local("abc"), "Gate", 3, 12, 3, OVERWORLD, new Target(1, 64, 6));
+        controller.lock();
+        assertEquals(State.FOLLOWING, selected().state());
+        controller.use(false, OVERWORLD, SKY);
+        controller.lock();
+        assertEquals(State.LOCKED, selected().state());
+    }
+
+    @Test
+    void unlockUnlocksAtOnceAndClearsAPendingPress() {
+        locked();
+        controller.lockOrUnlock(1_000);
+        controller.unlock();
+        assertEquals(State.ANCHORED, selected().state());
+        assertFalse(controller.unlockPending(1_500));
+        controller.unlock();
+        assertEquals(State.ANCHORED, selected().state());
+    }
+
+    @Test
+    void removeNowRemovesAnchoredButNotLocked() {
+        locked();
+        assertFalse(controller.removeNow());
+        assertEquals(State.LOCKED, selected().state());
+        controller.unlock();
+        assertTrue(controller.removeNow());
+        assertTrue(placements.selected().isEmpty());
+        assertTrue(placements.all().isEmpty());
+    }
+
+    @Test
+    void removeNowRemovesAFollowingPlacement() {
+        controller.start(new PlacementSource.Local("abc"), "Gate", 3, 12, 3, OVERWORLD, new Target(1, 64, 6));
+        assertTrue(controller.removeNow());
+        assertTrue(placements.all().isEmpty());
+    }
+
+    @Test
+    void setLayerModeOpensAWindowAtTheFeetTheFirstTime() {
+        locked();
+        controller.setLayerMode(Mode.FROM_TO, 4);
+        assertEquals(new Layers(Mode.FROM_TO, 4, 4, 1), selected().layers());
+        controller.setLayerMode(Mode.FOLLOW, 7);
+        assertEquals(Mode.FOLLOW, selected().layers().mode());
+        controller.setLayerMode(Mode.FROM_TO, 9);
+        assertEquals(new Layers(Mode.FROM_TO, 4, 4, 1), selected().layers());
+        controller.setLayerMode(Mode.OFF, 9);
+        assertEquals(Mode.OFF, selected().layers().mode());
+    }
+
+    @Test
+    void setLayerModeNeedsALock() {
+        anchored();
+        controller.setLayerMode(Mode.FOLLOW, 0);
+        assertEquals(Mode.OFF, selected().layers().mode());
+    }
 }

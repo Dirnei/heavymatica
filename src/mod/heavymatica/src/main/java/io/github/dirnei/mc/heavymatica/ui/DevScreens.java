@@ -11,6 +11,9 @@ import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
 import io.github.dirnei.mc.heavymatica.remote.PlacementOverlay;
+import io.github.dirnei.mc.heavymatica.remote.RadialMenu;
+import io.github.dirnei.mc.heavymatica.remote.RadialMenuScreen;
+import io.github.dirnei.mc.heavymatica.remote.RemoteKeys;
 import io.github.dirnei.mc.heavymatica.remote.Remotes;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -26,6 +29,7 @@ import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -74,6 +78,14 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code logButton=<translation key>}: log whether the button with that label is visible and active</li>
  *     <li>{@code checkTransform}: compare the placement mapping with vanilla's structure template transform</li>
  *     <li>{@code logConflicts}: log the bindings the controls screen marks as colliding with Heavymatica's keys</li>
+ *     <li>{@code wheelPoint=<entry>}, {@code wheelCentre}: move the mouse cursor onto a segment of the open wheel (for example
+ *     {@code REMOVE}) or into its centre</li>
+ *     <li>{@code wheelRelease}, {@code wheelKey}, {@code wheelClick}: send the wheel key's release or press, or a left click at the
+ *     cursor, to the open wheel; {@code escape}: send Esc to the open screen</li>
+ *     <li>{@code logWheel}: log the open wheel's page, label, segments and hovered segment</li>
+ *     <li>{@code holdMovement=<key mapping>}, {@code releaseMovement=<key mapping>}: hold or let go of a movement key as the
+ *     open wheel reads it (for example {@code key.forward})</li>
+ *     <li>{@code logPlayer}: log the player's position, yaw and pitch</li>
  *     <li>{@code quit}: stop the game</li>
  * </ul>
  */
@@ -82,6 +94,7 @@ public final class DevScreens {
     private static final Deque<String> STEPS = new ArrayDeque<>();
     private static int waiting;
     private static boolean started;
+    private static double[] cursor = {0, 0};
 
     private DevScreens() {
     }
@@ -250,6 +263,54 @@ public final class DevScreens {
             case "delay" -> CloudClient.developmentDelay(Long.parseLong(argument));
             case "screenshot" -> Screenshot.grab(minecraft.gameDirectory, argument + ".png", minecraft.getMainRenderTarget(), 1,
                     message -> Heavymatica.LOGGER.info("Dev screenshot: {}", message.getString()));
+            case "wheelPoint" -> {
+                if (minecraft.screen instanceof RadialMenuScreen wheel) {
+                    int index = wheel.menu().segments().stream().map(RadialMenu.Segment::entry).toList().indexOf(RadialMenu.Entry.valueOf(argument));
+                    if (index < 0) {
+                        Heavymatica.LOGGER.warn("Dev wheel: no segment {}", argument);
+                    } else {
+                        moveCursor(minecraft, wheel.segmentPoint(index));
+                    }
+                }
+            }
+            case "wheelCentre" -> {
+                if (minecraft.screen != null) {
+                    moveCursor(minecraft, new double[] {minecraft.screen.width / 2.0, minecraft.screen.height / 2.0});
+                }
+            }
+            case "wheelRelease" -> {
+                if (minecraft.screen instanceof RadialMenuScreen wheel) {
+                    wheel.keyReleased(new KeyEvent(RemoteKeys.WHEEL.getKey().getValue(), 0, 0));
+                }
+            }
+            case "wheelKey" -> {
+                if (minecraft.screen instanceof RadialMenuScreen wheel) {
+                    wheel.keyPressed(new KeyEvent(RemoteKeys.WHEEL.getKey().getValue(), 0, 0));
+                }
+            }
+            case "escape" -> {
+                if (minecraft.screen != null) {
+                    minecraft.screen.keyPressed(new KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE, 0, 0));
+                }
+            }
+            case "wheelClick" -> {
+                if (minecraft.screen != null) {
+                    click(minecraft.screen, cursor);
+                }
+            }
+            case "logWheel" -> {
+                if (minecraft.screen instanceof RadialMenuScreen wheel) {
+                    RadialMenu.Label label = wheel.menu().label();
+                    Heavymatica.LOGGER.info("Dev wheel: page {}, label {}, segments {}, hovered {}", wheel.menu().page(),
+                            Component.translatable(label.key(), label.name()).getString(), wheel.menu().segments(), wheel.hovered());
+                } else {
+                    Heavymatica.LOGGER.info("Dev wheel: closed");
+                }
+            }
+            case "holdMovement" -> RadialMenuScreen.holdForDevelopment(argument, true);
+            case "releaseMovement" -> RadialMenuScreen.holdForDevelopment(argument, false);
+            case "logPlayer" -> Heavymatica.LOGGER.info("Dev player: at {}, yaw {}, pitch {}, input {} {}", minecraft.player.position(), minecraft.player.getYRot(),
+                    minecraft.player.getXRot(), minecraft.player.input.getClass().getSimpleName(), minecraft.player.input.keyPresses);
             case "quit" -> minecraft.stop();
             default -> Heavymatica.LOGGER.warn("Unknown dev screen step {}", step);
         }
@@ -366,6 +427,20 @@ public final class DevScreens {
                 .setValue(net.minecraft.world.level.block.StairBlock.FACING, net.minecraft.core.Direction.NORTH);
         Heavymatica.LOGGER.info("Dev transform check: {} mismatches; north stairs turned clockwise face {}", mismatches,
                 stairs.rotate(net.minecraft.world.level.block.Rotation.CLOCKWISE_90).getValue(net.minecraft.world.level.block.StairBlock.FACING));
+    }
+
+    /**
+     * Moves the real cursor to a point in GUI coordinates and tells the screen, since GLFW only reports the move to a
+     * focused window.
+     */
+    private static void moveCursor(Minecraft minecraft, double[] point) {
+        cursor = point;
+        if (minecraft.screen != null) {
+            minecraft.screen.mouseMoved(point[0], point[1]);
+        }
+        var window = minecraft.getWindow();
+        org.lwjgl.glfw.GLFW.glfwSetCursorPos(window.handle(), point[0] * window.getScreenWidth() / window.getGuiScaledWidth(),
+                point[1] * window.getScreenHeight() / window.getGuiScaledHeight());
     }
 
     /** Clicks through the screen's normal input handling, like the mouse would. */

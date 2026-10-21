@@ -176,17 +176,48 @@ public final class PlacementController {
         return pending(Pending.UNLOCK, nowMillis);
     }
 
-    /** Cycles off, from-to and follow feet; the first switch to from-to opens a one-layer window at the feet. */
+    /** Locks an ANCHORED placement at once. */
+    public void lock() {
+        placements.selected().filter(placement -> placement.state() == State.ANCHORED).ifPresent(placement -> {
+            placements.update(placement.with(State.LOCKED, 0));
+            pending = null;
+        });
+    }
+
+    /** Unlocks a LOCKED placement at once, back to ANCHORED; the caller has confirmed. */
+    public void unlock() {
+        locked().ifPresent(placement -> {
+            placements.update(placement.with(State.ANCHORED, 0));
+            pending = null;
+        });
+    }
+
+    /** Removes a FOLLOWING or ANCHORED placement at once; the caller has confirmed. A LOCKED one stays. */
+    public boolean removeNow() {
+        Optional<Placement> selected = movable();
+        selected.ifPresent(placement -> {
+            placements.remove(placement.id());
+            pending = null;
+        });
+        return selected.isPresent();
+    }
+
+    /** Cycles off, from-to and follow feet. */
     public void cycleLayers(int direction, int feetLayer) {
+        locked().ifPresent(placement -> setLayerMode(placement.layers().mode().step(direction), feetLayer));
+    }
+
+    /** Sets the layer mode; the first switch to from-to opens a one-layer window at the feet. */
+    public void setLayerMode(Layers.Mode mode, int feetLayer) {
         locked().ifPresent(placement -> {
             Layers layers = placement.layers();
-            Layers.Mode mode = layers.mode().step(direction);
             if (mode == Layers.Mode.FROM_TO && !layers.windowSet()) {
                 int layer = Layers.clamp(feetLayer, placement.height() - 1);
                 placements.update(placement.with(layers.withMode(mode).withWindow(layer, layer)));
             } else {
                 placements.update(placement.with(layers.withMode(mode)));
             }
+            pending = null;
         });
     }
 

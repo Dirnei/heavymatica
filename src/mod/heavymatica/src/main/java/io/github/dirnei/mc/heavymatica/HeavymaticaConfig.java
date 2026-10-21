@@ -1,5 +1,6 @@
 package io.github.dirnei.mc.heavymatica;
 
+import io.github.dirnei.mc.heavymatica.remote.RadialMenu;
 import java.net.URI;
 import java.util.Optional;
 import net.minecraft.resources.Identifier;
@@ -52,6 +53,12 @@ public final class HeavymaticaConfig {
     private static final ModConfigSpec.BooleanValue OVERLAY_COMPACT = BUILDER
             .comment("Show only the placement's name and state in the overlay, without details and key hints.")
             .define("compact", false);
+
+    private static final ModConfigSpec.EnumValue<RadialMenu.Mode> WHEEL_MODE = BUILDER
+            .pop()
+            .comment("How the placement wheel works. HOLD: hold the wheel key, point and let go. TOGGLE: tap the key to open, click to pick.")
+            .push("wheel")
+            .defineEnum("mode", RadialMenu.Mode.HOLD);
 
     private static final ModConfigSpec.DoubleValue LAYERS_HOTBAR_OPACITY = BUILDER
             .pop()
@@ -113,6 +120,10 @@ public final class HeavymaticaConfig {
 
     public static boolean overlayCompact() {
         return OVERLAY_COMPACT.get();
+    }
+
+    public static RadialMenu.Mode wheelMode() {
+        return WHEEL_MODE.get();
     }
 
     public static float layersHotbarOpacity() {

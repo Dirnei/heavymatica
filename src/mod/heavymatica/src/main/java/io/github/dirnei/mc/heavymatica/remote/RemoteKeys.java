@@ -12,6 +12,7 @@ import org.lwjgl.glfw.GLFW;
 /**
  * The placement keys. They live in {@link #HOLDING_REMOTE}, so they only act while a remote is in the main hand
  * and no screen is open. Shift is read when a key is pressed rather than bound, so rebinding keeps the Shift variants.
+ * The actions on the wheel have no default key.
  */
 public final class RemoteKeys {
 
@@ -35,13 +36,15 @@ public final class RemoteKeys {
     public static final KeyMapping MOVE_DOWN = key("move_down", GLFW.GLFW_KEY_KP_SUBTRACT);
     public static final KeyMapping ROTATE = key("rotate", GLFW.GLFW_KEY_R);
     public static final KeyMapping MIRROR = key("mirror", GLFW.GLFW_KEY_M);
-    public static final KeyMapping REMOVE = key("remove", GLFW.GLFW_KEY_DELETE);
-    public static final KeyMapping LOCK = key("lock", GLFW.GLFW_KEY_L);
-    public static final KeyMapping IN_HAND = key("in_hand", GLFW.GLFW_KEY_I);
-    public static final KeyMapping MATERIALS = key("materials", GLFW.GLFW_KEY_K);
+    public static final KeyMapping WHEEL = key("wheel", GLFW.GLFW_KEY_V);
+    public static final KeyMapping REMOVE = key("remove", GLFW.GLFW_KEY_UNKNOWN);
+    public static final KeyMapping LOCK = key("lock", GLFW.GLFW_KEY_UNKNOWN);
+    public static final KeyMapping IN_HAND = key("in_hand", GLFW.GLFW_KEY_UNKNOWN);
+    public static final KeyMapping MATERIALS = key("materials", GLFW.GLFW_KEY_UNKNOWN);
+    public static final KeyMapping CYCLE_LAYERS = key("cycle_layers", GLFW.GLFW_KEY_UNKNOWN);
 
-    public static final List<KeyMapping> ALL = List.of(MOVE_FORWARD, MOVE_BACK, MOVE_LEFT, MOVE_RIGHT, MOVE_UP, MOVE_DOWN, ROTATE, MIRROR, REMOVE, LOCK,
-            IN_HAND, MATERIALS);
+    public static final List<KeyMapping> ALL = List.of(MOVE_FORWARD, MOVE_BACK, MOVE_LEFT, MOVE_RIGHT, MOVE_UP, MOVE_DOWN, ROTATE, MIRROR, WHEEL, REMOVE,
+            LOCK, IN_HAND, MATERIALS, CYCLE_LAYERS);
 
     private RemoteKeys() {
     }

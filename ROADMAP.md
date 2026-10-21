@@ -36,16 +36,28 @@ change). `.blueprint` (Structurize) import was out of scope.
   - Library **Place** starts a ghost that follows the crosshair. Right-click anchors it, sneak + right-click releases
     it again.
   - Keyboard instead of an on-screen pad: arrows move relative to the camera (Shift: 10), numpad + / - up and down,
-    R rotate, M mirror, Delete remove (press twice).
+    R rotate, M mirror, remove (press twice; on the wheel since `radial-menu`).
   - Many placements per world; right-click a ghost to select it. A side overlay shows the state and key hints.
     Anchored placements are saved per world or server.
 - **Locking and layers (change `placement-layers`):**
-  - L locks an anchored ghost, and L twice unlocks it. A locked ghost can't move, rotate or be removed.
+  - Locking an anchored ghost, unlocking with a confirmation (both on the wheel since `radial-menu`). A locked ghost
+    can't move, rotate or be removed.
   - While locked, the arrows and numpad + / - control layers on the Y axis: off, a from-to window, or follow feet
     (layers up to the player's feet + 1).
-  - I toggles the in-hand filter: the held block shows normally and other hotbar blocks show dimmed. It combines with
-    the layer setting and works whatever the player holds.
-- Still open in this step: material swaps (below). Dragging ghosts with the mouse is dropped for now.
+  - The in-hand filter (on the wheel): the held block shows normally and other hotbar blocks show dimmed. It combines
+    with the layer setting and works whatever the player holds.
+- **Wheel (change `radial-menu`):**
+  - V (rebindable, only with the remote) opens a radial menu of the one-shot actions the selected placement's state
+    allows: Lock / Unlock, Remove (Cancel while following), In-hand filter, Layers (a sub-wheel with off, from-to and
+    follow feet), Material list and Library.
+  - HOLD (default: hold V, point, let go) or TOGGLE (tap V, click) in the client config. The camera stays still and
+    WASD keeps working while it is open.
+  - Remove and Unlock ask Yes / Cancel on the wheel, so one flick never removes anything.
+  - Direct keys stay for continuous controls: arrows, numpad + / -, R and M, plus H for the library. The wheel's
+    actions are still keys in the controls screen, unbound by default; a bound remove or unlock key keeps the
+    press-twice rule.
+- Still open in this step: material swaps (below), which add a Materials segment to the wheel. Dragging ghosts with
+  the mouse is dropped for now.
 - **Material swaps:** swap by block family, so oak to spruce also turns stairs, slabs, fences, doors and trapdoors and
   keeps their block states. Non-destructive: a swap is a small "variant" stored on top of the original version in the
   cloud.
@@ -69,7 +81,8 @@ change). `.blueprint` (Structurize) import was out of scope.
     Blocks no item places (water, lava, fire, portals) are listed apart under "can't carry".
   - Carried means the inventory, the offhand and the contents of carried shulker boxes, bundles and other items with
     NeoForge's item capability. Chests and other containers in the world don't count.
-  - The overlay shows the three largest shortages; K opens the full list with needed, have and short.
+  - The overlay shows the three largest shortages; the wheel's Material list opens the full list with needed, have and
+    short.
 - Step 4 is done. **Next up: material swaps** (still open in step 3), then multiplayer sync.
 
 ### 5. Multiplayer sync
