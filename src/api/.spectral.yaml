@@ -1,0 +1,55 @@
+extends:
+  - spectral:oas
+
+rules:
+  # Generated code names methods after operationId and controllers after the first tag.
+  operation-operationId: error
+  operation-tags: error
+  operation-single-tag:
+    description: Each operation belongs to exactly one tag, which becomes its generated controller.
+    severity: error
+    given: "$.paths[*][get,put,post,delete,patch]"
+    then:
+      field: tags
+      function: length
+      functionOptions:
+        min: 1
+        max: 1
+
+  # Every operation documents its errors as problem details.
+  operation-problem-default:
+    description: Every operation has a default response with application/problem+json.
+    severity: error
+    given: "$.paths[*][get,put,post,delete,patch].responses"
+    then:
+      field: default
+      function: truthy
+  problem-error-responses:
+    description: 4xx and 5xx responses use the shared Problem response.
+    severity: error
+    given: "$.paths[*][get,put,post,delete,patch].responses[?(@property.match(/^[45]/))]"
+    then:
+      field: $ref
+      function: pattern
+      functionOptions:
+        match: "^#/components/responses/Problem$"
+  problem-default-response:
+    description: The default response uses the shared Problem response.
+    severity: error
+    given: "$.paths[*][get,put,post,delete,patch].responses.default"
+    then:
+      field: $ref
+      function: pattern
+      functionOptions:
+        match: "^#/components/responses/Problem$"
+
+  # Paths are versioned so later contracts can coexist.
+  paths-versioned:
+    description: Every path starts with /v1/.
+    severity: error
+    given: "$.paths"
+    then:
+      field: "@key"
+      function: pattern
+      functionOptions:
+        match: "^/v1/"

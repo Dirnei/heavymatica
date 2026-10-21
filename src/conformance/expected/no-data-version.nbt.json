@@ -1,0 +1,31 @@
+{
+  "note": "No DataVersion; reported as unknown.",
+  "format": "structure",
+  "size": [
+    5,
+    4,
+    6
+  ],
+  "dataVersion": null,
+  "paletteDigest": "ab9262ea5a9f56756caef70ca3dfb3605ef1fc870b460fe277ec1181b8d46e2c",
+  "blockTotal": 77,
+  "blockCounts": {
+    "minecraft:chest": 1,
+    "minecraft:glass_pane": 1,
+    "minecraft:oak_door": 1,
+    "minecraft:oak_planks": 34,
+    "minecraft:oak_stairs": 10,
+    "minecraft:stone": 30
+  },
+  "blockEntities": [
+    {
+      "pos": [
+        1,
+        1,
+        1
+      ],
+      "id": "minecraft:chest"
+    }
+  ],
+  "skippedEntities": 0
+}

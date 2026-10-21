@@ -1,0 +1,138 @@
+plugins {
+    id 'net.neoforged.moddev' version '2.0.148' apply false
+    id 'org.openapi.generator' version '7.26.0' apply false
+    id 'idea'
+}
+
+tasks.named('wrapper', Wrapper).configure {
+    distributionType = Wrapper.DistributionType.BIN
+}
+
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+}
+
+// Contract lint (Spectral) over the OpenAPI document the cloud client is generated from.
+// Skip with -PskipContractLint when Node.js is not available.
+def contractDir = file('../api')
+def skipContractLint = providers.gradleProperty('skipContractLint').isPresent()
+def npm = System.getProperty('os.name').toLowerCase().contains('windows') ? ['cmd', '/c', 'npm'] : ['npm']
+def installContractTools = tasks.register('installContractTools', Exec) {
+    workingDir contractDir
+    commandLine(npm + ['ci', '--no-audit', '--no-fund'])
+    inputs.file(new File(contractDir, 'package-lock.json'))
+    outputs.dir(new File(contractDir, 'node_modules'))
+    onlyIf { !skipContractLint }
+}
+def lintContract = tasks.register('lintContract', Exec) {
+    dependsOn installContractTools
+    workingDir contractDir
+    commandLine(npm + ['run', '--silent', 'lint'])
+    inputs.files(new File(contractDir, 'heavymatica-cloud.v1.yaml'), new File(contractDir, '.spectral.yaml'))
+    def stamp = layout.buildDirectory.file('contract-lint.stamp')
+    outputs.file(stamp)
+    doLast { stamp.get().asFile.text = 'ok' }
+    onlyIf { !skipContractLint }
+}
+
+// Shared configuration for the mod projects. Each subproject only adds what differs:
+// its mod id and name (gradle.properties) and its dependencies (build.gradle).
+subprojects {
+    apply plugin: 'java-library'
+    apply plugin: 'net.neoforged.moddev'
+    apply plugin: 'idea'
+
+    version = findProperty("release_version_${project.name}") ?: project.mod_version
+    group = rootProject.mod_group_id
+
+    base {
+        archivesName = project.mod_id
+    }
+
+    // Minecraft 26.1 runs on Java 25. Gradle provisions the toolchain through the foojay resolver.
+    java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+    neoForge {
+        version = rootProject.neo_version
+
+        mods {
+            "${project.mod_id}" {
+                sourceSet(sourceSets.main)
+            }
+        }
+
+        runs {
+            client {
+                client()
+                gameDirectory = project.file('runs/client')
+                // Development aid: join a server straight away, for example HEAVYMATICA_QUICKPLAY=localhost:25599.
+                def quickPlay = System.getenv('HEAVYMATICA_QUICKPLAY')
+                if (quickPlay) {
+                    programArguments.addAll('--quickPlayMultiplayer', quickPlay)
+                }
+            }
+            server {
+                server()
+                programArgument '--nogui'
+                gameDirectory = project.file('runs/server')
+            }
+            configureEach {
+                logLevel = org.slf4j.event.Level.INFO
+                // Development aids (see ThumbnailSpike, DevScreens): forwarded from the environment when set.
+                ['HEAVYMATICA_THUMBNAIL_SPIKE', 'HEAVYMATICA_DEV_SCREEN'].each { name ->
+                    def value = System.getenv(name)
+                    if (value) {
+                        systemProperty name.toLowerCase().replace('_', '.'), value
+                    }
+                }
+            }
+        }
+    }
+
+    // Expands the neoforge.mods.toml template with the shared versions.
+    def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
+        def replaceProperties = [
+                minecraft_version      : rootProject.minecraft_version,
+                minecraft_version_range: rootProject.minecraft_version_range,
+                neo_version            : rootProject.neo_version,
+                loader_version_range   : rootProject.loader_version_range,
+                mod_id                 : project.mod_id,
+                mod_name               : project.mod_name,
+                mod_description        : project.mod_description,
+                mod_license            : rootProject.mod_license,
+                mod_version            : project.version.toString(),
+                mod_authors            : rootProject.mod_authors,
+        ]
+        inputs.properties replaceProperties
+        expand replaceProperties
+        from 'src/main/templates'
+        into 'build/generated/sources/modMetadata'
+    }
+    sourceSets.main.resources.srcDir generateModMetadata
+    neoForge.ideSyncTask generateModMetadata
+
+    dependencies {
+        testImplementation platform("org.junit:junit-bom:${rootProject.junit_version}")
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testImplementation 'org.junit.jupiter:junit-jupiter-params'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    tasks.named('test', Test).configure {
+        useJUnitPlatform()
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        dependsOn ':lintContract'
+    }
+
+    idea {
+        module {
+            downloadSources = true
+            downloadJavadoc = true
+        }
+    }
+}

@@ -1,0 +1,14 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    // Provisions the Java 25 toolchain into the Gradle cache when no local JDK 25 exists.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'heavymatica_mods'
+
+include 'heavymatica'

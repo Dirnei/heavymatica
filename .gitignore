@@ -1,0 +1,49 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!**/gradle/wrapper/gradle-wrapper.jar
+# Java packages named build are sources, not Gradle output
+!**/src/main/java/**/build/
+!**/src/test/java/**/build/
+
+# ModDevGradle and NeoForge runs
+runs/
+**/runs/
+run/
+**/run/
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+TestResults/
+.vs/
+artifacts/
+
+# Node (contract linting)
+node_modules/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+eclipse/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and local files
+*.log
+*.launch
+appsettings.Local.json
+
+# Claude Code worktrees
+.claude/worktrees/

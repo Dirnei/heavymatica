@@ -1,0 +1,4 @@
+{
+  "note": "16 MiB + 1 byte; rejected on size alone.",
+  "reject": "file_too_large"
+}

@@ -1,0 +1,4 @@
+{
+  "note": "1000 x 20 x 1000 = 20,000,000 blocks, over the 16,777,216 limit.",
+  "reject": "volume_too_large"
+}

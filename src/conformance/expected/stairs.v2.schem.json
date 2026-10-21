@@ -1,0 +1,17 @@
+{
+  "note": "4 stairs facing north and 6 facing east count as 10 oak_stairs.",
+  "format": "sponge",
+  "size": [
+    10,
+    1,
+    2
+  ],
+  "dataVersion": 4671,
+  "paletteDigest": "a6d0a9122cbe3a090a42ea3efaf7dad7b8718cc9d5bf26ce80b1601203e8f471",
+  "blockTotal": 10,
+  "blockCounts": {
+    "minecraft:oak_stairs": 10
+  },
+  "blockEntities": [],
+  "skippedEntities": 0
+}

@@ -1,0 +1,724 @@
+openapi: 3.0.3
+info:
+  title: Heavymatica Cloud
+  version: 1.0.0
+  description: |
+    Stores each player's schematics as immutable versions and serves them back to the game.
+    This document is the source of truth: the service's controllers and the mod's client are generated from it.
+  contact:
+    name: Dirnei
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:5180
+    description: Local development (Aspire AppHost)
+tags:
+  - name: Auth
+    description: Sign-in through the Mojang session handshake and service tokens.
+  - name: Account
+    description: The signed-in player's account.
+  - name: Schematics
+    description: Uploading, organizing, downloading and deleting schematics.
+security:
+  - bearerAuth: []
+
+paths:
+  /v1/auth/challenge:
+    post:
+      tags: [Auth]
+      operationId: createChallenge
+      summary: Issue a sign-in challenge
+      description: Returns a single-use challenge that expires after 60 seconds.
+      security: []
+      responses:
+        '200':
+          description: Challenge issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Challenge'
+        '429':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/auth/verify:
+    post:
+      tags: [Auth]
+      operationId: verify
+      summary: Complete a sign-in
+      description: |
+        Call after the client has joined the challenge's server ID through Mojang's session service.
+        The service asks Mojang whether the named player joined and signs in the UUID Mojang reports.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+      responses:
+        '200':
+          description: Signed in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refresh
+      summary: Rotate tokens
+      description: Exchanges a refresh token for a new access token and refresh token. The old refresh token stops working.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New tokens.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/auth/signout:
+    post:
+      tags: [Auth]
+      operationId: revokeSession
+      summary: Revoke a sign-in session
+      description: Revokes every refresh token of the session the given refresh token belongs to.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '204':
+          description: Signed out. Also returned when the refresh token was already invalid.
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/me:
+    get:
+      tags: [Account]
+      operationId: getMe
+      summary: The signed-in account
+      description: Returns the account's current Minecraft name, storage usage and quota.
+      responses:
+        '200':
+          description: Account name, storage usage and quota.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/schematics:
+    get:
+      tags: [Schematics]
+      operationId: listSchematics
+      summary: List and search the caller's schematics
+      description: Newest change first. Filters combine.
+      parameters:
+        - name: q
+          in: query
+          description: Case-insensitive substring of the name.
+          schema:
+            type: string
+            maxLength: 100
+        - name: folder
+          in: query
+          description: Only schematics in exactly this folder.
+          schema:
+            type: string
+            maxLength: 200
+        - name: tag
+          in: query
+          description: Only schematics carrying this tag.
+          schema:
+            type: string
+            maxLength: 50
+        - name: cursor
+          in: query
+          description: The nextCursor of the previous page.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: One page of schematics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchematicPage'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+    post:
+      tags: [Schematics]
+      operationId: uploadSchematic
+      summary: Upload a new schematic
+      description: The body is the raw schematic file (at most 16 MiB). It is validated before anything is stored.
+      parameters:
+        - name: name
+          in: query
+          required: true
+          description: The new schematic's name, usually the file name.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: Schematic created at version 1.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResult'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '413':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/schematics/{schematicId}:
+    parameters:
+      - $ref: '#/components/parameters/SchematicId'
+    get:
+      tags: [Schematics]
+      operationId: getSchematic
+      summary: A schematic with all its versions
+      description: Schematics owned by other accounts are reported as not found.
+      responses:
+        '200':
+          description: The schematic.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchematicDetails'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+    patch:
+      tags: [Schematics]
+      operationId: organizeSchematic
+      summary: Rename, move or tag a schematic
+      description: Fields left out stay unchanged. Never creates a version.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizeRequest'
+      responses:
+        '200':
+          description: The updated schematic.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchematicDetails'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+    delete:
+      tags: [Schematics]
+      operationId: deleteSchematic
+      summary: Delete a schematic and all its versions
+      description: Storage used by the schematic stops counting toward the quota immediately.
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/schematics/{schematicId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/SchematicId'
+    post:
+      tags: [Schematics]
+      operationId: uploadVersion
+      summary: Upload a new version of a schematic
+      description: |
+        The body is the raw schematic file (at most 16 MiB). When it is identical to the latest version,
+        no version is created and the latest version is returned with status 200.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Identical to the latest version; nothing was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResult'
+        '201':
+          description: New version created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResult'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '413':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/schematics/{schematicId}/versions/{versionNumber}:
+    parameters:
+      - $ref: '#/components/parameters/SchematicId'
+      - $ref: '#/components/parameters/VersionNumber'
+    delete:
+      tags: [Schematics]
+      operationId: deleteVersion
+      summary: Delete one version
+      description: The only remaining version cannot be deleted; delete the schematic instead.
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/schematics/{schematicId}/versions/{versionNumber}/thumbnail:
+    parameters:
+      - $ref: '#/components/parameters/SchematicId'
+      - $ref: '#/components/parameters/VersionNumber'
+    put:
+      tags: [Schematics]
+      operationId: attachThumbnail
+      summary: Attach the version's thumbnail
+      description: A PNG of at most 256 x 256 pixels and 256 KiB, once per version.
+      requestBody:
+        required: true
+        content:
+          image/png:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '204':
+          description: Thumbnail attached.
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '413':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/schematics/{schematicId}/versions/{versionNumber}/links:
+    parameters:
+      - $ref: '#/components/parameters/SchematicId'
+      - $ref: '#/components/parameters/VersionNumber'
+    post:
+      tags: [Schematics]
+      operationId: createLinks
+      summary: Short-lived download links
+      description: The links work without a token and expire after 5 minutes.
+      responses:
+        '200':
+          description: Download links.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadLinks'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    SchematicId:
+      name: schematicId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+    VersionNumber:
+      name: versionNumber
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+
+  responses:
+    Problem:
+      description: Error, as RFC 7807 problem details.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+  schemas:
+    Problem:
+      type: object
+      required: [code, title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        code:
+          $ref: '#/components/schemas/ProblemCode'
+
+    ProblemCode:
+      type: string
+      description: Stable reason code. Clients map it to a localized message.
+      enum:
+        # Schematic file rejections (schematic-formats)
+        - unsupported_format
+        - file_too_large
+        - decompressed_too_large
+        - dimensions_too_large
+        - volume_too_large
+        - malformed_nbt
+        - palette_index_out_of_range
+        - size_mismatch
+        # Identity
+        - challenge_expired
+        - challenge_used
+        - challenge_unknown
+        - identity_not_confirmed
+        - identity_provider_unavailable
+        - unauthenticated
+        - refresh_token_invalid
+        # Storage
+        - not_found
+        - over_quota
+        - last_version
+        - thumbnail_exists
+        - thumbnail_invalid
+        # General
+        - invalid_request
+        - rate_limited
+        - unexpected
+
+    Challenge:
+      type: object
+      required: [challengeId, serverId, expiresAt]
+      properties:
+        challengeId:
+          type: string
+        serverId:
+          type: string
+          description: Pass unchanged as the server ID to Mojang's joinServer.
+        expiresAt:
+          type: string
+          format: date-time
+
+    VerifyRequest:
+      type: object
+      required: [challengeId, name]
+      properties:
+        challengeId:
+          type: string
+        name:
+          type: string
+          description: The player's current Minecraft name, as the game knows it.
+          minLength: 1
+          maxLength: 16
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    Session:
+      type: object
+      required: [accessToken, accessTokenExpiresAt, refreshToken, account]
+      properties:
+        accessToken:
+          type: string
+        accessTokenExpiresAt:
+          type: string
+          format: date-time
+        refreshToken:
+          type: string
+        account:
+          $ref: '#/components/schemas/Account'
+
+    Account:
+      type: object
+      required: [uuid, name, usedBytes, quotaBytes]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        usedBytes:
+          type: integer
+          format: int64
+        quotaBytes:
+          type: integer
+          format: int64
+
+    SchematicFormat:
+      type: string
+      enum: [litematica, sponge, structure]
+
+    Dimensions:
+      type: object
+      required: [width, height, length]
+      properties:
+        width:
+          type: integer
+          format: int32
+        height:
+          type: integer
+          format: int32
+        length:
+          type: integer
+          format: int32
+
+    BlockCount:
+      type: object
+      required: [block, count]
+      properties:
+        block:
+          type: string
+          description: Block ID without properties, for example minecraft:oak_stairs.
+        count:
+          type: integer
+          format: int64
+
+    Version:
+      type: object
+      required: [number, sha256, format, sizeBytes, dimensions, blockTotal, blockCounts, skippedEntities, hasThumbnail, createdAt]
+      properties:
+        number:
+          type: integer
+          format: int32
+        sha256:
+          type: string
+          description: Lower-case hex SHA-256 of the stored file.
+        format:
+          $ref: '#/components/schemas/SchematicFormat'
+        sizeBytes:
+          type: integer
+          format: int64
+        dimensions:
+          $ref: '#/components/schemas/Dimensions'
+        dataVersion:
+          type: integer
+          format: int32
+          nullable: true
+          description: Minecraft data version, or null when the file records none.
+        blockTotal:
+          type: integer
+          format: int64
+        blockCounts:
+          type: array
+          description: Most common first.
+          items:
+            $ref: '#/components/schemas/BlockCount'
+        skippedEntities:
+          type: integer
+          format: int32
+        hasThumbnail:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    SchematicSummary:
+      type: object
+      required: [id, name, tags, updatedAt, latest]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        folder:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        updatedAt:
+          type: string
+          format: date-time
+        latest:
+          $ref: '#/components/schemas/Version'
+
+    SchematicPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SchematicSummary'
+        nextCursor:
+          type: string
+          nullable: true
+          description: Pass as cursor to get the next page; null on the last page.
+
+    SchematicDetails:
+      type: object
+      required: [id, name, tags, updatedAt, versions]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        folder:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        updatedAt:
+          type: string
+          format: date-time
+        versions:
+          type: array
+          description: Oldest first.
+          items:
+            $ref: '#/components/schemas/Version'
+
+    OrganizeRequest:
+      type: object
+      description: Fields left out stay unchanged.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        folder:
+          type: string
+          maxLength: 200
+          description: Slash-separated folder path. An empty string removes the schematic from its folder.
+        tags:
+          type: array
+          maxItems: 20
+          description: Replaces all tags.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+
+    UploadResult:
+      type: object
+      required: [schematicId, version]
+      properties:
+        schematicId:
+          type: string
+        version:
+          $ref: '#/components/schemas/Version'
+
+    DownloadLinks:
+      type: object
+      required: [fileUrl, expiresAt]
+      properties:
+        fileUrl:
+          type: string
+          format: uri
+        thumbnailUrl:
+          type: string
+          format: uri
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time

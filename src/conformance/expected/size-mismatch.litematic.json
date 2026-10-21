@@ -1,0 +1,4 @@
+{
+  "note": "BlockStates has 3 longs where 1 is expected.",
+  "reject": "size_mismatch"
+}

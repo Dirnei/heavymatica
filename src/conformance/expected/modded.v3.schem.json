@@ -1,0 +1,18 @@
+{
+  "note": "Blocks from other namespaces, kept with their properties.",
+  "format": "sponge",
+  "size": [
+    2,
+    1,
+    1
+  ],
+  "dataVersion": 4671,
+  "paletteDigest": "8fcfb7118ce68b9b0c7aa19bdf011e09514356e94cdb1199e081f77cceea49a5",
+  "blockTotal": 2,
+  "blockCounts": {
+    "servus_foundation:utility_duct": 1,
+    "somemod:unknown_thing": 1
+  },
+  "blockEntities": [],
+  "skippedEntities": 0
+}

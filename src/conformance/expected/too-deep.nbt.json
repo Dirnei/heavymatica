@@ -1,0 +1,4 @@
+{
+  "note": "Compounds nested 600 deep (limit 512).",
+  "reject": "malformed_nbt"
+}

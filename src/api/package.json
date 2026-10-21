@@ -1,0 +1,11 @@
+{
+  "name": "heavymatica-cloud-contract",
+  "private": true,
+  "description": "Lints the Heavymatica Cloud OpenAPI contract.",
+  "scripts": {
+    "lint": "spectral lint heavymatica-cloud.v1.yaml --ruleset .spectral.yaml --fail-severity warn"
+  },
+  "devDependencies": {
+    "@stoplight/spectral-cli": "6.15.0"
+  }
+}

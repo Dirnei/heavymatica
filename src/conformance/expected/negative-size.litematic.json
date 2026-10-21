@@ -1,0 +1,18 @@
+{
+  "note": "Region size is negative on x and z; blocks are stored from the minimum corner.",
+  "format": "litematica",
+  "size": [
+    4,
+    2,
+    3
+  ],
+  "dataVersion": 4671,
+  "paletteDigest": "fba961cc70a2e4dd8d03a5f8d696cf4f42769021681f404597c02cd6fe7d656e",
+  "blockTotal": 24,
+  "blockCounts": {
+    "minecraft:blue_wool": 18,
+    "minecraft:red_wool": 6
+  },
+  "blockEntities": [],
+  "skippedEntities": 0
+}

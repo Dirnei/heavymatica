@@ -1,0 +1,4 @@
+{
+  "note": "Valid gzip whose NBT ends in the middle of a tag.",
+  "reject": "malformed_nbt"
+}

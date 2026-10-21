@@ -1,0 +1,4 @@
+{
+  "note": "1 MiB-scale gzip that inflates to 200 MiB; reading must stop at 128 MiB.",
+  "reject": "decompressed_too_large"
+}

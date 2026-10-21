@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>Heavymatica.Cloud</RootNamespace>
+    <UserSecretsId>heavymatica-cloud</UserSecretsId>
+    <ContractDirectory>$(MSBuildThisFileDirectory)..\..\api\</ContractDirectory>
+    <ContractFile>$(ContractDirectory)heavymatica-cloud.v1.yaml</ContractFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Heavymatica.Cloud.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Akka.Hosting" />
+    <PackageReference Include="Akka.Streams" />
+    <PackageReference Include="AWSSDK.S3" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="MongoDB.Driver" />
+    <PackageReference Include="NSwag.MSBuild">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The contract is served as written (D2). -->
+    <EmbeddedResource Include="$(ContractFile)" LogicalName="heavymatica-cloud.v1.yaml" />
+  </ItemGroup>
+
+  <!--
+    Contract lint (Spectral). Runs before compiling whenever the contract or ruleset changed.
+    Skip with -p:SkipContractLint=true when Node.js is not available.
+  -->
+  <Target Name="LintContract" BeforeTargets="BeforeBuild" Condition="'$(SkipContractLint)' != 'true'" Inputs="$(ContractFile);$(ContractDirectory).spectral.yaml;$(ContractDirectory)package.json" Outputs="$(IntermediateOutputPath)contract-lint.stamp">
+    <Exec Command="npm ci --no-audit --no-fund" WorkingDirectory="$(ContractDirectory)" Condition="!Exists('$(ContractDirectory)node_modules')" />
+    <Exec Command="npm run --silent lint" WorkingDirectory="$(ContractDirectory)" />
+    <Touch Files="$(IntermediateOutputPath)contract-lint.stamp" AlwaysCreate="true" />
+  </Target>
+
+  <!--
+    Controllers and DTOs generated from the contract (D2). Each tag becomes a controller that
+    forwards to an I<Tag>Controller interface, implemented by the feature slices.
+  -->
+  <PropertyGroup>
+    <!-- Defined after the SDK has set IntermediateOutputPath. -->
+    <ContractOutput>$(BaseIntermediateOutputPath)Contract\Controllers.g.cs</ContractOutput>
+  </PropertyGroup>
+
+  <Target Name="GenerateContract" BeforeTargets="CoreCompile" DependsOnTargets="LintContract" Inputs="$(ContractFile);$(MSBuildThisFileFullPath)" Outputs="$(ContractOutput)">
+    <Exec Command="$(NSwagExe_Net100) openapi2cscontroller /input:&quot;$(ContractFile)&quot; /output:&quot;$(ContractOutput)&quot; /namespace:Heavymatica.Cloud.Contract /ControllerStyle:Partial /ControllerTarget:AspNetCore /OperationGenerationMode:MultipleClientsFromFirstTagAndOperationId /ClassName:{controller} /UseCancellationToken:true /UseActionResultType:true /GenerateModelValidationAttributes:true /RouteNamingStrategy:OperationId /JsonLibrary:SystemTextJson /GenerateNullableReferenceTypes:true /GenerateOptionalPropertiesAsNullable:true /RequiredPropertiesMustBeDefined:true /GenerateDataAnnotations:true" />
+    <!-- Enums travel by their wire value; JsonStringEnumConverter would write member names. -->
+    <ReplaceInFile File="$(ContractOutput)" Find="System.Text.Json.Serialization.JsonStringEnumConverter&lt;" Replace="Heavymatica.Cloud.Infrastructure.Contract.WireEnumConverter&lt;" />
+  </Target>
+
+  <UsingTask TaskName="ReplaceInFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <File ParameterType="System.String" Required="true" />
+      <Find ParameterType="System.String" Required="true" />
+      <Replace ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        System.IO.File.WriteAllText(File, System.IO.File.ReadAllText(File).Replace(Find, Replace));
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="IncludeContract" BeforeTargets="CoreCompile" AfterTargets="GenerateContract">
+    <ItemGroup>
+      <Compile Include="$(ContractOutput)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

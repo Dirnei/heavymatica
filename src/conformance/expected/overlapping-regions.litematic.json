@@ -1,0 +1,18 @@
+{
+  "note": "Overlapping regions; where they overlap the region listed later wins.",
+  "format": "litematica",
+  "size": [
+    5,
+    1,
+    5
+  ],
+  "dataVersion": 4671,
+  "paletteDigest": "0563b1d115bdc73203e631b11c7ad2cfb4da711394ee197ea3f3b2953377545e",
+  "blockTotal": 21,
+  "blockCounts": {
+    "minecraft:diamond_block": 9,
+    "minecraft:dirt": 12
+  },
+  "blockEntities": [],
+  "skippedEntities": 0
+}

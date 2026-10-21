@@ -1,0 +1,4 @@
+{
+  "note": "Declares a width of 2000; must be rejected without reading block data.",
+  "reject": "dimensions_too_large"
+}
