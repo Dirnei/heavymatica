@@ -5,14 +5,20 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Bounds;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
+import java.util.function.ToDoubleFunction;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.ShapeRenderer;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
@@ -26,6 +32,7 @@ final class GhostRenderer {
 
     static final int FOLLOWING_COLOR = 0xFFFFD040;
     static final int ANCHORED_COLOR = 0xFF40E060;
+    static final int LOCKED_COLOR = 0xFF40D0F0;
     static final int UNAVAILABLE_COLOR = 0xFFFF4040;
     static final int OTHER_COLOR = 0x80FFFFFF;
 
@@ -34,6 +41,7 @@ final class GhostRenderer {
     private final BooleanSupplier remoteHeld;
     private int lastMeshes;
     private int lastOutlinesOnly;
+    private String lastCells = "";
 
     GhostRenderer(PlacementSession session, GhostMeshes meshes, BooleanSupplier remoteHeld) {
         this.session = session;
@@ -60,6 +68,7 @@ final class GhostRenderer {
         int used = 0;
         int meshesDrawn = 0;
         int outlinesOnly = 0;
+        StringBuilder cellsDrawn = new StringBuilder();
         for (Placement placement : session.placements().inDimension(dimension)) {
             if (placement.following() && !holding) {
                 continue;
@@ -70,25 +79,59 @@ final class GhostRenderer {
             if (mesh != null && used + mesh.blocks() <= budget) {
                 used += mesh.blocks();
                 meshesDrawn++;
-                mesh.draw(event.getModelViewMatrix(),
-                        new Vector3f((float) (bounds.minX() - camera.x), (float) (bounds.minY() - camera.y), (float) (bounds.minZ() - camera.z)), opacity);
+                Vector3f offset = new Vector3f((float) (bounds.minX() - camera.x), (float) (bounds.minY() - camera.y), (float) (bounds.minZ() - camera.z));
+                GhostCells cells = GhostMeshes.usesCells(placement) ? meshes.cells(placement, model) : null;
+                if (cells != null) {
+                    Layers.Range layers = Layers.visible(placement, PlacementSession.feetLayer(placement), HeavymaticaConfig.layersFollowOffset());
+                    ToDoubleFunction<Block> alpha = placement.inHand() ? inHand(opacity) : block -> opacity;
+                    int full = cells.draw(event.getModelViewMatrix(), offset, layers, block -> alpha.applyAsDouble(block) >= opacity ? opacity : 0.0);
+                    int dimmed = cells.draw(event.getModelViewMatrix(), offset, layers, block -> {
+                        double value = alpha.applyAsDouble(block);
+                        return value < opacity ? value : 0.0;
+                    });
+                    cellsDrawn.append(" ").append(placement.name()).append(" layers ").append(layers.from()).append('-').append(layers.to())
+                            .append(": ").append(full).append(" full, ").append(dimmed).append(" dimmed");
+                } else {
+                    mesh.draw(event.getModelViewMatrix(), offset, opacity);
+                }
             } else {
                 outlinesOnly++;
             }
             boolean isSelected = selected.isPresent() && selected.get().equals(placement.id());
             int color = session.unavailable(placement) ? UNAVAILABLE_COLOR
                     : !isSelected ? OTHER_COLOR
-                    : placement.following() ? FOLLOWING_COLOR : ANCHORED_COLOR;
+                    : placement.following() ? FOLLOWING_COLOR
+                    : placement.locked() ? LOCKED_COLOR : ANCHORED_COLOR;
             ShapeRenderer.renderShape(pose, lines, Shapes.create(0, 0, 0, bounds.sizeX(), bounds.sizeY(), bounds.sizeZ()),
                     bounds.minX() - camera.x, bounds.minY() - camera.y, bounds.minZ() - camera.z, color, isSelected ? lineWidth * 2.0F : lineWidth);
         }
         buffers.endBatch(RenderTypes.lines());
         lastMeshes = meshesDrawn;
         lastOutlinesOnly = outlinesOnly;
+        lastCells = cellsDrawn.toString();
+    }
+
+    /** The held block at full opacity, other hotbar blocks dimmed, everything else hidden. */
+    private static ToDoubleFunction<Block> inHand(float opacity) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) {
+            return block -> 0.0;
+        }
+        Block held = PlacementSession.placedBlock(player.getMainHandItem());
+        Set<Block> hotbar = new HashSet<>();
+        Inventory inventory = player.getInventory();
+        for (int slot = 0; slot < Inventory.getSelectionSize(); slot++) {
+            Block block = PlacementSession.placedBlock(inventory.getItem(slot));
+            if (block != null) {
+                hotbar.add(block);
+            }
+        }
+        float dimmed = opacity * HeavymaticaConfig.layersHotbarOpacity();
+        return block -> block == held ? opacity : hotbar.contains(block) ? dimmed : 0.0;
     }
 
     /** Meshes drawn and placements shown as outlines only in the last frame, for development checks. */
     String lastFrame() {
-        return lastMeshes + " meshes drawn, " + lastOutlinesOnly + " outlines only";
+        return lastMeshes + " meshes drawn, " + lastOutlinesOnly + " outlines only" + (lastCells.isEmpty() ? "" : ", cells:" + lastCells);
     }
 }

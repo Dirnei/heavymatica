@@ -28,7 +28,7 @@ class PlacementStoreTest {
 
     private static Placement placement(PlacementSource source, State state) {
         return new Placement(UUID.randomUUID(), source, "Castle Gate", 5, 3, 9, 21, 64, -13, Turn.CLOCKWISE_90, Flip.FRONT_BACK, "minecraft:overworld",
-                state, 0);
+                state, 0, Layers.NONE, false);
     }
 
     @Test
@@ -88,6 +88,31 @@ class PlacementStoreTest {
         PlacementStore store = new PlacementStore(directory, json);
         assertEquals(List.of(), store.open(PLAYER, "sp-a"));
         assertTrue(Files.exists(file.resolveSibling("sp-a.json.corrupt")));
+    }
+
+    @Test
+    void lockedPlacementKeepsItsLayers() {
+        PlacementStore store = new PlacementStore(directory, json);
+        store.open(PLAYER, "sp-a");
+        Placement locked = placement(new PlacementSource.Local("bb"), State.LOCKED).with(new Layers(Layers.Mode.FROM_TO, 4, 6)).withInHand(true);
+        store.changed(List.of(locked), 0);
+        store.flush();
+        assertEquals(List.of(locked), new PlacementStore(directory, json).open(PLAYER, "sp-a"));
+    }
+
+    @Test
+    void olderFilesLoadAnchoredWithLayersOff() throws IOException {
+        Path file = directory.resolve(PLAYER.toString()).resolve("sp-a.json");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, """
+                {"version":1,"placements":[{"id":"6c85d78e-f2db-4bb8-8541-0f9eecfffef1","source":{"kind":"local","sha256":"aa"},
+                "name":"Hut","width":5,"height":4,"length":6,"pivotX2":-289,"y":71,"pivotZ2":-135,"rotation":"NONE","mirror":"NONE",
+                "dimension":"minecraft:overworld"}]}
+                """);
+        Placement loaded = new PlacementStore(directory, json).open(PLAYER, "sp-a").getFirst();
+        assertEquals(State.ANCHORED, loaded.state());
+        assertEquals(Layers.NONE, loaded.layers());
+        assertFalse(loaded.inHand());
     }
 
     @Test

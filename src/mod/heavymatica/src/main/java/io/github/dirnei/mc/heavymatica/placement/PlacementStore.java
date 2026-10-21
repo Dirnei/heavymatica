@@ -16,7 +16,7 @@ import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Anchored placements of one player in one world or on one server: {@code placements/<player>/<world key>.json}.
+ * Anchored and locked placements of one player in one world or on one server: {@code placements/<player>/<world key>.json}.
  * FOLLOWING placements are never written. Saving is debounced: a change is written at most once every
  * {@link #SAVE_DELAY_MILLIS}, and {@link #flush()} writes what is pending (on disconnect).
  */
@@ -31,7 +31,8 @@ public final class PlacementStore {
     }
 
     record PlacementJson(UUID id, SourceJson source, String name, int width, int height, int length, int pivotX2, int y, int pivotZ2,
-                         Turn rotation, Flip mirror, String dimension) {
+                         Turn rotation, Flip mirror, String dimension, @Nullable Boolean locked, @Nullable Layers layers,
+                         @Nullable Boolean inHand) {
     }
 
     record FileJson(int version, List<PlacementJson> placements) {
@@ -74,7 +75,7 @@ public final class PlacementStore {
         return text.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9._-]", "_");
     }
 
-    /** Switches to a world (flushing the previous one) and returns its placements, all ANCHORED. */
+    /** Switches to a world (flushing the previous one) and returns its placements, ANCHORED or LOCKED. */
     public List<Placement> open(UUID player, String worldKey) {
         flush();
         file = directory.resolve(player.toString()).resolve(worldKey + ".json");
@@ -123,7 +124,7 @@ public final class PlacementStore {
     }
 
     void write(Path target, List<Placement> placements) {
-        List<PlacementJson> anchored = placements.stream().filter(placement -> placement.state() == State.ANCHORED).map(PlacementStore::toJson).toList();
+        List<PlacementJson> anchored = placements.stream().filter(placement -> !placement.following()).map(PlacementStore::toJson).toList();
         try {
             Files.createDirectories(target.getParent());
             Path temporary = target.resolveSibling(target.getFileName() + ".tmp");
@@ -159,7 +160,8 @@ public final class PlacementStore {
             case PlacementSource.Local local -> new SourceJson("local", null, null, local.sha256());
         };
         return new PlacementJson(placement.id(), source, placement.name(), placement.width(), placement.height(), placement.length(),
-                placement.pivotX2(), placement.y(), placement.pivotZ2(), placement.rotation(), placement.mirror(), placement.dimension());
+                placement.pivotX2(), placement.y(), placement.pivotZ2(), placement.rotation(), placement.mirror(), placement.dimension(),
+                placement.locked(), placement.layers(), placement.inHand());
     }
 
     private static Placement fromJson(PlacementJson read) {
@@ -172,7 +174,8 @@ public final class PlacementStore {
             throw new IllegalArgumentException("Placement " + read.id() + " has no size");
         }
         return new Placement(read.id(), source, read.name(), read.width(), read.height(), read.length(), read.pivotX2(), read.y(), read.pivotZ2(),
-                read.rotation(), read.mirror(), read.dimension(), State.ANCHORED, 0);
+                read.rotation(), read.mirror(), read.dimension(), Boolean.TRUE.equals(read.locked()) ? State.LOCKED : State.ANCHORED, 0,
+                read.layers() == null || read.layers().mode() == null ? Layers.NONE : read.layers(), Boolean.TRUE.equals(read.inHand()));
     }
 
     private static <T> T require(@Nullable T value) {

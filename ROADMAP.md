@@ -39,11 +39,16 @@ change). `.blueprint` (Structurize) import was out of scope.
     R rotate, M mirror, Delete remove (press twice).
   - Many placements per world; right-click a ghost to select it. A side overlay shows the state and key hints.
     Anchored placements are saved per world or server.
-- Still open in this step: material swaps and layers (below). Dragging ghosts with the mouse is dropped for now.
+- **Locking and layers (change `placement-layers`):**
+  - L locks an anchored ghost, and L twice unlocks it. A locked ghost can't move, rotate or be removed.
+  - While locked, the arrows and numpad + / - control layers on the Y axis: off, a from-to window, or follow feet
+    (layers up to the player's feet + 1).
+  - I toggles the in-hand filter: the held block shows normally and other hotbar blocks show dimmed. It combines with
+    the layer setting and works whatever the player holds.
+- Still open in this step: material swaps (below). Dragging ghosts with the mouse is dropped for now.
 - **Material swaps:** swap by block family, so oak to spruce also turns stairs, slabs, fences, doors and trapdoors and
   keeps their block states. Non-destructive: a swap is a small "variant" stored on top of the original version in the
   cloud.
-- **Layers:** axis toggle Y / X / Z, slider, modes "single" and "up to", and "follow player".
 
 ### 4. Hand-build helper
 

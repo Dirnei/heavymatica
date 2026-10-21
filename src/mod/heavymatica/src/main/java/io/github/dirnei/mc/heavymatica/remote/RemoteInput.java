@@ -1,5 +1,6 @@
 package io.github.dirnei.mc.heavymatica.remote;
 
+import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementController;
 import io.github.dirnei.mc.heavymatica.placement.PlacementController.Target;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
@@ -44,6 +45,7 @@ public final class RemoteInput {
 
     public void register() {
         NeoForge.EVENT_BUS.addListener(this::interaction);
+        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Pre event) -> claimSharedKeys());
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> tick());
     }
 
@@ -95,6 +97,29 @@ public final class RemoteInput {
         }
     }
 
+    /**
+     * While the remote is held its keys win: presses of other bindings on the same key (L is vanilla's advancements key)
+     * are dropped before vanilla handles them.
+     */
+    private static void claimSharedKeys() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null || minecraft.screen != null || !Remotes.held()) {
+            return;
+        }
+        for (KeyMapping other : minecraft.options.keyMappings) {
+            if (RemoteKeys.ALL.contains(other) || other.isUnbound()) {
+                continue;
+            }
+            for (KeyMapping mine : RemoteKeys.ALL) {
+                if (mine.getKey().equals(other.getKey())) {
+                    while (other.consumeClick()) {
+                        // Dropped: the remote's binding handles this key.
+                    }
+                }
+            }
+        }
+    }
+
     private void tick() {
         Minecraft minecraft = Minecraft.getInstance();
         if (!minecraft.options.keyUse.isDown()) {
@@ -111,6 +136,17 @@ public final class RemoteInput {
         }
         PlacementController controller = session.controller();
         controller.follow(crosshairTarget(), dimension());
+        while (RemoteKeys.LOCK.consumeClick()) {
+            controller.lockOrUnlock(System.currentTimeMillis());
+        }
+        Placement selected = session.placements().selected().orElse(null);
+        if (selected != null && selected.locked()) {
+            layerKeys(controller, PlacementSession.feetLayer(selected));
+            return;
+        }
+        while (RemoteKeys.IN_HAND.consumeClick()) {
+            // Only a locked placement has an in-hand filter.
+        }
         double yaw = minecraft.player.getYRot();
         boolean shift = minecraft.hasShiftDown();
         repeating(RemoteKeys.MOVE_FORWARD, () -> controller.move(Relative.FORWARD, yaw, shift));
@@ -127,6 +163,28 @@ public final class RemoteInput {
         }
         while (RemoteKeys.REMOVE.consumeClick()) {
             controller.remove(System.currentTimeMillis());
+        }
+    }
+
+    /** On a locked placement the arrows and numpad + / - work on its layers; rotate, mirror and remove do nothing. */
+    private void layerKeys(PlacementController controller, int feetLayer) {
+        repeating(RemoteKeys.MOVE_FORWARD, () -> controller.moveWindow(1));
+        repeating(RemoteKeys.MOVE_BACK, () -> controller.moveWindow(-1));
+        repeating(RemoteKeys.MOVE_UP, () -> controller.resizeWindow(1));
+        repeating(RemoteKeys.MOVE_DOWN, () -> controller.resizeWindow(-1));
+        while (RemoteKeys.MOVE_RIGHT.consumeClick()) {
+            controller.cycleLayers(1, feetLayer);
+        }
+        while (RemoteKeys.MOVE_LEFT.consumeClick()) {
+            controller.cycleLayers(-1, feetLayer);
+        }
+        while (RemoteKeys.IN_HAND.consumeClick()) {
+            controller.toggleInHand();
+        }
+        for (KeyMapping ignored : new KeyMapping[] {RemoteKeys.ROTATE, RemoteKeys.MIRROR, RemoteKeys.REMOVE}) {
+            while (ignored.consumeClick()) {
+                // Drop presses; a locked placement does not rotate, mirror or get removed.
+            }
         }
     }
 

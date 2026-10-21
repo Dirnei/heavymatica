@@ -33,6 +33,8 @@ final class GhostMeshes implements AutoCloseable {
     private final Map<Key, GhostMesh> ready = new HashMap<>();
     private final Map<Key, CompletableFuture<GhostMesh.Built>> building = new HashMap<>();
     private final Map<UUID, Key> shown = new HashMap<>();
+    private final Map<Key, GhostCells> readyCells = new HashMap<>();
+    private final Map<Key, CompletableFuture<GhostCells.Built>> buildingCells = new HashMap<>();
     private @Nullable Object modelSet;
 
     /** The mesh to draw for a placement, starting a build when needed; null while there is nothing to show yet. */
@@ -65,6 +67,36 @@ final class GhostMeshes implements AutoCloseable {
         return previous == null ? null : ready.get(previous);
     }
 
+    /** True when the placement draws from cells: locked with a layer setting or the in-hand filter. */
+    static boolean usesCells(Placement placement) {
+        return placement.locked() && (placement.layers().mode() != Layers.Mode.OFF || placement.inHand());
+    }
+
+    /** The placement's cells, starting a build when needed; null until they are ready. */
+    @Nullable GhostCells cells(Placement placement, SchematicModel model) {
+        Key key = Key.of(placement);
+        GhostCells cells = readyCells.get(key);
+        if (cells != null) {
+            return cells;
+        }
+        CompletableFuture<GhostCells.Built> build = buildingCells.computeIfAbsent(key, ignored -> CompletableFuture.supplyAsync(
+                () -> GhostCells.build(new GhostView(model, key.rotation(), key.mirror())), Util.backgroundExecutor()));
+        if (!build.isDone()) {
+            return null;
+        }
+        buildingCells.remove(key);
+        if (build.isCompletedExceptionally()) {
+            build.exceptionally(failure -> {
+                Heavymatica.LOGGER.error("Ghost cells for {} failed", key, failure);
+                return null;
+            });
+            return null;
+        }
+        cells = GhostCells.upload(build.join());
+        readyCells.put(key, cells);
+        return cells;
+    }
+
     /** Frees meshes no live placement needs; drops everything after a model reload. */
     void sweep(Collection<Placement> live, Function<Placement, @Nullable SchematicModel> models) {
         Object current = Minecraft.getInstance().getModelManager().getBlockStateModelSet();
@@ -77,11 +109,15 @@ final class GhostMeshes implements AutoCloseable {
             return;
         }
         Set<Key> needed = new HashSet<>();
+        Set<Key> neededCells = new HashSet<>();
         Set<UUID> ids = new HashSet<>();
         for (Placement placement : live) {
             ids.add(placement.id());
             if (models.apply(placement) != null) {
                 needed.add(Key.of(placement));
+                if (usesCells(placement)) {
+                    neededCells.add(Key.of(placement));
+                }
             }
             Key previous = shown.get(placement.id());
             if (previous != null) {
@@ -89,7 +125,21 @@ final class GhostMeshes implements AutoCloseable {
             }
         }
         shown.keySet().retainAll(ids);
-        int before = ready.size();
+        int before = size();
+        readyCells.entrySet().removeIf(entry -> {
+            if (neededCells.contains(entry.getKey())) {
+                return false;
+            }
+            entry.getValue().close();
+            return true;
+        });
+        buildingCells.entrySet().removeIf(entry -> {
+            if (neededCells.contains(entry.getKey())) {
+                return false;
+            }
+            entry.getValue().thenAccept(GhostCells.Built::close);
+            return true;
+        });
         ready.entrySet().removeIf(entry -> {
             if (needed.contains(entry.getKey())) {
                 return false;
@@ -104,13 +154,14 @@ final class GhostMeshes implements AutoCloseable {
             entry.getValue().thenAccept(GhostMesh.Built::close);
             return true;
         });
-        if (ready.size() != before) {
-            Heavymatica.LOGGER.info("Freed {} ghost meshes, {} left", before - ready.size(), ready.size());
+        if (size() != before) {
+            Heavymatica.LOGGER.info("Freed {} ghost meshes, {} left", before - size(), size());
         }
     }
 
+    /** Full meshes plus cell sets. */
     int size() {
-        return ready.size();
+        return ready.size() + readyCells.size();
     }
 
     @Override
@@ -119,6 +170,10 @@ final class GhostMeshes implements AutoCloseable {
         ready.clear();
         building.values().forEach(build -> build.thenAccept(GhostMesh.Built::close));
         building.clear();
+        readyCells.values().forEach(GhostCells::close);
+        readyCells.clear();
+        buildingCells.values().forEach(build -> build.thenAccept(GhostCells.Built::close));
+        buildingCells.clear();
         shown.clear();
     }
 }

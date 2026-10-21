@@ -16,13 +16,16 @@ import java.util.UUID;
  * @param pivotZ2      twice the footprint centre on z
  * @param dimension    the dimension ID, for example {@code minecraft:overworld}
  * @param followOffset while FOLLOWING, how far above (or below) the crosshair target the ghost sits
+ * @param layers       which layers show while LOCKED; kept when unlocked
+ * @param inHand       while LOCKED, show only blocks matching the held and hotbar items
  */
 public record Placement(UUID id, PlacementSource source, String name, int width, int height, int length, int pivotX2, int y, int pivotZ2,
-                        Turn rotation, Flip mirror, String dimension, State state, int followOffset) {
+                        Turn rotation, Flip mirror, String dimension, State state, int followOffset, Layers layers, boolean inHand) {
 
     public enum State {
         FOLLOWING,
         ANCHORED,
+        LOCKED,
     }
 
     /** Rotation in the order of vanilla's {@code Rotation}. */
@@ -71,19 +74,31 @@ public record Placement(UUID id, PlacementSource source, String name, int width,
         return state == State.FOLLOWING;
     }
 
+    public boolean locked() {
+        return state == State.LOCKED;
+    }
+
     Placement with(int pivotX2, int y, int pivotZ2) {
-        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset);
+        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand);
     }
 
     Placement with(Turn rotation, Flip mirror) {
-        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset);
+        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand);
     }
 
     Placement with(State state, int followOffset) {
-        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset);
+        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand);
     }
 
     Placement inDimension(String dimension) {
-        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset);
+        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand);
+    }
+
+    Placement with(Layers layers) {
+        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand);
+    }
+
+    Placement withInHand(boolean inHand) {
+        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand);
     }
 }

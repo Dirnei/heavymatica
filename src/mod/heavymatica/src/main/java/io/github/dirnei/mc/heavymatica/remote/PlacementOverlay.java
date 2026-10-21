@@ -3,6 +3,7 @@ package io.github.dirnei.mc.heavymatica.remote;
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
+import io.github.dirnei.mc.heavymatica.placement.Layers;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
@@ -40,6 +41,7 @@ public final class PlacementOverlay {
     private static final int WARNING = 0xFFFF6060;
     private static final int FOLLOWING = 0xFFFFD040;
     private static final int ANCHORED = 0xFF40E060;
+    private static final int LOCKED = 0xFF40D0F0;
 
     /** One overlay line: an optional key name in its own colour, then text. */
     record Line(Component key, Component text, int color) {
@@ -108,8 +110,11 @@ public final class PlacementOverlay {
                 ? Component.literal("v" + cloud.version())
                 : Component.translatable("heavymatica.overlay.local");
         lines.add(Line.text(Component.literal(placement.name() + "  ").append(version), TEXT));
-        lines.add(Line.text(Component.translatable(placement.following() ? "heavymatica.overlay.following" : "heavymatica.overlay.anchored"),
-                placement.following() ? FOLLOWING : ANCHORED));
+        lines.add(switch (placement.state()) {
+            case FOLLOWING -> Line.text(Component.translatable("heavymatica.overlay.following"), FOLLOWING);
+            case ANCHORED -> Line.text(Component.translatable("heavymatica.overlay.anchored"), ANCHORED);
+            case LOCKED -> Line.text(Component.translatable("heavymatica.overlay.locked"), LOCKED);
+        });
         if (HeavymaticaConfig.overlayCompact()) {
             return lines;
         }
@@ -117,12 +122,28 @@ public final class PlacementOverlay {
         lines.add(Line.text(Component.translatable("heavymatica.overlay.position", bounds.minX(), bounds.minY(), bounds.minZ()), MUTED));
         lines.add(Line.text(Component.translatable("heavymatica.overlay.rotation", placement.rotation().degrees(),
                 Component.translatable("heavymatica.overlay.mirror." + placement.mirror().name().toLowerCase(Locale.ROOT))), MUTED));
+        if (placement.locked()) {
+            lines.add(Line.text(layersText(placement), TEXT));
+            lines.add(Line.text(inHandText(placement), TEXT));
+        }
         lines.add(SEPARATOR);
         if (session.unavailable(placement)) {
             lines.add(Line.text(Component.translatable("heavymatica.overlay.unavailable"), WARNING));
         }
         if (session.controller().removePending(System.currentTimeMillis())) {
             lines.add(new Line(name(RemoteKeys.REMOVE), Component.translatable("heavymatica.overlay.remove_again"), WARNING));
+            return lines;
+        }
+        if (session.controller().unlockPending(System.currentTimeMillis())) {
+            lines.add(new Line(name(RemoteKeys.LOCK), Component.translatable("heavymatica.overlay.unlock_again"), WARNING));
+            return lines;
+        }
+        if (placement.locked()) {
+            lines.add(new Line(pair(RemoteKeys.MOVE_FORWARD, RemoteKeys.MOVE_BACK), Component.translatable("heavymatica.overlay.hint.window"), TEXT));
+            lines.add(new Line(pair(RemoteKeys.MOVE_UP, RemoteKeys.MOVE_DOWN), Component.translatable("heavymatica.overlay.hint.window_size"), TEXT));
+            lines.add(new Line(pair(RemoteKeys.MOVE_LEFT, RemoteKeys.MOVE_RIGHT), Component.translatable("heavymatica.overlay.hint.layer_mode"), TEXT));
+            lines.add(hint(RemoteKeys.IN_HAND, "heavymatica.overlay.hint.in_hand"));
+            lines.add(hint(RemoteKeys.LOCK, "heavymatica.overlay.hint.unlock"));
             return lines;
         }
         if (placement.following()) {
@@ -141,8 +162,29 @@ public final class PlacementOverlay {
             lines.add(new Line(Component.translatable("heavymatica.overlay.key.sneak_use", minecraft.options.keyShift.getTranslatedKeyMessage(),
                     minecraft.options.keyUse.getTranslatedKeyMessage()), Component.translatable("heavymatica.overlay.hint.release"), TEXT));
         }
+        if (!placement.following()) {
+            lines.add(hint(RemoteKeys.LOCK, "heavymatica.overlay.hint.lock"));
+        }
         lines.add(hint(RemoteKeys.REMOVE, placement.following() ? "heavymatica.overlay.hint.cancel" : "heavymatica.overlay.hint.remove"));
         return lines;
+    }
+
+    private static Component layersText(Placement placement) {
+        int height = placement.height();
+        Layers.Range range = Layers.visible(placement, PlacementSession.feetLayer(placement), HeavymaticaConfig.layersFollowOffset());
+        return switch (placement.layers().mode()) {
+            case OFF -> Component.translatable("heavymatica.overlay.layers.all", height);
+            case FROM_TO -> Component.translatable("heavymatica.overlay.layers.from_to", range.from(), range.to(), height);
+            case FOLLOW -> Component.translatable("heavymatica.overlay.layers.follow", range.from(), range.to(), height);
+        };
+    }
+
+    private static Component inHandText(Placement placement) {
+        return Component.translatable(placement.inHand() ? "heavymatica.overlay.in_hand.on" : "heavymatica.overlay.in_hand.off");
+    }
+
+    private static Component pair(KeyMapping first, KeyMapping second) {
+        return Component.empty().append(name(first)).append(" / ").append(name(second));
     }
 
     private static Line hint(KeyMapping key, String text) {

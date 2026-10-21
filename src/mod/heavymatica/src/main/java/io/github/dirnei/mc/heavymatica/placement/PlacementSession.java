@@ -16,8 +16,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -84,6 +89,17 @@ public final class PlacementSession {
         models.put(source.sha256(), model);
         unavailable.remove(source.sha256());
         return controller.start(source, name, model.width(), model.height(), model.length(), dimension, at);
+    }
+
+    /** The player's feet y minus the placement's bottom y; 0 outside a world. */
+    public static int feetLayer(Placement placement) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        return player == null ? 0 : Mth.floor(player.getY()) - placement.y();
+    }
+
+    /** The block an item places, any state; null for items that place no block. */
+    public static @Nullable Block placedBlock(ItemStack stack) {
+        return stack.getItem() instanceof BlockItem item ? item.getBlock() : null;
     }
 
     /** Mesh count, for development checks. */
