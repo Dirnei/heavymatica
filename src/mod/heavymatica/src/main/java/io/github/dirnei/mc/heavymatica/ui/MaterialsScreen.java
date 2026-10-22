@@ -1,12 +1,14 @@
 package io.github.dirnei.mc.heavymatica.ui;
 
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
+import io.github.dirnei.mc.heavymatica.placement.BlockEquivalents;
 import io.github.dirnei.mc.heavymatica.placement.MaterialList;
 import io.github.dirnei.mc.heavymatica.placement.Materials;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,9 +29,10 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * The block types of the selected placement's schematic, each with its total and what it shows as, with a pick and
- * a reset per row; changes apply at once. While the placement is locked, each row also shows needed, have and short
- * for the item of the block it shows as, and the blocks no item places follow under "Can't carry". A search narrows
- * the rows. Follows the swaps, the world and the inventory while open, and does not pause the game.
+ * a reset per row; changes apply at once. While the placement is locked, each row also shows how many positions of
+ * the block it shows as need finishing in the visible layers, and that block's needed, have and short, and the blocks
+ * no item places follow under "Can't carry". A search narrows the rows. Follows the swaps, the world and the inventory
+ * while open, and does not pause the game.
  */
 public final class MaterialsScreen extends Screen {
 
@@ -38,12 +41,14 @@ public final class MaterialsScreen extends Screen {
     private static final int MAX_PANEL = 520;
     private static final int BUTTONS = 88;
     private static final int NUMBERS = 120;
+    private static final int FINISH = 72;
     private static final int TEXT = 0xFFFFFFFF;
     private static final int MUTED = 0xFFAAAAAA;
     private static final int MISSING = 0xFFFF5050;
     private static final int SHORT = 0xFFFF5050;
     private static final int SWAPPED = 0xFF80E0FF;
     private static final int HEADER = 0xFFFFE080;
+    private static final int FINISHING = 0xFFFFF040;
 
     private final PlacementSession session;
     private final @Nullable UUID placementId;
@@ -77,7 +82,7 @@ public final class MaterialsScreen extends Screen {
         }
         list = placement != null && placement.locked() ? session.materials(placement) : null;
         Map<String, String> swaps = placement == null ? Map.of() : placement.swaps();
-        all = MaterialRows.of(counts, swaps, blockId -> block(blockId) != null, MaterialsScreen::itemOf, list, session::carried);
+        all = MaterialRows.of(counts, swaps, blockId -> block(blockId) != null, MaterialsScreen::itemOf, MaterialsScreen::block, list, session::carried);
         filter();
     }
 
@@ -265,7 +270,7 @@ public final class MaterialsScreen extends Screen {
         int left = left();
         int right = left + panel();
         boolean numbers = list != null;
-        int columns = right - BUTTONS - (numbers ? NUMBERS : 0) - 6;
+        int columns = right - BUTTONS - (numbers ? NUMBERS + FINISH : 0) - 6;
         int blockWidth = (columns - left - 50) / 2;
         int totalX = left + blockWidth + 40;
         int targetX = totalX + 14;
@@ -273,11 +278,13 @@ public final class MaterialsScreen extends Screen {
         int shortX = right - BUTTONS - 4;
         int haveX = shortX - 40;
         int neededX = haveX - 40;
+        int finishX = neededX - 44;
         graphics.centeredText(font, title, width / 2, 10, TEXT);
         graphics.text(font, Component.translatable("heavymatica.materials.block"), left + 20, TOP - 14, HEADER, false);
         right(graphics, Component.translatable("heavymatica.materials.total"), totalX, TOP - 14, HEADER);
         graphics.text(font, Component.translatable("heavymatica.materials.target"), targetX + 20, TOP - 14, HEADER, false);
         if (numbers) {
+            right(graphics, Component.translatable("heavymatica.materials.finish"), finishX, TOP - 14, HEADER);
             right(graphics, Component.translatable("heavymatica.materials.needed"), neededX, TOP - 14, HEADER);
             right(graphics, Component.translatable("heavymatica.materials.have"), haveX, TOP - 14, HEADER);
             right(graphics, Component.translatable("heavymatica.materials.short"), shortX, TOP - 14, HEADER);
@@ -309,6 +316,10 @@ public final class MaterialsScreen extends Screen {
                     right(graphics, Component.literal(Integer.toString(counts.needed())), neededX, y + 5, TEXT);
                     right(graphics, Component.literal(Integer.toString(counts.had())), haveX, y + 5, TEXT);
                     right(graphics, Component.literal(Integer.toString(counts.shortage())), shortX, y + 5, counts.shortage() > 0 ? SHORT : MUTED);
+                }
+                if (numbers && row.finishing() > 0 && row.finish() != null) {
+                    right(graphics, Component.translatable("heavymatica.materials.finish." + row.finish().name().toLowerCase(Locale.ROOT), row.finishing()),
+                            finishX, y + 5, FINISHING);
                 }
             } else if (i == rows.size()) {
                 graphics.text(font, Component.translatable("heavymatica.materials.cant_carry"), left, y + 5, HEADER, false);
@@ -348,9 +359,17 @@ public final class MaterialsScreen extends Screen {
         return BuiltInRegistries.BLOCK.getOptional(Identifier.tryParse(blockId)).orElse(null);
     }
 
+    /** The item the equivalents table places a block with, or the block's own item when the table's is unknown or none. */
     private static @Nullable Item itemOf(String blockId) {
         Block block = block(blockId);
-        Item item = block == null ? Items.AIR : block.asItem();
+        if (block == null) {
+            return null;
+        }
+        Block placedWith = block(BlockEquivalents.of(blockId).placedWith());
+        Item item = placedWith == null ? Items.AIR : placedWith.asItem();
+        if (item == Items.AIR) {
+            item = block.asItem();
+        }
         return item == Items.AIR ? null : item;
     }
 

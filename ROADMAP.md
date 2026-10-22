@@ -89,6 +89,16 @@ change). `.blueprint` (Structurize) import was out of scope.
     NeoForge's item capability. Chests and other containers in the world don't count.
   - The overlay shows the three largest shortages; the wheel's Material list opens the full list with needed, have and
     short.
+- **Block equivalents (change `block-equivalents`):** planned blocks that are not placed as themselves.
+  - A built-in table names, per planned block, the item that places it, the blocks that already count as it and the
+    blocks that only need a finishing step: grass and dirt count as each other, dirt paths need a shovel and farmland
+    a hoe on dirt, stripped wood needs an axe on its log, and concrete needs water on its powder.
+  - Blocks that need finishing get a yellow box, don't count as done and need no item. The overlay counts them per
+    tool over the visible layers, and the materials screen shows them in a Finish column.
+  - Need and have are kept per planned block, and each carried item counts toward one planned block only, so
+    concrete never stands in for planned powder.
+  - Later rows: copper weathering accepted as equivalent, waxed copper (copper plus honeycomb), snow layers, crop
+    ages and leaf persistence.
 - Step 4 is done. **Next up: multiplayer sync.**
 
 ### 5. Multiplayer sync

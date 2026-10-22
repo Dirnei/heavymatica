@@ -1,6 +1,7 @@
 package io.github.dirnei.mc.heavymatica.placement;
 
 import io.github.dirnei.mc.heavymatica.formats.BlockStates;
+import io.github.dirnei.mc.heavymatica.placement.BlockEquivalents.Equivalence;
 import io.github.dirnei.mc.heavymatica.placement.CellState.Expected;
 import io.github.dirnei.mc.heavymatica.placement.CellState.Found;
 import java.util.ArrayList;
@@ -8,10 +9,15 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Property;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Turns block states into the comparison's {@link Expected} and {@link Found} terms: block identity, an orientation
@@ -37,6 +43,7 @@ final class CellKeys {
 
     private final Map<List<Object>, Integer> orientations = new HashMap<>();
     private final Map<BlockState, Found> found = new IdentityHashMap<>();
+    private final Map<Block, Equivalence> equivalences = new IdentityHashMap<>();
 
     /**
      * The expected term for a schematic palette entry.
@@ -52,7 +59,32 @@ final class CellKeys {
         if (resolved.isAir()) {
             return BlockStates.isAirLike(id) ? Expected.AIR : Expected.IGNORE;
         }
-        return Expected.block(block(resolved), orientation(resolved), waterlogged(resolved));
+        Equivalence equivalence = equivalence(resolved.getBlock());
+        return Expected.block(block(resolved), orientation(resolved), waterlogged(resolved), ids(equivalence.same()), ids(equivalence.finishFrom()),
+                equivalence.finish() == null ? -1 : equivalence.finish().ordinal());
+    }
+
+    /**
+     * The equivalents table's row for a planned block; the block as itself when the game does not know the block that
+     * places it or that block has no item. The row's other blocks may still name blocks the game does not know.
+     */
+    Equivalence equivalence(Block planned) {
+        return equivalences.computeIfAbsent(planned, block -> {
+            String id = BuiltInRegistries.BLOCK.getKey(block).toString();
+            Equivalence equivalence = BlockEquivalents.of(id);
+            Block placedWith = known(equivalence.placedWith());
+            return placedWith == null || placedWith.asItem() == Items.AIR ? Equivalence.self(id) : equivalence;
+        });
+    }
+
+    static @Nullable Block known(String blockId) {
+        Identifier id = Identifier.tryParse(blockId);
+        return id == null ? null : BuiltInRegistries.BLOCK.getOptional(id).orElse(null);
+    }
+
+    /** The sorted registry ids of the blocks the game knows. */
+    private static int[] ids(List<String> blockIds) {
+        return blockIds.stream().map(CellKeys::known).filter(Objects::nonNull).mapToInt(BuiltInRegistries.BLOCK::getId).sorted().distinct().toArray();
     }
 
     Found found(BlockState state) {

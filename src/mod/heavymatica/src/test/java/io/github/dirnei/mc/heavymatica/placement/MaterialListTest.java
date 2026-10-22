@@ -79,4 +79,75 @@ class MaterialListTest {
         assertEquals(List.of("oak_planks"), list.rows().stream().map(MaterialList.Row::item).toList());
         assertEquals(1, list.shortages(3).top().size());
     }
+
+    private static final String DIRT = "minecraft:dirt";
+    private static final String GRASS = "minecraft:grass_block";
+    private static final String PATH = "minecraft:dirt_path";
+    private static final String FARMLAND = "minecraft:farmland";
+    private static final String CONCRETE = "minecraft:white_concrete";
+    private static final String POWDER = "minecraft:white_concrete_powder";
+    private static final String PLANKS = "minecraft:oak_planks";
+
+    private static MaterialList<String, String> shared(Map<String, Integer> needed, Map<String, Integer> carried) {
+        return SharedLists.of(needed, Map.of(), carried);
+    }
+
+    @Test
+    void grassNeedsDirt() {
+        MaterialList<String, String> list = shared(map(GRASS, 30, DIRT, 10), map());
+        assertEquals(List.of(new MaterialList.Row<>(DIRT, 40, 0, 40)), list.rows());
+    }
+
+    @Test
+    void pathsAndFarmlandNeedDirt() {
+        MaterialList<String, String> list = shared(map(PATH, 6, FARMLAND, 4, GRASS, 2), map());
+        assertEquals(List.of(new MaterialList.Row<>(DIRT, 12, 0, 12)), list.rows());
+    }
+
+    @Test
+    void silkTouchedGrassCountsForGrassAndDirt() {
+        MaterialList<String, String> list = shared(map(GRASS, 30, DIRT, 10), map(DIRT, 10, GRASS, 30));
+        assertEquals(List.of(new MaterialList.Row<>(DIRT, 40, 40, 0)), list.rows());
+    }
+
+    @Test
+    void hardenedConcreteCountsForConcrete() {
+        MaterialList<String, String> list = shared(map(CONCRETE, 64), map(CONCRETE, 64));
+        assertEquals(List.of(new MaterialList.Row<>(POWDER, 64, 64, 0)), list.rows());
+    }
+
+    @Test
+    void concreteIsNotPowder() {
+        MaterialList<String, String> list = shared(map(POWDER, 64), map(CONCRETE, 64));
+        assertEquals(List.of(new MaterialList.Row<>(POWDER, 64, 0, 64)), list.rows());
+    }
+
+    @Test
+    void concreteAndPowderTogether() {
+        MaterialList<String, String> list = shared(map(CONCRETE, 64, POWDER, 64), map(POWDER, 96));
+        assertEquals(List.of(new MaterialList.Row<>(POWDER, 128, 96, 32)), list.rows());
+        assertEquals(new MaterialList.Planned<>(POWDER, 64, 64, 0, 0, 0, null), list.planned(POWDER));
+        assertEquals(new MaterialList.Planned<>(POWDER, 64, 32, 32, 0, 0, BlockEquivalents.Finish.WATER), list.planned(CONCRETE));
+    }
+
+    @Test
+    void pathItemsCoverFarmland() {
+        MaterialList<String, String> list = shared(map(FARMLAND, 10), map(PATH, 10));
+        assertEquals(List.of(new MaterialList.Row<>(DIRT, 10, 10, 0)), list.rows());
+    }
+
+    @Test
+    void sparePlanksAreHad() {
+        MaterialList<String, String> list = shared(map(PLANKS, 300), map(PLANKS, 512));
+        assertEquals(List.of(new MaterialList.Row<>(PLANKS, 300, 512, 0)), list.rows());
+        assertEquals(new MaterialList.Planned<>(PLANKS, 300, 300, 0, 212, 0, null), list.planned(PLANKS));
+    }
+
+    @Test
+    void plannedBlocksKeepTheirFinishing() {
+        MaterialList<String, String> list = SharedLists.of(map(PATH, 5, GRASS, 10), map(PATH, 15), map());
+        assertEquals(new MaterialList.Planned<>(DIRT, 5, 0, 5, 0, 15, BlockEquivalents.Finish.SHOVEL), list.planned(PATH));
+        assertEquals(new MaterialList.Planned<>(DIRT, 10, 0, 10, 0, 0, null), list.planned(GRASS));
+        assertEquals(null, list.planned(FARMLAND));
+    }
 }

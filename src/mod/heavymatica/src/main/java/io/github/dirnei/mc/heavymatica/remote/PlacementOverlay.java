@@ -3,6 +3,7 @@ package io.github.dirnei.mc.heavymatica.remote;
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
+import io.github.dirnei.mc.heavymatica.placement.BlockEquivalents;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
 import io.github.dirnei.mc.heavymatica.placement.ComparisonState;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
@@ -57,6 +58,7 @@ public final class PlacementOverlay {
     private static final int MISTAKE_ORANGE = 0xFFFFA040;
     private static final int MISTAKE_CYAN = 0xFF40E8F8;
     private static final int MISTAKE_MAGENTA = 0xFFFF60FF;
+    private static final int FINISHING_YELLOW = 0xFFFFF040;
     private static final int SHORTAGE_LINES = 3;
 
     /** One overlay line: an optional key name in its own colour, then text. */
@@ -224,7 +226,10 @@ public final class PlacementOverlay {
         };
     }
 
-    /** Progress, layer progress, the mistake counts and, when the crosshair is on a mistake, what belongs there. */
+    /**
+     * Progress, layer progress, the mistake counts, the positions to finish in the visible layers per step and, when
+     * the crosshair is on a mistake or a block to finish, what belongs there.
+     */
     private static void comparisonLines(Minecraft minecraft, Placement placement, WorldComparison comparison, List<Line> lines) {
         ComparisonState state = comparison.state();
         if (state.scanning()) {
@@ -242,13 +247,42 @@ public final class PlacementOverlay {
                 .append(count(state, CellState.WRONG_ORIENTATION, "wrong_orientation", MISTAKE_ORANGE)).append("  ")
                 .append(count(state, CellState.WRONG_WATER, "wrong_water", MISTAKE_CYAN)).append("  ")
                 .append(count(state, CellState.EXTRA, "extra", MISTAKE_MAGENTA)), TEXT));
+        finishingLines(placement, comparison, lines);
         if (minecraft.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK && minecraft.level != null) {
             CellState target = comparison.stateAt(hit.getBlockPos());
-            if (target != null && target.mistake()) {
+            if (target != null && target.boxed()) {
                 lines.add(Line.text(Component.translatable("heavymatica.overlay.expected", block(comparison.expectedAt(hit.getBlockPos()))), MUTED));
                 lines.add(Line.text(Component.translatable("heavymatica.overlay.found", block(minecraft.level.getBlockState(hit.getBlockPos()))), MUTED));
+                BlockEquivalents.Finish finish = comparison.finishAt(hit.getBlockPos());
+                if (target == CellState.NEEDS_FINISHING && finish != null) {
+                    lines.add(Line.text(Component.translatable("heavymatica.overlay.finish_target." + stepName(finish)), FINISHING_YELLOW));
+                }
             }
         }
+    }
+
+    /** One line per finishing step that positions in the visible layers need. */
+    private static void finishingLines(Placement placement, WorldComparison comparison, List<Line> lines) {
+        Layers.Range range = Layers.visible(placement, PlacementSession.feetLayer(placement));
+        int[] finishing = comparison.materials().sum(range.from(), range.to()).finishing();
+        int[] steps = new int[BlockEquivalents.Finish.values().length];
+        for (int block = 0; block < finishing.length; block++) {
+            BlockEquivalents.Finish finish = comparison.finish(block);
+            if (finish != null) {
+                steps[finish.ordinal()] += finishing[block];
+            }
+        }
+        for (BlockEquivalents.Finish finish : BlockEquivalents.Finish.values()) {
+            int count = steps[finish.ordinal()];
+            if (count > 0) {
+                String key = "heavymatica.overlay.finish." + stepName(finish);
+                lines.add(Line.text(Component.translatable(count == 1 ? key + ".one" : key, count), FINISHING_YELLOW));
+            }
+        }
+    }
+
+    private static String stepName(BlockEquivalents.Finish finish) {
+        return finish.name().toLowerCase(Locale.ROOT);
     }
 
     /** The largest shortages of the visible layers, or that nothing is short. */

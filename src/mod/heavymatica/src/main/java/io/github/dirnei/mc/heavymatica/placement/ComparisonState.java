@@ -132,7 +132,7 @@ public final class ComparisonState {
             dirtyMaskFrom = Math.min(dirtyMaskFrom, at);
             dirtyMaskTo = Math.max(dirtyMaskTo, at + 1);
         }
-        if (old.mistake() || state.mistake()) {
+        if (old.boxed() || state.boxed()) {
             int rest = index % layer;
             markBoxes(rest % sizeX, y, rest / sizeX);
         }
@@ -226,7 +226,7 @@ public final class ComparisonState {
         return range;
     }
 
-    /** Sections whose mistake boxes changed since the last call. */
+    /** Sections whose boxes changed since the last call. */
     public BitSet takeDirtyBoxSections() {
         BitSet dirty = (BitSet) dirtyBoxSections.clone();
         dirtyBoxSections.clear();

@@ -20,6 +20,29 @@ class CellStateTest {
     private static final int BOTTOM = 20;
     private static final int TOP = 21;
     private static final int NONE = 0;
+    private static final int GRASS = 30;
+    private static final int PATH = 31;
+    private static final int FARMLAND = 32;
+    private static final int PODZOL = 33;
+    private static final int OAK_LOG = 34;
+    private static final int STRIPPED_OAK_LOG = 35;
+    private static final int WHITE_CONCRETE = 36;
+    private static final int WHITE_POWDER = 37;
+    private static final int Y_AXIS = 40;
+    private static final int X_AXIS = 41;
+    private static final int[] NOTHING = {};
+
+    private static Expected planned(int block, int orientation, boolean waterlogged, int[] same, int[] finishFrom, BlockEquivalents.Finish finish) {
+        return Expected.block(block, orientation, waterlogged, same, finishFrom, finish == null ? -1 : finish.ordinal());
+    }
+
+    private static final Expected GRASS_PLANNED = planned(GRASS, NONE, false, new int[] {DIRT}, NOTHING, null);
+    private static final Expected DIRT_PLANNED = planned(DIRT, NONE, false, new int[] {GRASS}, NOTHING, null);
+    private static final Expected PATH_PLANNED = planned(PATH, NONE, false, NOTHING, new int[] {DIRT, GRASS, PODZOL}, BlockEquivalents.Finish.SHOVEL);
+    private static final Expected FARMLAND_PLANNED = planned(FARMLAND, NONE, false, NOTHING, new int[] {DIRT, GRASS, PATH}, BlockEquivalents.Finish.HOE);
+    private static final Expected WHITE_CONCRETE_PLANNED = planned(WHITE_CONCRETE, NONE, false, NOTHING, new int[] {WHITE_POWDER},
+            BlockEquivalents.Finish.WATER);
+    private static final Expected WHITE_POWDER_PLANNED = planned(WHITE_POWDER, NONE, false, NOTHING, NOTHING, null);
 
     @Test
     void missingWhenTheWorldIsAir() {
@@ -80,5 +103,62 @@ class CellStateTest {
     @Test
     void blockBeforeOrientation() {
         assertEquals(CellState.WRONG_BLOCK, CellState.classify(Expected.block(OAK_STAIRS, NORTH, true), Found.block(OAK_SLAB, BOTTOM, false)));
+    }
+
+    @Test
+    void dirtOnPlannedGrassAndGrassOnPlannedDirtMatch() {
+        assertEquals(CellState.MATCHING, CellState.classify(GRASS_PLANNED, Found.block(DIRT, NONE, false)));
+        assertEquals(CellState.MATCHING, CellState.classify(DIRT_PLANNED, Found.block(GRASS, NONE, false)));
+        assertEquals(CellState.MATCHING, CellState.classify(DIRT_PLANNED, Found.block(DIRT, NONE, false)));
+    }
+
+    @Test
+    void grassOrPodzolOnAPlannedPathNeedsFinishing() {
+        assertEquals(CellState.NEEDS_FINISHING, CellState.classify(PATH_PLANNED, Found.block(GRASS, NONE, false)));
+        assertEquals(CellState.NEEDS_FINISHING, CellState.classify(PATH_PLANNED, Found.block(PODZOL, NONE, false)));
+    }
+
+    @Test
+    void aPathOnPlannedFarmlandNeedsFinishing() {
+        assertEquals(CellState.NEEDS_FINISHING, CellState.classify(FARMLAND_PLANNED, Found.block(PATH, NONE, false)));
+        assertEquals(CellState.NEEDS_FINISHING, CellState.classify(FARMLAND_PLANNED, Found.block(DIRT, NONE, false)));
+    }
+
+    @Test
+    void theWrongFinishIsWrongBlock() {
+        assertEquals(CellState.WRONG_BLOCK, CellState.classify(PATH_PLANNED, Found.block(FARMLAND, NONE, false)));
+        assertEquals(CellState.WRONG_BLOCK, CellState.classify(WHITE_POWDER_PLANNED, Found.block(WHITE_CONCRETE, NONE, false)));
+    }
+
+    @Test
+    void anUnstrippedLogKeepsItsAxis() {
+        Expected stripped = planned(STRIPPED_OAK_LOG, Y_AXIS, false, NOTHING, new int[] {OAK_LOG}, BlockEquivalents.Finish.AXE);
+        assertEquals(CellState.NEEDS_FINISHING, CellState.classify(stripped, Found.block(OAK_LOG, Y_AXIS, false)));
+        assertEquals(CellState.WRONG_ORIENTATION, CellState.classify(stripped, Found.block(OAK_LOG, X_AXIS, false)));
+        assertEquals(CellState.MATCHING, CellState.classify(stripped, Found.block(STRIPPED_OAK_LOG, Y_AXIS, false)));
+    }
+
+    @Test
+    void waterBeforeFinishing() {
+        Expected waterlogged = planned(STRIPPED_OAK_LOG, Y_AXIS, true, NOTHING, new int[] {OAK_LOG}, BlockEquivalents.Finish.AXE);
+        assertEquals(CellState.WRONG_WATER, CellState.classify(waterlogged, Found.block(OAK_LOG, Y_AXIS, false)));
+    }
+
+    @Test
+    void powderOnPlannedConcreteNeedsFinishing() {
+        assertEquals(CellState.NEEDS_FINISHING, CellState.classify(WHITE_CONCRETE_PLANNED, Found.block(WHITE_POWDER, NONE, false)));
+        assertEquals(CellState.MISSING, CellState.classify(WHITE_CONCRETE_PLANNED, Found.NOTHING));
+    }
+
+    @Test
+    void needsFinishingShowsABoxButNoGhostAndNeedsNoItem() {
+        assertEquals(false, CellState.NEEDS_FINISHING.showsGhost());
+        assertEquals(false, CellState.NEEDS_FINISHING.needsItem());
+        assertEquals(false, CellState.NEEDS_FINISHING.mistake());
+        assertEquals(true, CellState.NEEDS_FINISHING.boxed());
+        for (CellState state : CellState.values()) {
+            assertEquals(state.mistake() || state == CellState.NEEDS_FINISHING, state.boxed(), state.name());
+        }
+        assertEquals(CellState.values().length - 1, CellState.NEEDS_FINISHING.ordinal());
     }
 }

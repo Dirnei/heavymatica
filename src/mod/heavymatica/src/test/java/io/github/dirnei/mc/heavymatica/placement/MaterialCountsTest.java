@@ -12,6 +12,8 @@ class MaterialCountsTest {
 
     private static final int PLANKS = 0;
     private static final int SLAB = 1;
+    private static final int GRASS = 0;
+    private static final int PATH = 1;
     private static final int WATER = 0;
 
     @Test
@@ -34,9 +36,9 @@ class MaterialCountsTest {
     void sumsOverALayerRange() {
         MaterialCounts counts = new MaterialCounts(5, 2, 1);
         for (int layer = 0; layer < 5; layer++) {
-            counts.add(layer, Demand.item(PLANKS, layer + 1));
+            counts.add(layer, Demand.planned(PLANKS, layer + 1));
         }
-        counts.add(2, Demand.item(SLAB, 2));
+        counts.add(2, Demand.planned(SLAB, 2));
         counts.add(4, Demand.cantCarry(WATER, 1));
         counts.add(1, Demand.NONE);
 
@@ -52,7 +54,7 @@ class MaterialCountsTest {
     @Test
     void addAndRemoveReturnToZero() {
         MaterialCounts counts = new MaterialCounts(3, 2, 1);
-        Demand[] demands = {Demand.item(PLANKS, 1), Demand.item(SLAB, 2), Demand.cantCarry(WATER, 1), Demand.NONE};
+        Demand[] demands = {Demand.planned(PLANKS, 1), Demand.planned(SLAB, 2), Demand.cantCarry(WATER, 1), Demand.NONE};
         for (int layer = 0; layer < 3; layer++) {
             for (Demand demand : demands) {
                 counts.add(layer, demand);
@@ -71,9 +73,40 @@ class MaterialCountsTest {
     @Test
     void emptyRangeSumsToZero() {
         MaterialCounts counts = new MaterialCounts(3, 1, 0);
-        counts.add(1, Demand.item(PLANKS, 4));
+        counts.add(1, Demand.planned(PLANKS, 4));
         assertArrayEquals(new int[] {0}, counts.sum(2, 1).needed());
         assertEquals(4, counts.sum(0, 2).needed()[PLANKS]);
         assertEquals(0, counts.sum(0, 0).needed()[PLANKS]);
+    }
+
+    @Test
+    void neededIsKeptPerPlannedBlock() {
+        // Grass and dirt paths are both placed with dirt, but stay apart here.
+        MaterialCounts counts = new MaterialCounts(2, 2, 0);
+        counts.add(0, Demand.planned(GRASS, 1));
+        counts.add(1, Demand.planned(GRASS, 1));
+        counts.add(1, Demand.planned(PATH, 1));
+        assertArrayEquals(new int[] {2, 1}, counts.sum(0, 1).needed());
+    }
+
+    @Test
+    void finishingIsSummedNextToNeededAndCantCarry() {
+        MaterialCounts counts = new MaterialCounts(4, 2, 1);
+        counts.add(0, Demand.planned(PATH, 5));
+        counts.add(3, Demand.cantCarry(WATER, 2));
+        for (int i = 0; i < 15; i++) {
+            counts.addFinishing(1, PATH);
+        }
+        counts.addFinishing(3, GRASS);
+        counts.addFinishing(3, PATH);
+        counts.removeFinishing(3, PATH);
+
+        MaterialCounts.Totals all = counts.sum(0, 3);
+        assertArrayEquals(new int[] {0, 5}, all.needed());
+        assertArrayEquals(new int[] {2}, all.cantCarry());
+        assertArrayEquals(new int[] {1, 15}, all.finishing());
+        assertArrayEquals(new int[] {0, 15}, counts.sum(0, 2).finishing());
+        assertArrayEquals(new int[] {1, 0}, counts.sum(2, 3).finishing());
+        assertArrayEquals(new int[] {0, 0}, counts.sum(3, 2).finishing());
     }
 }

@@ -85,7 +85,7 @@ final class GhostRenderer {
                 WorldComparison comparison = cells == null ? null : session.comparison(placement);
                 if (comparison != null) {
                     Layers.Range layers = Layers.visible(placement, PlacementSession.feetLayer(placement));
-                    ToDoubleFunction<Block> alpha = placement.inHand() ? inHand(opacity) : block -> opacity;
+                    ToDoubleFunction<Block> alpha = placement.inHand() ? inHand(opacity, comparison) : block -> opacity;
                     GpuBuffer mask = comparison.mask();
                     int full = cells.draw(event.getModelViewMatrix(), offset, layers, block -> alpha.applyAsDouble(block) >= opacity ? opacity : 0.0, mask);
                     int dimmed = cells.draw(event.getModelViewMatrix(), offset, layers, block -> {
@@ -116,23 +116,27 @@ final class GhostRenderer {
         lastCells = cellsDrawn.toString();
     }
 
-    /** The held block at full opacity, other hotbar blocks dimmed, everything else hidden. */
-    private static ToDoubleFunction<Block> inHand(float opacity) {
+    /**
+     * The blocks the held block places or counts toward at full opacity, those of other hotbar blocks dimmed,
+     * everything else hidden.
+     */
+    private static ToDoubleFunction<Block> inHand(float opacity, WorldComparison comparison) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
             return block -> 0.0;
         }
-        Block held = PlacementSession.placedBlock(player.getMainHandItem());
+        Block heldBlock = PlacementSession.placedBlock(player.getMainHandItem());
+        Set<Block> held = heldBlock == null ? Set.of() : comparison.highlights(heldBlock);
         Set<Block> hotbar = new HashSet<>();
         Inventory inventory = player.getInventory();
         for (int slot = 0; slot < Inventory.getSelectionSize(); slot++) {
             Block block = PlacementSession.placedBlock(inventory.getItem(slot));
             if (block != null) {
-                hotbar.add(block);
+                hotbar.addAll(comparison.highlights(block));
             }
         }
         float dimmed = opacity * HeavymaticaConfig.layersHotbarOpacity();
-        return block -> block == held ? opacity : hotbar.contains(block) ? dimmed : 0.0;
+        return block -> held.contains(block) ? opacity : hotbar.contains(block) ? dimmed : 0.0;
     }
 
     /** Meshes drawn and placements shown as outlines only in the last frame, for development checks. */

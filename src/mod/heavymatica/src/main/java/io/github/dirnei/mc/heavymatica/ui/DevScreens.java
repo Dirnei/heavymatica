@@ -71,8 +71,8 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code selectPlacement=<name>}: select the first placement with that name</li>
  *     <li>{@code logComparison}: log the selected placement's comparison: progress, totals, slowest scan tick</li>
  *     <li>{@code logCell=<x>,<y>,<z>}: log the selected placement's comparison state at a world position</li>
- *     <li>{@code logMaterials}: log the selected placement's material list, counting the player's items again, and the
- *     rows of an open materials screen</li>
+ *     <li>{@code logMaterials}: log the selected placement's material list, counting the player's items again, the numbers
+ *     and finishing counts per planned block, and the rows of an open materials screen</li>
  *     <li>{@code logOverlay}: log the placement overlay's lines as text</li>
  *     <li>{@code logScreen}, {@code closeScreen}: log which screen is open, close it</li>
  *     <li>{@code controls}: open the key bindings screen; {@code scroll=<rows>}: scroll the open screen down</li>
@@ -385,11 +385,23 @@ public final class DevScreens {
                     list.rows().stream().map(row -> BuiltInRegistries.ITEM.getKey(row.item()) + " " + row.needed() + "/" + row.had() + "/" + row.shortage())
                             .toList(),
                     list.cantCarry().stream().map(entry -> BuiltInRegistries.BLOCK.getKey(entry.block()) + " " + entry.count()).toList());
+            WorldComparison comparison = session.comparison(placement);
+            if (comparison != null) {
+                Heavymatica.LOGGER.info("Dev materials planned (needed/given/short, left, finishing): {}", comparison.plannedBlocks().stream()
+                        .map(block -> {
+                            MaterialList.Planned<Item> planned = list.planned(block);
+                            return BuiltInRegistries.BLOCK.getKey(block) + (planned == null ? " -" : " " + BuiltInRegistries.ITEM.getKey(planned.item()) + " "
+                                    + planned.needed() + "/" + planned.given() + "/" + planned.shortage() + ", left " + planned.left()
+                                    + (planned.finish() == null ? "" : ", " + planned.finishing() + " " + planned.finish()));
+                        })
+                        .toList());
+            }
         }
         if (minecraft.screen instanceof MaterialsScreen screen) {
             Heavymatica.LOGGER.info("Dev materials screen rows: {}, can't carry {}", screen.rowsForDevelopment().stream()
                     .map(row -> row.block() + " " + row.total() + (row.target() == null ? "" : " -> " + row.target())
-                            + (row.numbers() == null ? "" : " " + row.numbers().needed() + "/" + row.numbers().had() + "/" + row.numbers().shortage()))
+                            + (row.numbers() == null ? "" : " " + row.numbers().needed() + "/" + row.numbers().had() + "/" + row.numbers().shortage())
+                            + (row.finish() == null || row.finishing() == 0 ? "" : " finish " + row.finishing() + " " + row.finish()))
                     .toList(), screen.cantCarryForDevelopment().stream().map(entry -> BuiltInRegistries.BLOCK.getKey(entry.block()) + " " + entry.count()).toList());
         }
     }

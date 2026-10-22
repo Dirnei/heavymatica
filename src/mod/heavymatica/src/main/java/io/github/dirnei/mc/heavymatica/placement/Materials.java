@@ -1,7 +1,9 @@
 package io.github.dirnei.mc.heavymatica.placement;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -12,7 +14,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * The material list of the selected locked placement, rebuilt from its counts over the visible layers and the
- * player's items. The player's items are counted at most every {@value #REFRESH_TICKS} ticks; the list is rebuilt
+ * player's items shared out between its planned blocks. The player's items are counted at most every {@value #REFRESH_TICKS} ticks; the list is rebuilt
  * as often, or at once when the comparison or the visible layers change. Game thread only.
  */
 public final class Materials {
@@ -55,15 +57,17 @@ public final class Materials {
             carriedAt = ticks;
         }
         MaterialCounts.Totals totals = comparison.materials().sum(range.from(), range.to());
-        Map<Item, Integer> needed = new IdentityHashMap<>();
-        for (int item = 0; item < totals.needed().length; item++) {
-            needed.merge(comparison.item(item), totals.needed()[item], Integer::sum);
+        List<MaterialList.Need<Block>> planned = new ArrayList<>();
+        for (int block = 0; block < totals.needed().length; block++) {
+            planned.add(new MaterialList.Need<>(comparison.plannedBlock(block), comparison.placingItem(block), comparison.accepts(block),
+                    totals.needed()[block], totals.finishing()[block], comparison.finish(block)));
         }
+        int[] stock = comparison.items().stream().mapToInt(carried::count).toArray();
         Map<Block, Integer> cantCarry = new IdentityHashMap<>();
         for (int block = 0; block < totals.cantCarry().length; block++) {
             cantCarry.merge(comparison.cantCarryBlock(block), totals.cantCarry()[block], Integer::sum);
         }
-        list = MaterialList.of(needed, cantCarry, carried::count, ITEM_ORDER, BLOCK_ORDER);
+        list = MaterialList.shared(planned, comparison.items(), stock, cantCarry, ITEM_ORDER, BLOCK_ORDER);
         builtFor = comparison;
         builtRange = range;
         builtAt = ticks;

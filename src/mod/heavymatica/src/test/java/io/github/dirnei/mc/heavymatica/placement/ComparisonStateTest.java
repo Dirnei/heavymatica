@@ -148,4 +148,38 @@ class ComparisonStateTest {
         assertTrue(state.needsScan(1));
         assertFalse(state.needsScan(0));
     }
+
+    @Test
+    void needsFinishingHidesTheGhostAndMarksItsBoxSection() {
+        ComparisonState state = new ComparisonState(40, 20, 20, new BitSet());
+        state.takeDirtyMask();
+        int index = state.index(1, 0, 0);
+        state.set(index, CellState.NEEDS_FINISHING);
+        assertEquals((byte) 0xFD, state.mask()[0]);
+        assertArrayEquals(new int[] {0, 1}, state.takeDirtyMask());
+        assertTrue(state.takeDirtyBoxSections().get(state.section(1, 0, 0)));
+        state.set(index, CellState.MISSING);
+        assertEquals((byte) 0xFF, state.mask()[0]);
+        assertTrue(state.takeDirtyBoxSections().get(state.section(1, 0, 0)));
+    }
+
+    @Test
+    void needsFinishingIsNotDone() {
+        BitSet counted = new BitSet();
+        counted.set(0, 100);
+        ComparisonState state = new ComparisonState(10, 1, 10, counted);
+        for (int index = 0; index < 90; index++) {
+            state.set(index, CellState.MATCHING);
+        }
+        for (int index = 90; index < 100; index++) {
+            state.set(index, CellState.NEEDS_FINISHING);
+        }
+        assertEquals(90, state.matching(0, 0));
+        assertEquals(100, state.counted(0, 0));
+        assertEquals(10, state.total(CellState.NEEDS_FINISHING));
+        state.set(95, CellState.MATCHING);
+        assertEquals(91, state.matching(0, 0));
+        state.set(95, CellState.NEEDS_FINISHING);
+        assertEquals(90, state.matching(0, 0));
+    }
 }

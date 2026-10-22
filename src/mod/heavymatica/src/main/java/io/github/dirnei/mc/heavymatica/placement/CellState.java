@@ -1,5 +1,7 @@
 package io.github.dirnei.mc.heavymatica.placement;
 
+import java.util.Arrays;
+
 /** How one position of a locked placement compares with the world. Stored as its ordinal in one byte per cell. */
 public enum CellState {
     /** Not compared yet, or in a chunk that is not loaded. */
@@ -11,7 +13,9 @@ public enum CellState {
     WRONG_BLOCK,
     WRONG_ORIENTATION,
     WRONG_WATER,
-    EXTRA;
+    EXTRA,
+    /** A block that becomes the planned one after a finishing step, such as dirt under a planned dirt path. */
+    NEEDS_FINISHING;
 
     private static final CellState[] VALUES = values();
 
@@ -29,9 +33,14 @@ public enum CellState {
         return this == UNKNOWN || this == MISSING || this == WRONG_BLOCK;
     }
 
-    /** True for the states marked with a coloured box. */
+    /** True for the mistakes: wrong block, wrong orientation, wrong water and extra. */
     public boolean mistake() {
         return this == WRONG_BLOCK || this == WRONG_ORIENTATION || this == WRONG_WATER || this == EXTRA;
+    }
+
+    /** True for the states marked with a coloured box: the mistakes and needs finishing. */
+    public boolean boxed() {
+        return mistake() || this == NEEDS_FINISHING;
     }
 
     /**
@@ -39,8 +48,11 @@ public enum CellState {
      *
      * @param block       a block identity; equal blocks have equal values
      * @param orientation the values of the orientation properties; equal orientations have equal values
+     * @param same        sorted blocks that count as this block
+     * @param finishFrom  sorted blocks that become this block after the finishing step
+     * @param finish      the finishing step's ordinal, or -1 without one
      */
-    public record Expected(Kind kind, int block, int orientation, boolean waterlogged) {
+    public record Expected(Kind kind, int block, int orientation, boolean waterlogged, int[] same, int[] finishFrom, int finish) {
 
         public enum Kind {
             IGNORED,
@@ -48,11 +60,17 @@ public enum CellState {
             BLOCK,
         }
 
-        public static final Expected IGNORE = new Expected(Kind.IGNORED, 0, 0, false);
-        public static final Expected AIR = new Expected(Kind.AIR, 0, 0, false);
+        private static final int[] NONE = {};
+
+        public static final Expected IGNORE = new Expected(Kind.IGNORED, 0, 0, false, NONE, NONE, -1);
+        public static final Expected AIR = new Expected(Kind.AIR, 0, 0, false, NONE, NONE, -1);
 
         public static Expected block(int block, int orientation, boolean waterlogged) {
-            return new Expected(Kind.BLOCK, block, orientation, waterlogged);
+            return block(block, orientation, waterlogged, NONE, NONE, -1);
+        }
+
+        public static Expected block(int block, int orientation, boolean waterlogged, int[] same, int[] finishFrom, int finish) {
+            return new Expected(Kind.BLOCK, block, orientation, waterlogged, same, finishFrom, finish);
         }
 
         /** True when the position counts toward progress. */
@@ -80,13 +98,18 @@ public enum CellState {
                 if (found.air()) {
                     yield MISSING;
                 }
-                if (found.block() != expected.block()) {
+                CellState done;
+                if (found.block() == expected.block() || Arrays.binarySearch(expected.same(), found.block()) >= 0) {
+                    done = MATCHING;
+                } else if (Arrays.binarySearch(expected.finishFrom(), found.block()) >= 0) {
+                    done = NEEDS_FINISHING;
+                } else {
                     yield WRONG_BLOCK;
                 }
                 if (found.orientation() != expected.orientation()) {
                     yield WRONG_ORIENTATION;
                 }
-                yield found.waterlogged() == expected.waterlogged() ? MATCHING : WRONG_WATER;
+                yield found.waterlogged() == expected.waterlogged() ? done : WRONG_WATER;
             }
         };
     }

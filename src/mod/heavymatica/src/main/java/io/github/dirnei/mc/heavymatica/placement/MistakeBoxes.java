@@ -25,8 +25,8 @@ import org.joml.Vector4f;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The coloured boxes over mistakes of one comparison: one vertex buffer per 16-block section with its quads ordered
- * by layer, rebuilt when the scanner changes a mistake in that section. Faces between two boxes of the same colour
+ * The coloured boxes over mistakes and blocks that need finishing of one comparison: one vertex buffer per 16-block
+ * section with its quads ordered by layer, rebuilt when the scanner changes a boxed state in that section. Faces between two boxes of the same colour
  * are left out, so a large run of mistakes (terrain or water inside a placement) costs its surface, not its volume.
  * Render thread only.
  */
@@ -36,6 +36,7 @@ final class MistakeBoxes implements AutoCloseable {
     static final int WRONG_ORIENTATION_COLOR = 0x70FF9020;
     static final int WRONG_WATER_COLOR = 0x7020E0F0;
     static final int EXTRA_COLOR = 0x70FF30FF;
+    static final int NEEDS_FINISHING_COLOR = 0x70FFF020;
 
     private static final float INFLATE = 0.005F;
     private static final int INDICES_PER_QUAD = 6;
@@ -57,11 +58,12 @@ final class MistakeBoxes implements AutoCloseable {
             case WRONG_ORIENTATION -> WRONG_ORIENTATION_COLOR;
             case WRONG_WATER -> WRONG_WATER_COLOR;
             case EXTRA -> EXTRA_COLOR;
+            case NEEDS_FINISHING -> NEEDS_FINISHING_COLOR;
             default -> 0;
         };
     }
 
-    /** Rebuilds the sections whose mistakes changed. */
+    /** Rebuilds the sections whose boxes changed. */
     void update() {
         BitSet dirty = state.takeDirtyBoxSections();
         for (int section = dirty.nextSetBit(0); section >= 0; section = dirty.nextSetBit(section + 1)) {
