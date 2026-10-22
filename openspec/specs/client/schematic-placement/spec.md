@@ -129,19 +129,23 @@ The mirror key SHALL cycle the selected placement's mirror through none, left-ri
 - **THEN** its mirror is front-back
 
 ### Requirement: Removing needs a second press
-The remove key SHALL remove the selected placement only when pressed a second time within 3 seconds. After the first press, the overlay SHALL say to press again to remove. A FOLLOWING placement SHALL be removed on the first press, since it was never anchored. A LOCKED placement SHALL NOT be removed; it has to be unlocked first.
+An anchored placement SHALL only be removed after a confirmation: on the wheel, Remove asks Yes / Cancel; a bound remove key SHALL remove it only when pressed a second time within 3 seconds, and after the first press the overlay SHALL say to press again to remove. A FOLLOWING placement SHALL be removed at once (the wheel's Cancel, or the first press of the remove key), since it was never anchored. A LOCKED placement SHALL NOT be removed; it has to be unlocked first.
 
 #### Scenario: Remove anchored placement
-- **WHEN** the player presses Delete twice within 3 seconds with an anchored placement selected
+- **WHEN** the player has bound the remove key to Delete and presses Delete twice within 3 seconds with an anchored placement selected
 - **THEN** the placement is gone and no placement is selected
 
 #### Scenario: Single press
-- **WHEN** the player presses Delete once and waits 5 seconds
+- **WHEN** the player presses the bound remove key once and waits 5 seconds
 - **THEN** the placement is still there
 
 #### Scenario: Locked placement
-- **WHEN** the player presses Delete twice with a locked placement selected
+- **WHEN** the player presses the bound remove key twice with a locked placement selected
 - **THEN** the placement is still there and still LOCKED
+
+#### Scenario: Remove from the wheel
+- **WHEN** the player picks Remove on the wheel with an anchored placement selected and then Yes
+- **THEN** the placement is gone and no placement is selected
 
 ### Requirement: Following placements need the remote
 A FOLLOWING placement SHALL be shown and follow the crosshair only while a remote is in the main hand. If no remote is held when a placement is started from the library, the client SHALL tell the player to hold a remote, naming the configured item.
@@ -173,10 +177,10 @@ When a saved placement's version can't be loaded (offline and not cached, or del
 - **THEN** that placement shows as an outline and the overlay says it is unavailable when selected
 
 ### Requirement: Locking
-While a remote is held and the selected placement is ANCHORED, the lock key SHALL put it in LOCKED. A locked placement SHALL stay where it is and SHALL NOT be moved, raised, lowered, rotated, mirrored, released or removed.
+While a remote is held and the selected placement is ANCHORED, the wheel's Lock segment, or the lock / unlock key when bound, SHALL put it in LOCKED. A locked placement SHALL stay where it is and SHALL NOT be moved, raised, lowered, rotated, mirrored, released or removed.
 
 #### Scenario: Lock
-- **WHEN** the selected placement is ANCHORED and the player presses L
+- **WHEN** the selected placement is ANCHORED and the player picks Lock on the wheel
 - **THEN** it is LOCKED
 
 #### Scenario: Locked placement ignores move keys
@@ -184,16 +188,20 @@ While a remote is held and the selected placement is ANCHORED, the lock key SHAL
 - **THEN** its position, rotation, mirror and state do not change
 
 #### Scenario: Following placement cannot lock
-- **WHEN** the selected placement is FOLLOWING and the player presses L
+- **WHEN** the selected placement is FOLLOWING and the player presses the bound lock / unlock key
 - **THEN** it stays FOLLOWING
 
 ### Requirement: Unlocking needs a second press
-While a remote is held and the selected placement is LOCKED, the lock key SHALL unlock it, back to ANCHORED, only when pressed a second time within 3 seconds. After the first press, the overlay SHALL say to press again to unlock.
+While a remote is held and the selected placement is LOCKED, it SHALL only be unlocked, back to ANCHORED, after a confirmation: on the wheel, Unlock asks Yes / Cancel; a bound lock / unlock key SHALL unlock it only when pressed a second time within 3 seconds, and after the first press the overlay SHALL say to press again to unlock.
 
 #### Scenario: Unlock
-- **WHEN** the player presses L twice within 3 seconds with a locked placement selected
+- **WHEN** the player has bound the lock / unlock key to L and presses L twice within 3 seconds with a locked placement selected
 - **THEN** the placement is ANCHORED
 
 #### Scenario: Single press
-- **WHEN** the player presses L once on a locked placement and waits 5 seconds
+- **WHEN** the player presses the bound lock / unlock key once on a locked placement and waits 5 seconds
+- **THEN** the placement is still LOCKED
+
+#### Scenario: Unlock cancelled on the wheel
+- **WHEN** the player picks Unlock on the wheel with a locked placement selected and then Cancel
 - **THEN** the placement is still LOCKED
