@@ -25,6 +25,13 @@ public final class BlockStates {
         return bracket < 0 ? state : state.substring(0, bracket);
     }
 
+    /** The state with its block ID replaced by its swap, if the ID has one; the property text stays as it is. */
+    public static String swapped(String state, Map<String, String> swaps) {
+        String id = id(state);
+        String target = swaps.get(id);
+        return target == null ? state : target + state.substring(id.length());
+    }
+
     public static String canonical(String id, Map<String, String> properties) {
         String namespaced = id.contains(":") ? id : "minecraft:" + id;
         if (properties.isEmpty()) {
@@ -46,14 +53,19 @@ public final class BlockStates {
 
     /** Parses a state string such as Sponge palette keys use and returns its canonical form. */
     public static String canonical(String state) {
+        return canonical(id(state), properties(state));
+    }
+
+    /** The properties of a state string by name, sorted. */
+    public static Map<String, String> properties(String state) {
         int bracket = state.indexOf('[');
+        TreeMap<String, String> properties = new TreeMap<>();
         if (bracket < 0) {
-            return canonical(state, Map.of());
+            return properties;
         }
         if (!state.endsWith("]")) {
             throw SchematicRejectedException.malformed("Invalid block state '" + state + "'.");
         }
-        TreeMap<String, String> properties = new TreeMap<>();
         for (String part : state.substring(bracket + 1, state.length() - 1).split(",")) {
             if (part.isEmpty()) {
                 continue;
@@ -64,7 +76,7 @@ public final class BlockStates {
             }
             properties.put(part.substring(0, equals), part.substring(equals + 1));
         }
-        return canonical(state.substring(0, bracket), properties);
+        return properties;
     }
 
     /** Reads the {@code {Name, Properties}} compound used by structure and Litematica palettes. */

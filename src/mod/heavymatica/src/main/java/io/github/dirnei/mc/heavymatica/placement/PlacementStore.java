@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 
@@ -32,7 +33,7 @@ public final class PlacementStore {
 
     record PlacementJson(UUID id, SourceJson source, String name, int width, int height, int length, int pivotX2, int y, int pivotZ2,
                          Turn rotation, Flip mirror, String dimension, @Nullable Boolean locked, @Nullable LayersJson layers,
-                         @Nullable Boolean inHand) {
+                         @Nullable Boolean inHand, @Nullable Map<String, String> swaps) {
     }
 
     record LayersJson(Layers.@Nullable Mode mode, int bottom, int top, @Nullable Integer followOffset) {
@@ -165,7 +166,7 @@ public final class PlacementStore {
         return new PlacementJson(placement.id(), source, placement.name(), placement.width(), placement.height(), placement.length(),
                 placement.pivotX2(), placement.y(), placement.pivotZ2(), placement.rotation(), placement.mirror(), placement.dimension(),
                 placement.locked(), new LayersJson(placement.layers().mode(), placement.layers().bottom(), placement.layers().top(),
-                placement.layers().followOffset()), placement.inHand());
+                placement.layers().followOffset()), placement.inHand(), placement.swaps());
     }
 
     private static Placement fromJson(PlacementJson read) {
@@ -179,7 +180,7 @@ public final class PlacementStore {
         }
         return new Placement(read.id(), source, read.name(), read.width(), read.height(), read.length(), read.pivotX2(), read.y(), read.pivotZ2(),
                 read.rotation(), read.mirror(), read.dimension(), Boolean.TRUE.equals(read.locked()) ? State.LOCKED : State.ANCHORED, 0,
-                layers(read.layers()), Boolean.TRUE.equals(read.inHand()));
+                layers(read.layers()), Boolean.TRUE.equals(read.inHand()), read.swaps() == null ? Map.of() : read.swaps());
     }
 
     private static Layers layers(@Nullable LayersJson read) {

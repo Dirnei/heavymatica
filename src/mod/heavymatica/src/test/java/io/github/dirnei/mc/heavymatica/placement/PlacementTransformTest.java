@@ -9,6 +9,7 @@ import io.github.dirnei.mc.heavymatica.placement.Placement.Turn;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Bounds;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Facing;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Relative;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -18,7 +19,7 @@ class PlacementTransformTest {
 
     static Placement placement(int width, int height, int length, State state) {
         return new Placement(UUID.randomUUID(), new PlacementSource.Local("abc"), "Test", width, height, length, 0, 64, 0, Turn.NONE, Flip.NONE,
-                "minecraft:overworld", state, 0, Layers.NONE, false);
+                "minecraft:overworld", state, 0, Layers.NONE, false, Map.of());
     }
 
     static Placement at(Placement placement, int minX, int y, int minZ) {

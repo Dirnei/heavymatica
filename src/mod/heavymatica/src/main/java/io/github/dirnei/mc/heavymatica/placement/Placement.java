@@ -1,5 +1,8 @@
 package io.github.dirnei.mc.heavymatica.placement;
 
+import java.util.Collections;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 
 /**
@@ -18,9 +21,15 @@ import java.util.UUID;
  * @param followOffset while FOLLOWING, how far above (or below) the crosshair target the ghost sits
  * @param layers       which layers show while LOCKED; kept when unlocked
  * @param inHand       while LOCKED, show only blocks matching the held and hotbar items
+ * @param swaps        original block ID to the block ID it shows as, sorted by original
  */
 public record Placement(UUID id, PlacementSource source, String name, int width, int height, int length, int pivotX2, int y, int pivotZ2,
-                        Turn rotation, Flip mirror, String dimension, State state, int followOffset, Layers layers, boolean inHand) {
+                        Turn rotation, Flip mirror, String dimension, State state, int followOffset, Layers layers, boolean inHand,
+                        Map<String, String> swaps) {
+
+    public Placement {
+        swaps = Collections.unmodifiableSortedMap(new TreeMap<>(swaps));
+    }
 
     public enum State {
         FOLLOWING,
@@ -79,26 +88,30 @@ public record Placement(UUID id, PlacementSource source, String name, int width,
     }
 
     Placement with(int pivotX2, int y, int pivotZ2) {
-        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand);
+        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand, swaps);
     }
 
     Placement with(Turn rotation, Flip mirror) {
-        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand);
+        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand, swaps);
     }
 
     Placement with(State state, int followOffset) {
-        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand);
+        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand, swaps);
     }
 
     Placement inDimension(String dimension) {
-        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand);
+        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand, swaps);
     }
 
     Placement with(Layers layers) {
-        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand);
+        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand, swaps);
     }
 
     Placement withInHand(boolean inHand) {
-        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand);
+        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand, swaps);
+    }
+
+    Placement withSwaps(Map<String, String> swaps) {
+        return new Placement(id, source, name, width, height, length, pivotX2, y, pivotZ2, rotation, mirror, dimension, state, followOffset, layers, inHand, swaps);
     }
 }

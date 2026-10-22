@@ -42,9 +42,10 @@ public final class RemoteKeys {
     public static final KeyMapping IN_HAND = key("in_hand", GLFW.GLFW_KEY_UNKNOWN);
     public static final KeyMapping MATERIALS = key("materials", GLFW.GLFW_KEY_UNKNOWN);
     public static final KeyMapping CYCLE_LAYERS = key("cycle_layers", GLFW.GLFW_KEY_UNKNOWN);
+    public static final KeyMapping MATERIALS_SCREEN = key("materials_screen", GLFW.GLFW_KEY_UNKNOWN);
 
     public static final List<KeyMapping> ALL = List.of(MOVE_FORWARD, MOVE_BACK, MOVE_LEFT, MOVE_RIGHT, MOVE_UP, MOVE_DOWN, ROTATE, MIRROR, WHEEL, REMOVE,
-            LOCK, IN_HAND, MATERIALS, CYCLE_LAYERS);
+            LOCK, IN_HAND, MATERIALS, CYCLE_LAYERS, MATERIALS_SCREEN);
 
     private RemoteKeys() {
     }

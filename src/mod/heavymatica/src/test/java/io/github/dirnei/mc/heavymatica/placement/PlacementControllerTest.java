@@ -12,6 +12,8 @@ import io.github.dirnei.mc.heavymatica.placement.PlacementController.Use;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Bounds;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Relative;
 import io.github.dirnei.mc.heavymatica.placement.Placements.Ray;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -199,5 +201,59 @@ class PlacementControllerTest {
         assertEquals(Remove.REMOVED, controller.remove(1_000));
         assertTrue(placements.all().isEmpty());
         assertEquals(Remove.NOTHING, controller.remove(1_100));
+    }
+
+    @Test
+    void swapReplacesABlockTypeOnTheSelectedPlacement() {
+        anchored("Hut", 6);
+        controller.swap("minecraft:oak_stairs", "minecraft:spruce_stairs");
+        controller.swap("minecraft:oak_planks", "minecraft:birch_planks");
+        assertEquals(Map.of("minecraft:oak_planks", "minecraft:birch_planks", "minecraft:oak_stairs", "minecraft:spruce_stairs"), selected().swaps());
+        assertEquals(List.of("minecraft:oak_planks", "minecraft:oak_stairs"), List.copyOf(selected().swaps().keySet()));
+    }
+
+    @Test
+    void resettingASwapRemovesIt() {
+        anchored("Hut", 6);
+        controller.swap("minecraft:oak_stairs", "minecraft:spruce_stairs");
+        controller.resetSwap("minecraft:oak_stairs");
+        assertEquals(Map.of(), selected().swaps());
+    }
+
+    @Test
+    void swappingABlockToItselfResets() {
+        anchored("Hut", 6);
+        controller.swap("minecraft:oak_stairs", "minecraft:spruce_stairs");
+        controller.swap("minecraft:oak_stairs", "minecraft:oak_stairs");
+        assertEquals(Map.of(), selected().swaps());
+    }
+
+    @Test
+    void swapsWorkInEveryState() {
+        start("Hut");
+        controller.swap("minecraft:oak_stairs", "minecraft:spruce_stairs");
+        assertEquals(State.FOLLOWING, selected().state());
+        assertEquals(Map.of("minecraft:oak_stairs", "minecraft:spruce_stairs"), selected().swaps());
+
+        controller.use(false, OVERWORLD, SKY);
+        controller.lock();
+        controller.swap("minecraft:oak_planks", "minecraft:spruce_planks");
+        controller.resetSwap("minecraft:oak_stairs");
+        assertEquals(State.LOCKED, selected().state());
+        assertEquals(Map.of("minecraft:oak_planks", "minecraft:spruce_planks"), selected().swaps());
+    }
+
+    @Test
+    void swappingWithNothingSelectedDoesNothing() {
+        Placement hut = anchored("Hut", 6);
+        placements.replaceAll(List.of(hut));
+        controller.swap("minecraft:oak_stairs", "minecraft:spruce_stairs");
+        controller.resetSwap("minecraft:oak_stairs");
+        assertEquals(List.of(hut), placements.all());
+    }
+
+    @Test
+    void aNewPlacementHasNoSwaps() {
+        assertEquals(Map.of(), start("Hut").swaps());
     }
 }

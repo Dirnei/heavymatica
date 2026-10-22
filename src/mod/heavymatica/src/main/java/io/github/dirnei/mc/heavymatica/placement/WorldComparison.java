@@ -52,14 +52,13 @@ public final class WorldComparison implements AutoCloseable {
     WorldComparison(Placement placement, SchematicModel model, CellKeys keys) {
         this.placement = placement;
         this.bounds = PlacementTransform.bounds(placement);
-        this.view = new GhostView(model, placement.rotation(), placement.mirror());
-        List<String> palette = model.palette();
-        this.expected = new Expected[palette.size()];
-        this.demands = new Demand[palette.size()];
+        this.view = new GhostView(model, placement.rotation(), placement.mirror(), placement.swaps());
+        this.expected = new Expected[model.palette().size()];
+        this.demands = new Demand[model.palette().size()];
         Map<Item, Integer> itemIndex = new IdentityHashMap<>();
         Map<Block, Integer> blockIndex = new IdentityHashMap<>();
         for (int i = 0; i < expected.length; i++) {
-            expected[i] = keys.expected(palette.get(i), view.placed(i));
+            expected[i] = keys.expected(view.entry(i), view.placed(i));
             demands[i] = expected[i].counted() ? demand(view.placed(i), itemIndex, blockIndex) : Demand.NONE;
         }
         this.materials = new MaterialCounts(view.sizeY(), items.size(), blocks.size());
@@ -112,7 +111,8 @@ public final class WorldComparison implements AutoCloseable {
     /** True while this comparison still describes the placement as it is. */
     boolean matches(Placement current) {
         return current.locked() && current.source().equals(placement.source()) && current.rotation() == placement.rotation()
-                && current.mirror() == placement.mirror() && PlacementTransform.bounds(current).equals(bounds);
+                && current.mirror() == placement.mirror() && current.swaps().equals(placement.swaps())
+                && PlacementTransform.bounds(current).equals(bounds);
     }
 
     public ComparisonState state() {

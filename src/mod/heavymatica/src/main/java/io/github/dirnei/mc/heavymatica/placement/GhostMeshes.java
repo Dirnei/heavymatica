@@ -17,16 +17,20 @@ import net.minecraft.util.Util;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Ghost meshes by (content hash, rotation, mirror). Building runs on a worker; until it is done a placement keeps
+ * Ghost meshes by (content hash, swaps, rotation, mirror). Building runs on a worker; until it is done a placement keeps
  * drawing the mesh it showed before. Meshes no live placement needs are freed, and everything is dropped when block
  * models are reloaded. Render thread only.
  */
 final class GhostMeshes implements AutoCloseable {
 
-    record Key(String sha256, Turn rotation, Flip mirror) {
+    record Key(String sha256, Map<String, String> swaps, Turn rotation, Flip mirror) {
 
         static Key of(Placement placement) {
-            return new Key(placement.source().sha256(), placement.rotation(), placement.mirror());
+            return new Key(placement.source().sha256(), placement.swaps(), placement.rotation(), placement.mirror());
+        }
+
+        GhostView view(SchematicModel model) {
+            return new GhostView(model, rotation, mirror, swaps);
         }
     }
 
@@ -43,7 +47,7 @@ final class GhostMeshes implements AutoCloseable {
         GhostMesh mesh = ready.get(key);
         if (mesh == null) {
             CompletableFuture<GhostMesh.Built> build = building.computeIfAbsent(key, ignored -> CompletableFuture.supplyAsync(() -> {
-                GhostView view = new GhostView(model, key.rotation(), key.mirror());
+                GhostView view = key.view(model);
                 return GhostMeshBuilder.build(view, view.sizeX(), view.sizeY(), view.sizeZ());
             }, Util.backgroundExecutor()));
             if (build.isDone()) {
@@ -80,7 +84,7 @@ final class GhostMeshes implements AutoCloseable {
             return cells;
         }
         CompletableFuture<GhostCells.Built> build = buildingCells.computeIfAbsent(key, ignored -> CompletableFuture.supplyAsync(
-                () -> GhostCells.build(new GhostView(model, key.rotation(), key.mirror())), Util.backgroundExecutor()));
+                () -> GhostCells.build(key.view(model)), Util.backgroundExecutor()));
         if (!build.isDone()) {
             return null;
         }

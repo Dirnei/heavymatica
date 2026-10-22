@@ -43,6 +43,7 @@ public final class RadialMenu {
         IN_HAND,
         LAYERS,
         MATERIAL_LIST,
+        MATERIALS,
         LAYERS_OFF,
         LAYERS_FROM_TO,
         LAYERS_FOLLOW,
@@ -64,7 +65,8 @@ public final class RadialMenu {
         LAYERS_OFF,
         LAYERS_FROM_TO,
         LAYERS_FOLLOW,
-        OPEN_MATERIAL_LIST;
+        OPEN_MATERIAL_LIST,
+        OPEN_MATERIALS;
 
         /** The layer mode a layers command sets, or null for other commands. */
         public Layers.Mode layerMode() {
@@ -116,11 +118,11 @@ public final class RadialMenu {
     public List<Segment> segments() {
         return switch (page) {
             case MAIN -> switch (selection.state()) {
-                case NONE -> List.of(segment(Entry.LIBRARY));
-                case FOLLOWING -> List.of(segment(Entry.CANCEL), segment(Entry.LIBRARY));
-                case ANCHORED -> List.of(segment(Entry.LOCK), segment(Entry.REMOVE), segment(Entry.LIBRARY));
+                case NONE -> List.of(new Segment(Entry.MATERIALS, false, false), segment(Entry.LIBRARY));
+                case FOLLOWING -> List.of(segment(Entry.CANCEL), segment(Entry.MATERIALS), segment(Entry.LIBRARY));
+                case ANCHORED -> List.of(segment(Entry.LOCK), segment(Entry.REMOVE), segment(Entry.MATERIALS), segment(Entry.LIBRARY));
                 case LOCKED -> List.of(segment(Entry.UNLOCK), new Segment(Entry.IN_HAND, true, selection.inHand()), segment(Entry.LAYERS),
-                        segment(Entry.MATERIAL_LIST), segment(Entry.LIBRARY));
+                        segment(Entry.MATERIAL_LIST), segment(Entry.MATERIALS), segment(Entry.LIBRARY));
             };
             case LAYERS -> List.of(layer(Entry.LAYERS_OFF, Layers.Mode.OFF), layer(Entry.LAYERS_FROM_TO, Layers.Mode.FROM_TO),
                     layer(Entry.LAYERS_FOLLOW, Layers.Mode.FOLLOW));
@@ -176,6 +178,7 @@ public final class RadialMenu {
             case IN_HAND -> run(Command.TOGGLE_IN_HAND);
             case LAYERS -> turnTo(Page.LAYERS);
             case MATERIAL_LIST -> run(Command.OPEN_MATERIAL_LIST);
+            case MATERIALS -> run(Command.OPEN_MATERIALS);
             case LAYERS_OFF -> run(Command.LAYERS_OFF);
             case LAYERS_FROM_TO -> run(Command.LAYERS_FROM_TO);
             case LAYERS_FOLLOW -> run(Command.LAYERS_FOLLOW);

@@ -5,6 +5,8 @@ import io.github.dirnei.mc.heavymatica.placement.Placement.State;
 import io.github.dirnei.mc.heavymatica.placement.Placement.Turn;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Relative;
 import io.github.dirnei.mc.heavymatica.placement.Placements.Ray;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
@@ -66,7 +68,7 @@ public final class PlacementController {
     public Placement start(PlacementSource source, String name, int width, int height, int length, String dimension, Target at) {
         placements.selected().filter(Placement::following).ifPresent(previous -> placements.remove(previous.id()));
         Placement placement = new Placement(UUID.randomUUID(), source, name, width, height, length, 0, 0, 0, Turn.NONE, Flip.NONE, dimension,
-                State.FOLLOWING, 0, Layers.NONE, false);
+                State.FOLLOWING, 0, Layers.NONE, false, Map.of());
         placement = PlacementTransform.follow(placement, at.x(), at.y(), at.z());
         placements.add(placement);
         pending = null;
@@ -247,6 +249,27 @@ public final class PlacementController {
 
     public void toggleInHand() {
         locked().ifPresent(placement -> placements.update(placement.withInHand(!placement.inHand())));
+    }
+
+    /** Shows every position of {@code blockId} as {@code target}, in any state; swapping a block to itself resets it. */
+    public void swap(String blockId, String target) {
+        if (blockId.equals(target)) {
+            resetSwap(blockId);
+            return;
+        }
+        placements.selected().ifPresent(placement -> {
+            Map<String, String> swaps = new HashMap<>(placement.swaps());
+            swaps.put(blockId, target);
+            placements.update(placement.withSwaps(swaps));
+        });
+    }
+
+    public void resetSwap(String blockId) {
+        placements.selected().filter(placement -> placement.swaps().containsKey(blockId)).ifPresent(placement -> {
+            Map<String, String> swaps = new HashMap<>(placement.swaps());
+            swaps.remove(blockId);
+            placements.update(placement.withSwaps(swaps));
+        });
     }
 
     private Optional<Placement> movable() {

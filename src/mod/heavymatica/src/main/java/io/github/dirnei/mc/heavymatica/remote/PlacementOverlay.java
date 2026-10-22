@@ -37,8 +37,8 @@ import org.lwjgl.glfw.GLFW;
 
 /**
  * The HUD panel shown while the remote is held: the selected placement's name, version, state badge, position,
- * rotation and mirror, and hints for the keys that work in its state, naming the keys the player actually bound. Actions
- * on the wheel only get a hint when the player bound a key for them.
+ * rotation, mirror and swaps, and hints for the keys that work in its state, naming the keys the player actually bound.
+ * Actions on the wheel only get a hint when the player bound a key for them.
  */
 public final class PlacementOverlay {
 
@@ -145,6 +145,10 @@ public final class PlacementOverlay {
         lines.add(Line.text(Component.translatable("heavymatica.overlay.position", bounds.minX(), bounds.minY(), bounds.minZ()), MUTED));
         lines.add(Line.text(Component.translatable("heavymatica.overlay.rotation", placement.rotation().degrees(),
                 Component.translatable("heavymatica.overlay.mirror." + placement.mirror().name().toLowerCase(Locale.ROOT))), MUTED));
+        int swaps = placement.swaps().size();
+        if (swaps > 0) {
+            lines.add(Line.text(Component.translatable(swaps == 1 ? "heavymatica.overlay.swaps.one" : "heavymatica.overlay.swaps", swaps), MUTED));
+        }
         if (placement.locked()) {
             lines.add(Line.text(layersText(placement), TEXT));
             lines.add(Line.text(inHandText(placement), TEXT));
@@ -181,6 +185,7 @@ public final class PlacementOverlay {
             boundHint(lines, RemoteKeys.CYCLE_LAYERS, "heavymatica.overlay.hint.cycle_layers");
             boundHint(lines, RemoteKeys.IN_HAND, "heavymatica.overlay.hint.in_hand");
             boundHint(lines, RemoteKeys.MATERIALS, "heavymatica.overlay.hint.materials");
+            boundHint(lines, RemoteKeys.MATERIALS_SCREEN, "heavymatica.overlay.hint.materials_screen");
             boundHint(lines, RemoteKeys.LOCK, "heavymatica.overlay.hint.unlock");
             return lines;
         }
@@ -205,6 +210,7 @@ public final class PlacementOverlay {
             boundHint(lines, RemoteKeys.LOCK, "heavymatica.overlay.hint.lock");
         }
         boundHint(lines, RemoteKeys.REMOVE, placement.following() ? "heavymatica.overlay.hint.cancel" : "heavymatica.overlay.hint.remove");
+        boundHint(lines, RemoteKeys.MATERIALS_SCREEN, "heavymatica.overlay.hint.materials_screen");
         return lines;
     }
 

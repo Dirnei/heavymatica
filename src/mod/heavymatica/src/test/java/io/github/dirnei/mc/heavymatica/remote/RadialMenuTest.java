@@ -35,10 +35,36 @@ class RadialMenuTest {
 
     @Test
     void segmentsFollowTheState() {
-        assertEquals(List.of(Entry.LIBRARY), entries(new RadialMenu(Mode.HOLD, Selection.NONE)));
-        assertEquals(List.of(Entry.CANCEL, Entry.LIBRARY), entries(new RadialMenu(Mode.HOLD, FOLLOWING)));
-        assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.LIBRARY), entries(new RadialMenu(Mode.HOLD, ANCHORED)));
-        assertEquals(List.of(Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIAL_LIST, Entry.LIBRARY), entries(new RadialMenu(Mode.HOLD, LOCKED)));
+        assertEquals(List.of(Entry.MATERIALS, Entry.LIBRARY), entries(new RadialMenu(Mode.HOLD, Selection.NONE)));
+        assertEquals(List.of(Entry.CANCEL, Entry.MATERIALS, Entry.LIBRARY), entries(new RadialMenu(Mode.HOLD, FOLLOWING)));
+        assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.MATERIALS, Entry.LIBRARY), entries(new RadialMenu(Mode.HOLD, ANCHORED)));
+        assertEquals(List.of(Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIAL_LIST, Entry.MATERIALS, Entry.LIBRARY),
+                entries(new RadialMenu(Mode.HOLD, LOCKED)));
+    }
+
+    @Test
+    void materialsIsEnabledOnlyWithASelection() {
+        for (Selection selection : List.of(FOLLOWING, ANCHORED, LOCKED)) {
+            RadialMenu menu = new RadialMenu(Mode.TOGGLE, selection);
+            assertEquals(true, menu.segments().get(index(menu, Entry.MATERIALS)).enabled());
+            assertEquals(run(Command.OPEN_MATERIALS), menu.click(index(menu, Entry.MATERIALS)));
+        }
+        RadialMenu none = new RadialMenu(Mode.TOGGLE, Selection.NONE);
+        assertEquals(false, none.segments().get(index(none, Entry.MATERIALS)).enabled());
+    }
+
+    @Test
+    void greyedOutMaterialsDoesNothing() {
+        RadialMenu toggle = new RadialMenu(Mode.TOGGLE, Selection.NONE);
+        assertEquals(Outcome.STAY, toggle.click(index(toggle, Entry.MATERIALS)));
+        RadialMenu hold = new RadialMenu(Mode.HOLD, Selection.NONE);
+        assertEquals(Outcome.CLOSE, hold.release(index(hold, Entry.MATERIALS)));
+    }
+
+    @Test
+    void materialsRunsOnRelease() {
+        RadialMenu menu = new RadialMenu(Mode.HOLD, ANCHORED);
+        assertEquals(run(Command.OPEN_MATERIALS), menu.release(index(menu, Entry.MATERIALS)));
     }
 
     @Test
@@ -52,7 +78,8 @@ class RadialMenuTest {
     void releaseRunsTheSegmentInHoldMode() {
         RadialMenu menu = new RadialMenu(Mode.HOLD, ANCHORED);
         assertEquals(run(Command.LOCK), menu.release(index(menu, Entry.LOCK)));
-        assertEquals(run(Command.OPEN_LIBRARY), new RadialMenu(Mode.HOLD, Selection.NONE).release(0));
+        RadialMenu none = new RadialMenu(Mode.HOLD, Selection.NONE);
+        assertEquals(run(Command.OPEN_LIBRARY), none.release(index(none, Entry.LIBRARY)));
         assertEquals(run(Command.CANCEL), new RadialMenu(Mode.HOLD, FOLLOWING).release(0));
     }
 

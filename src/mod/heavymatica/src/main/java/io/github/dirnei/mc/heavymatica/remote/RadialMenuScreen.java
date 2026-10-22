@@ -254,6 +254,7 @@ public final class RadialMenuScreen extends Screen {
             case IN_HAND -> Items.SPYGLASS;
             case LAYERS -> Items.LADDER;
             case MATERIAL_LIST -> Items.CHEST;
+            case MATERIALS -> Items.BRUSH;
             case LAYERS_OFF -> Items.GLASS;
             case LAYERS_FROM_TO -> Items.SCAFFOLDING;
             case LAYERS_FOLLOW -> Items.LEATHER_BOOTS;

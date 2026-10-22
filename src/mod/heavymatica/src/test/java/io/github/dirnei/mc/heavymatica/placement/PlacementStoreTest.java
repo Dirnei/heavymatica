@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -28,7 +29,7 @@ class PlacementStoreTest {
 
     private static Placement placement(PlacementSource source, State state) {
         return new Placement(UUID.randomUUID(), source, "Castle Gate", 5, 3, 9, 21, 64, -13, Turn.CLOCKWISE_90, Flip.FRONT_BACK, "minecraft:overworld",
-                state, 0, Layers.NONE, false);
+                state, 0, Layers.NONE, false, Map.of());
     }
 
     @Test
@@ -113,6 +114,31 @@ class PlacementStoreTest {
         assertEquals(State.ANCHORED, loaded.state());
         assertEquals(Layers.NONE, loaded.layers());
         assertFalse(loaded.inHand());
+    }
+
+    @Test
+    void swapsRoundTrip() {
+        PlacementStore store = new PlacementStore(directory, json);
+        store.open(PLAYER, "sp-a");
+        Placement swapped = placement(new PlacementSource.Local("bb"), State.ANCHORED)
+                .withSwaps(Map.of("minecraft:oak_stairs", "minecraft:spruce_stairs", "minecraft:oak_planks", "othermod:walnut_planks"));
+        store.changed(List.of(swapped), 0);
+        store.flush();
+        Placement loaded = new PlacementStore(directory, json).open(PLAYER, "sp-a").getFirst();
+        assertEquals(swapped, loaded);
+        assertEquals(Map.of("minecraft:oak_stairs", "minecraft:spruce_stairs", "minecraft:oak_planks", "othermod:walnut_planks"), loaded.swaps());
+    }
+
+    @Test
+    void olderFilesLoadWithoutSwaps() throws IOException {
+        Path file = directory.resolve(PLAYER.toString()).resolve("sp-a.json");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, """
+                {"version":1,"placements":[{"id":"6c85d78e-f2db-4bb8-8541-0f9eecfffef1","source":{"kind":"local","sha256":"aa"},
+                "name":"Hut","width":5,"height":4,"length":6,"pivotX2":-289,"y":71,"pivotZ2":-135,"rotation":"NONE","mirror":"NONE",
+                "dimension":"minecraft:overworld","locked":true}]}
+                """);
+        assertEquals(Map.of(), new PlacementStore(directory, json).open(PLAYER, "sp-a").getFirst().swaps());
     }
 
     @Test

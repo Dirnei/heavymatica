@@ -10,7 +10,7 @@ OpenSpec change (`/opsx:propose`); finished changes live in `openspec/changes/ar
 - **Hybrid:** the core mod `heavymatica` works client-only on any server, vanilla included. Server-side features are
   optional and only active when the server has them.
 - **Cloud is the source of truth.** Client and game server both fetch schematics from the cloud; placements pin an
-  immutable version (id + version + variant + position/rotation/mirror).
+  immutable version (id + version + position/rotation/mirror + material swaps; saved variants later).
 - **Simple UI**, three verbs: place, swap materials, show layers.
 - **Building by hand is first-class**; machines are a bonus.
 - **Two mods, one repo:** `heavymatica` (no Foundation dependency) and `heavymatica_machines` (depends on
@@ -49,18 +49,24 @@ change). `.blueprint` (Structurize) import was out of scope.
 - **Wheel (change `radial-menu`):**
   - V (rebindable, only with the remote) opens a radial menu of the one-shot actions the selected placement's state
     allows: Lock / Unlock, Remove (Cancel while following), In-hand filter, Layers (a sub-wheel with off, from-to and
-    follow feet), Material list and Library.
+    follow feet), Material list, Materials and Library.
   - HOLD (default: hold V, point, let go) or TOGGLE (tap V, click) in the client config. The camera stays still and
     WASD keeps working while it is open.
   - Remove and Unlock ask Yes / Cancel on the wheel, so one flick never removes anything.
   - Direct keys stay for continuous controls: arrows, numpad + / -, R and M, plus H for the library. The wheel's
     actions are still keys in the controls screen, unbound by default; a bound remove or unlock key keeps the
     press-twice rule.
-- Still open in this step: material swaps (below), which add a Materials segment to the wheel. Dragging ghosts with
-  the mouse is dropped for now.
-- **Material swaps:** swap by block family, so oak to spruce also turns stairs, slabs, fences, doors and trapdoors and
-  keeps their block states. Non-destructive: a swap is a small "variant" stored on top of the original version in the
-  cloud.
+- **Material swaps (change `material-swaps`):**
+  - A placement swaps block types of its schematic for other blocks, per block type and not by family: oak stairs to
+    spruce stairs leaves oak planks and slabs as they are. Each swap covers every state of its block, and properties
+    the new block also has (facing, half, waterlogged) carry over.
+  - Swaps are stored with the placement and saved with it, in every state; on a locked placement the comparison and
+    the material list start over with the new blocks.
+  - The wheel's Materials segment (or an unbound key) opens the materials screen: every block type with its count and
+    swap, a block picker with same-kind suggestions and search, and a reset per row. The overlay shows the number of
+    swaps.
+  - Later: saving or sharing a set of swaps as a variant on top of the cloud version, and family-wide swaps.
+- Step 3 is done. Dragging ghosts with the mouse is dropped for now.
 
 ### 4. Hand-build helper
 
@@ -83,7 +89,7 @@ change). `.blueprint` (Structurize) import was out of scope.
     NeoForge's item capability. Chests and other containers in the world don't count.
   - The overlay shows the three largest shortages; the wheel's Material list opens the full list with needed, have and
     short.
-- Step 4 is done. **Next up: material swaps** (still open in step 3), then multiplayer sync.
+- Step 4 is done. **Next up: multiplayer sync.**
 
 ### 5. Multiplayer sync
 
