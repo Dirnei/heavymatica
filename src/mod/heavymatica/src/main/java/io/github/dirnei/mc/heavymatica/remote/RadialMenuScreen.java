@@ -1,6 +1,7 @@
 package io.github.dirnei.mc.heavymatica.remote;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import io.github.dirnei.mc.heavymatica.placement.OpacitySteps;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Entry;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Outcome;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Segment;
@@ -49,7 +50,7 @@ public final class RadialMenuScreen extends Screen {
     private static final Set<String> heldForDevelopment = new HashSet<>();
 
     private final RadialMenu menu;
-    private final Consumer<RadialMenu.Command> commands;
+    private final Consumer<Outcome.Run> commands;
     private final Input before;
     private @Nullable ClientInput playerInput;
     private List<WheelGeometry.Span> spans = List.of();
@@ -60,7 +61,7 @@ public final class RadialMenuScreen extends Screen {
     private boolean wheelKeyHeld;
 
     /** @param before the player's movement input of the last tick, for sneak and sprint in toggle mode */
-    public RadialMenuScreen(RadialMenu menu, Consumer<RadialMenu.Command> commands, Input before) {
+    public RadialMenuScreen(RadialMenu menu, Consumer<Outcome.Run> commands, Input before) {
         super(Component.translatable("key.heavymatica.wheel"));
         this.menu = menu;
         this.commands = commands;
@@ -192,7 +193,7 @@ public final class RadialMenuScreen extends Screen {
             case Outcome.Close close -> onClose();
             case Outcome.Run run -> {
                 onClose();
-                commands.accept(run.command());
+                commands.accept(run);
             }
         }
     }
@@ -223,13 +224,13 @@ public final class RadialMenuScreen extends Screen {
             int x = (int) Math.round(point[0]);
             int y = (int) Math.round(point[1]);
             graphics.item(new ItemStack(icon(segment.entry())), x - 8, y - 12);
-            graphics.centeredText(font, name(segment.entry()), x, y + 6, segment.enabled() ? TEXT : MUTED);
+            graphics.centeredText(font, name(segment), x, y + 6, segment.enabled() ? TEXT : MUTED);
         }
         RadialMenu.Label label = menu.label();
         Component title = Component.translatable(label.key(), label.name());
         graphics.centeredText(font, title, cx, cy - outer() - 14, TEXT);
         if (hovered >= 0) {
-            Component hint = name(segments.get(hovered).entry());
+            Component hint = name(segments.get(hovered));
             graphics.centeredText(font, hint, cx, cy - 4, TEXT);
         }
     }
@@ -248,8 +249,9 @@ public final class RadialMenuScreen extends Screen {
         return segment.current() ? CURRENT : NORMAL;
     }
 
-    public static Component name(Entry entry) {
-        return Component.translatable("heavymatica.wheel.entry." + entry.name().toLowerCase(Locale.ROOT));
+    public static Component name(Segment segment) {
+        String key = "heavymatica.wheel.entry." + segment.entry().name().toLowerCase(Locale.ROOT);
+        return segment.entry() == Entry.OPACITY_STEP ? Component.translatable(key, OpacitySteps.percent(segment.value())) : Component.translatable(key);
     }
 
     private static Item icon(Entry entry) {
@@ -261,6 +263,8 @@ public final class RadialMenuScreen extends Screen {
             case IN_HAND -> Items.SPYGLASS;
             case LAYERS -> Items.LADDER;
             case MATERIALS -> Items.BRUSH;
+            case OPACITY -> Items.TINTED_GLASS;
+            case OPACITY_STEP -> Items.GLASS_PANE;
             case LAYERS_OFF -> Items.GLASS;
             case LAYERS_FROM_TO -> Items.SCAFFOLDING;
             case LAYERS_FOLLOW -> Items.LEATHER_BOOTS;

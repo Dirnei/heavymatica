@@ -218,11 +218,13 @@ public final class RemoteInput {
                     case ANCHORED -> RadialMenu.State.ANCHORED;
                     case LOCKED -> RadialMenu.State.LOCKED;
                 }, selected.name(), selected.layers().mode(), selected.inHand());
-        Minecraft.getInstance().setScreen(new RadialMenuScreen(new RadialMenu(HeavymaticaConfig.wheelMode(), selection), this::run, player.input.keyPresses));
+        Minecraft.getInstance().setScreen(new RadialMenuScreen(new RadialMenu(HeavymaticaConfig.wheelMode(), selection,
+                new RadialMenu.Opacity(HeavymaticaConfig.ghostOpacitySteps(), HeavymaticaConfig.ghostOpacity())), this::run, player.input.keyPresses));
     }
 
-    /** Runs a wheel command on the selected placement; the wheel has closed already. */
-    private void run(RadialMenu.Command command) {
+    /** Runs a wheel command; the wheel has closed already. */
+    private void run(RadialMenu.Outcome.Run run) {
+        RadialMenu.Command command = run.command();
         PlacementController controller = session.controller();
         switch (command) {
             case OPEN_LIBRARY -> openLibrary.run();
@@ -233,6 +235,7 @@ public final class RemoteInput {
             case TOGGLE_IN_HAND -> controller.toggleInHand();
             case LAYERS_OFF, LAYERS_FROM_TO, LAYERS_FOLLOW -> session.placements().selected()
                     .ifPresent(placement -> controller.setLayerMode(command.layerMode(), PlacementSession.feetLayer(placement)));
+            case SET_OPACITY -> HeavymaticaConfig.setGhostOpacity(run.value());
         }
     }
 

@@ -2,6 +2,7 @@ package io.github.dirnei.mc.heavymatica.ui;
 
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaClient;
+import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
 import io.github.dirnei.mc.heavymatica.placement.ComparisonState;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
@@ -21,6 +22,7 @@ import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.List;
 import java.util.stream.Stream;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -78,11 +80,12 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code logButton=<translation key>}: log whether the button with that label is visible and active</li>
  *     <li>{@code checkTransform}: compare the placement mapping with vanilla's structure template transform</li>
  *     <li>{@code logConflicts}: log the bindings the controls screen marks as colliding with Heavymatica's keys</li>
- *     <li>{@code wheelPoint=<entry>}, {@code wheelCentre}: move the mouse cursor onto a segment of the open wheel (for example
- *     {@code REMOVE}) or into its centre</li>
+ *     <li>{@code wheelPoint=<entry>[@<n>]}, {@code wheelCentre}: move the mouse cursor onto a segment of the open wheel (for
+ *     example {@code REMOVE}, or {@code OPACITY_STEP@3} for the fourth opacity step) or into its centre</li>
  *     <li>{@code wheelRelease}, {@code wheelKey}, {@code wheelClick}: send the wheel key's release or press, or a left click at the
  *     cursor, to the open wheel; {@code escape}: send Esc to the open screen</li>
  *     <li>{@code logWheel}: log the open wheel's page, label, segments and hovered segment</li>
+ *     <li>{@code logOpacity}: log the ghost opacity and the wheel's opacity steps</li>
  *     <li>{@code holdMovement=<key mapping>}, {@code releaseMovement=<key mapping>}: hold or let go of a movement key as the
  *     open wheel reads it (for example {@code key.forward})</li>
  *     <li>{@code logPlayer}: log the player's position, yaw and pitch</li>
@@ -265,7 +268,16 @@ public final class DevScreens {
                     message -> Heavymatica.LOGGER.info("Dev screenshot: {}", message.getString()));
             case "wheelPoint" -> {
                 if (minecraft.screen instanceof RadialMenuScreen wheel) {
-                    int index = wheel.menu().segments().stream().map(RadialMenu.Segment::entry).toList().indexOf(RadialMenu.Entry.valueOf(argument));
+                    String[] parts = argument.split("@", 2);
+                    RadialMenu.Entry entry = RadialMenu.Entry.valueOf(parts[0]);
+                    int nth = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+                    List<RadialMenu.Segment> segments = wheel.menu().segments();
+                    int index = -1;
+                    for (int i = 0, seen = 0; i < segments.size() && index < 0; i++) {
+                        if (segments.get(i).entry() == entry && seen++ == nth) {
+                            index = i;
+                        }
+                    }
                     if (index < 0) {
                         Heavymatica.LOGGER.warn("Dev wheel: no segment {}", argument);
                     } else {
@@ -307,6 +319,7 @@ public final class DevScreens {
                     Heavymatica.LOGGER.info("Dev wheel: closed");
                 }
             }
+            case "logOpacity" -> Heavymatica.LOGGER.info("Dev opacity: {}, steps {}", HeavymaticaConfig.ghostOpacity(), HeavymaticaConfig.ghostOpacitySteps());
             case "holdMovement" -> RadialMenuScreen.holdForDevelopment(argument, true);
             case "releaseMovement" -> RadialMenuScreen.holdForDevelopment(argument, false);
             case "logPlayer" -> Heavymatica.LOGGER.info("Dev player: at {}, yaw {}, pitch {}, input {} {}", minecraft.player.position(), minecraft.player.getYRot(),

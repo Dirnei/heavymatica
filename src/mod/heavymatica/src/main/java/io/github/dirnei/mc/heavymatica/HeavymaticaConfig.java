@@ -1,7 +1,9 @@
 package io.github.dirnei.mc.heavymatica;
 
+import io.github.dirnei.mc.heavymatica.placement.OpacitySteps;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu;
 import java.net.URI;
+import java.util.List;
 import java.util.Optional;
 import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.common.ModConfigSpec;
@@ -38,7 +40,12 @@ public final class HeavymaticaConfig {
             .pop()
             .comment("Opacity of placement ghosts, from 0.05 (barely visible) to 1 (solid).")
             .push("ghost")
-            .defineInRange("opacity", 0.45, 0.05, 1.0);
+            .defineInRange("opacity", 0.4, OpacitySteps.MIN, OpacitySteps.MAX);
+
+    private static final ModConfigSpec.ConfigValue<List<? extends Number>> GHOST_OPACITY_STEPS = BUILDER
+            .comment("Opacities offered on the placement wheel, 2 to 8 values from 0.05 to 1.",
+                    "Values out of range and duplicates are dropped; with fewer than 2 or more than 8 left, the default steps are used.")
+            .defineList("opacitySteps", OpacitySteps.DEFAULT, () -> 0.5, value -> value instanceof Number);
 
     private static final ModConfigSpec.IntValue GHOST_BLOCK_BUDGET = BUILDER
             .comment("Visible ghost blocks drawn at most, across all placements. Placements beyond it show as outlines only.")
@@ -108,6 +115,16 @@ public final class HeavymaticaConfig {
 
     public static float ghostOpacity() {
         return GHOST_OPACITY.get().floatValue();
+    }
+
+    /** Sets the ghost opacity and writes the config file. */
+    public static void setGhostOpacity(double opacity) {
+        GHOST_OPACITY.set(Math.clamp(opacity, OpacitySteps.MIN, OpacitySteps.MAX));
+        GHOST_OPACITY.save();
+    }
+
+    public static List<Double> ghostOpacitySteps() {
+        return OpacitySteps.sanitize(GHOST_OPACITY_STEPS.get());
     }
 
     public static int ghostBlockBudget() {
