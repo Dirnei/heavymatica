@@ -22,6 +22,9 @@ import io.github.dirnei.mc.heavymatica.remote.PlacementOverlay;
 import io.github.dirnei.mc.heavymatica.remote.RemoteInput;
 import io.github.dirnei.mc.heavymatica.remote.RemoteKeys;
 import io.github.dirnei.mc.heavymatica.remote.Remotes;
+import io.github.dirnei.mc.heavymatica.targeting.GhostPick;
+import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting;
+import io.github.dirnei.mc.heavymatica.targeting.TargetHud;
 import io.github.dirnei.mc.heavymatica.thumbnail.ThumbnailSpike;
 import io.github.dirnei.mc.heavymatica.ui.DevScreens;
 import io.github.dirnei.mc.heavymatica.ui.LibraryScreen;
@@ -63,6 +66,7 @@ public final class HeavymaticaClient {
     private static @Nullable CloudAccount account;
     private static @Nullable Library library;
     private static @Nullable PlacementSession placements;
+    private static @Nullable GhostTargeting targeting;
 
     public HeavymaticaClient(IEventBus modEventBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.CLIENT, HeavymaticaConfig.SPEC);
@@ -70,6 +74,7 @@ public final class HeavymaticaClient {
         modEventBus.addListener(HeavymaticaClient::setup);
         modEventBus.addListener(GhostPipeline::register);
         modEventBus.addListener((RegisterGuiLayersEvent event) -> new PlacementOverlay(HeavymaticaClient::placements).register(event));
+        modEventBus.addListener((RegisterGuiLayersEvent event) -> new TargetHud(HeavymaticaClient::placements, HeavymaticaClient::targeting).register(event));
         NeoForge.EVENT_BUS.addListener(HeavymaticaClient::tick);
         ThumbnailSpike.registerIfRequested();
         DevScreens.registerIfRequested();
@@ -94,6 +99,11 @@ public final class HeavymaticaClient {
     /** Null before client setup. */
     public static @Nullable PlacementSession placements() {
         return placements;
+    }
+
+    /** The ghost under the crosshair; null before client setup. */
+    public static @Nullable GhostTargeting targeting() {
+        return targeting;
     }
 
     /** Heavymatica's files in the game directory (sessions, library, local, cache, import, placements). */
@@ -162,6 +172,9 @@ public final class HeavymaticaClient {
             holder[0] = library;
             placements = new PlacementSession(new PlacementStore(data.resolve("placements"), json), library, Remotes::held);
             placements.register();
+            targeting = new GhostTargeting(placements);
+            targeting.register();
+            new GhostPick(placements, targeting).register();
             new RemoteInput(placements, HeavymaticaClient::openLibrary, HeavymaticaClient::openMaterials).register();
             account.restore();
             library.loadStored();

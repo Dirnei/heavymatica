@@ -99,6 +99,17 @@ change). `.blueprint` (Structurize) import was out of scope.
     concrete never stands in for planned powder.
   - Later rows: copper weathering accepted as equivalent, waxed copper (copper plus honeycomb), snow layers, crop
     ages and leaf persistence.
+- **Ghost targeting (change `ghost-targeting`):** the crosshair targets ghosts as if they were real blocks.
+  - A ray from the eye finds the nearest drawn position of a locked placement (a ghost the layers and the in-hand
+    filter show, or a mistake or finishing box), unless a real block elsewhere is hit first.
+  - A small HUD below the crosshair names the planned block, its orientation and its state in the comparison colours,
+    the placement when it is not selected, and whether it is out of reach. Its range is a setting (32 blocks, 0 off).
+  - With Jade installed, Jade's tooltip shows the ghost instead of the HUD. Jade stays optional.
+  - Middle click on a ghost within reach picks its item, own item first, then the placing item, then the equivalents:
+    selects it in the hotbar, swaps it in from the main inventory, or adds it in creative. Works on vanilla servers;
+    sneak or the setting gives vanilla's pick.
+  - The overlay's expected and found lines follow the ghost target.
+  - Later: picking from carried containers and chests, and targeting anchored or following placements.
 - Step 4 is done. **Next up: multiplayer sync.**
 
 ### 5. Multiplayer sync

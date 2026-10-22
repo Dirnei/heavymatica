@@ -2,6 +2,7 @@ package io.github.dirnei.mc.heavymatica.remote;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.dirnei.mc.heavymatica.Heavymatica;
+import io.github.dirnei.mc.heavymatica.HeavymaticaClient;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.BlockEquivalents;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
@@ -13,6 +14,7 @@ import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
+import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -23,6 +25,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
@@ -47,18 +50,18 @@ public final class PlacementOverlay {
 
     private static final int PADDING = 4;
     private static final int LINE = 10;
-    private static final int TEXT = 0xFFFFFFFF;
-    private static final int MUTED = 0xFFAAAAAA;
+    public static final int TEXT = 0xFFFFFFFF;
+    public static final int MUTED = 0xFFAAAAAA;
     private static final int KEY = 0xFFFFE080;
     private static final int WARNING = 0xFFFF6060;
     private static final int FOLLOWING = 0xFFFFD040;
     private static final int ANCHORED = 0xFF40E060;
     private static final int LOCKED = 0xFF40D0F0;
-    private static final int MISTAKE_RED = 0xFFFF5050;
-    private static final int MISTAKE_ORANGE = 0xFFFFA040;
-    private static final int MISTAKE_CYAN = 0xFF40E8F8;
+    public static final int MISTAKE_RED = 0xFFFF5050;
+    public static final int MISTAKE_ORANGE = 0xFFFFA040;
+    public static final int MISTAKE_CYAN = 0xFF40E8F8;
     private static final int MISTAKE_MAGENTA = 0xFFFF60FF;
-    private static final int FINISHING_YELLOW = 0xFFFFF040;
+    public static final int FINISHING_YELLOW = 0xFFFFF040;
     private static final int SHORTAGE_LINES = 3;
 
     /** One overlay line: an optional key name in its own colour, then text. */
@@ -248,17 +251,28 @@ public final class PlacementOverlay {
                 .append(count(state, CellState.WRONG_WATER, "wrong_water", MISTAKE_CYAN)).append("  ")
                 .append(count(state, CellState.EXTRA, "extra", MISTAKE_MAGENTA)), TEXT));
         finishingLines(placement, comparison, lines);
-        if (minecraft.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK && minecraft.level != null) {
-            CellState target = comparison.stateAt(hit.getBlockPos());
+        BlockPos targeted = crosshairTarget(minecraft, placement);
+        if (targeted != null && minecraft.level != null) {
+            CellState target = comparison.stateAt(targeted);
             if (target != null && target.boxed()) {
-                lines.add(Line.text(Component.translatable("heavymatica.overlay.expected", block(comparison.expectedAt(hit.getBlockPos()))), MUTED));
-                lines.add(Line.text(Component.translatable("heavymatica.overlay.found", block(minecraft.level.getBlockState(hit.getBlockPos()))), MUTED));
-                BlockEquivalents.Finish finish = comparison.finishAt(hit.getBlockPos());
+                lines.add(Line.text(Component.translatable("heavymatica.overlay.expected", block(comparison.expectedAt(targeted))), MUTED));
+                lines.add(Line.text(Component.translatable("heavymatica.overlay.found", block(minecraft.level.getBlockState(targeted))), MUTED));
+                BlockEquivalents.Finish finish = comparison.finishAt(targeted);
                 if (target == CellState.NEEDS_FINISHING && finish != null) {
                     lines.add(Line.text(Component.translatable("heavymatica.overlay.finish_target." + stepName(finish)), FINISHING_YELLOW));
                 }
             }
         }
+    }
+
+    /** The ghost target when it belongs to the placement, otherwise the real block the crosshair hits, or null. */
+    private static @Nullable BlockPos crosshairTarget(Minecraft minecraft, Placement placement) {
+        GhostTargeting targeting = HeavymaticaClient.targeting();
+        GhostTargeting.GhostTarget ghost = targeting == null ? null : targeting.current();
+        if (ghost != null && ghost.placement().id().equals(placement.id())) {
+            return ghost.pos();
+        }
+        return minecraft.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK ? hit.getBlockPos() : null;
     }
 
     /** One line per finishing step that positions in the visible layers need. */

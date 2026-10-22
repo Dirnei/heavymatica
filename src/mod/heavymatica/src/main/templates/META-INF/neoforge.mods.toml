@@ -26,3 +26,11 @@ displayTest="IGNORE_ALL_VERSION"
     versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="BOTH"
+
+# Shows the ghost under the crosshair in Jade's tooltip when Jade is installed.
+[[dependencies.${mod_id}]]
+    modId="jade"
+    type="optional"
+    versionRange="[26.1,)"
+    ordering="NONE"
+    side="CLIENT"

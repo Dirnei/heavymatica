@@ -16,6 +16,8 @@ import io.github.dirnei.mc.heavymatica.remote.RadialMenu;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenuScreen;
 import io.github.dirnei.mc.heavymatica.remote.RemoteKeys;
 import io.github.dirnei.mc.heavymatica.remote.Remotes;
+import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting;
+import io.github.dirnei.mc.heavymatica.targeting.TargetHud;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,6 +25,7 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Stream;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -36,7 +39,9 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import org.jetbrains.annotations.Nullable;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -74,6 +79,10 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code logMaterials}: log the selected placement's material list, counting the player's items again, the numbers
  *     and finishing counts per planned block, and the rows of an open materials screen</li>
  *     <li>{@code logOverlay}: log the placement overlay's lines as text</li>
+ *     <li>{@code logTarget}: log the ghost under the crosshair: placement, position, planned block, state, found block,
+ *     distance and whether it is in reach, or none</li>
+ *     <li>{@code logHud}: log the targeting HUD's lines as text, or why it is hidden</li>
+ *     <li>{@code logInventory}: log the selected slot and the items of the hotbar and the main inventory</li>
  *     <li>{@code logScreen}, {@code closeScreen}: log which screen is open, close it</li>
  *     <li>{@code controls}: open the key bindings screen; {@code scroll=<rows>}: scroll the open screen down</li>
  *     <li>{@code hideGui=<true|false>}: hide the HUD like F1</li>
@@ -200,6 +209,10 @@ public final class DevScreens {
                     Heavymatica.LOGGER.info("Dev overlay: {}", String.join(" | ", PlacementOverlay.textForDevelopment(minecraft, session)));
                 }
             }
+            case "logTarget" -> logTarget();
+            case "logHud" -> Heavymatica.LOGGER.info("Dev HUD: {}", TargetHud.textForDevelopment(minecraft, HeavymaticaClient.placements(),
+                    HeavymaticaClient.targeting()));
+            case "logInventory" -> logInventory(minecraft);
             case "selectPlacement" -> {
                 PlacementSession session = HeavymaticaClient.placements();
                 if (session != null) {
@@ -346,6 +359,35 @@ public final class DevScreens {
                     placement.source(), placement.state(), PlacementTransform.bounds(placement), placement.rotation(), placement.mirror(),
                     placement.dimension(), placement.layers(), Layers.visible(placement, PlacementSession.feetLayer(placement)), placement.inHand(), session.unavailable(placement) ? " (unavailable)" : "");
         }
+    }
+
+    private static void logTarget() {
+        GhostTargeting targeting = HeavymaticaClient.targeting();
+        GhostTargeting.GhostTarget target = targeting == null ? null : targeting.fresh();
+        if (target == null) {
+            Heavymatica.LOGGER.info("Dev target: none");
+            return;
+        }
+        Heavymatica.LOGGER.info("Dev target: {} at {} planned {} state {} found {} finish {} distance {} in reach {}", target.placement().name(),
+                target.pos().toShortString(), target.planned(), target.state(), target.found(), target.finish(),
+                String.format(Locale.ROOT, "%.2f", target.distance()), target.inReach());
+    }
+
+    private static void logInventory(Minecraft minecraft) {
+        if (minecraft.player == null) {
+            return;
+        }
+        Inventory inventory = minecraft.player.getInventory();
+        StringBuilder hotbar = new StringBuilder();
+        StringBuilder main = new StringBuilder();
+        for (int slot = 0; slot < Inventory.INVENTORY_SIZE; slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (!stack.isEmpty()) {
+                (slot < Inventory.getSelectionSize() ? hotbar : main)
+                        .append(' ').append(slot).append('=').append(stack.getCount()).append(' ').append(BuiltInRegistries.ITEM.getKey(stack.getItem()));
+            }
+        }
+        Heavymatica.LOGGER.info("Dev inventory: selected {}, hotbar{}, main{}", inventory.getSelectedSlot(), hotbar, main);
     }
 
     private static void logComparison() {

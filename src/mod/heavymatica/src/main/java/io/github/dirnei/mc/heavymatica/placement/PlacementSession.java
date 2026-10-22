@@ -136,6 +136,19 @@ public final class PlacementSession {
         return stack.getItem() instanceof BlockItem item ? item.getBlock() : null;
     }
 
+    /**
+     * True when the last frame drew the placement's ghosts cell by cell, filtered by its layers, the in-hand filter and
+     * the comparison; placements over the block budget or without cells yet are not.
+     */
+    public boolean drawnThroughCells(Placement placement) {
+        return renderer.drawnThroughCells().contains(placement.id());
+    }
+
+    /** The in-hand filter the last frame drew with. */
+    public InHandFilter inHandFilter() {
+        return renderer.inHand();
+    }
+
     /** Mesh count, for development checks. */
     public int meshCount() {
         return meshes.size();

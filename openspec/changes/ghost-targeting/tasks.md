@@ -1,0 +1,54 @@
+# Tasks
+
+Start after `block-equivalents` is applied: this change reads its `WorldComparison.accepts`, `finishAt`,
+`CellState.NEEDS_FINISHING` / `boxed()` and the in-hand filter in `GhostRenderer`. Check those names against the
+code before each group. Tasks marked **(in-game check)** run in `runClient`, scripted through `DevScreens`.
+
+## 1. Ray and rules (game-free)
+
+- [x] 1.1 Add the `targeting` package with `package-info.java`, and `GhostRay.cast` with the `Cells` callback (`TARGET`, `BLOCKED`, `PASS`): Amanatides-Woo DDA from the eye, cells in order, stop at the first `TARGET` or `BLOCKED` or at the max distance, entry distance per cell (D2); verify `GhostRayTest`: the visit order along each axis, diagonals and negative directions, a ray starting on a cell boundary, a zero direction component, a target behind a blocker giving none, a target in front of a blocker, the max distance cutting off a farther target, and the entry distance of the hit cell
+- [x] 1.2 Add `TargetRules.drawn(kind, state, inLayers, inHandShows)` and `TargetRules.choose(candidates, selectedId)` (D3); verify `TargetRulesTest`: MISSING and UNKNOWN drawn only when in layers and shown by the in-hand filter, wrong block, wrong orientation, wrong water and needs finishing drawn in layers whatever the filter says, MATCHING, IGNORED, EXTRA and air never drawn, nothing drawn outside the layers, and the selected placement winning a shared cell, then the earlier one
+- [x] 1.3 Add `TargetLines.state(CellState, Finish, plannedWaterlogged)` giving the translation key and colour per state (D6); verify `TargetLinesTest`: red for wrong block, orange for wrong orientation, cyan with "needs water" or "must not be waterlogged", yellow with the step for needs finishing, muted for unknown, plain for missing, and no line for states that are never targets
+- [x] 1.4 Add `PickDecision` with its sealed `Action` (`Vanilla`, `Select`, `Swap`, `CreativeAdd`, `InContainer`, `NotCarried`) (D8); verify `PickDecisionTest`: no candidates gives vanilla; the own item in the hotbar is selected, preferring the selected slot, then the lowest; the own item in the main inventory beats the placing item in the hotbar and swaps into the suitable slot; dirt picked for grass when only dirt is carried; creative with nothing carried adds the first candidate to the suitable slot; creative with the item in the hotbar selects it; survival with the item only in a container gives `InContainer` with that container's name; survival with nothing carried gives `NotCarried` for the first candidate
+
+## 2. Targeting in the game
+
+- [ ] 2.1 Move the in-hand alpha out of `GhostRenderer` into `placement/InHandFilter`, built once per frame, and use it from the renderer; record in `GhostRenderer` the ids of the placements drawn through cells in the last frame (D3); verify the build passes and in `runClient` **(in-game check)** that the in-hand filter's full, dimmed and hidden ghosts look as before (runClient check pending)
+- [x] 2.2 Add the `WorldComparison` accessors the targeting needs: the expected kind, state, planned state, finishing step and planned-block index at a local position (D1, D4); verify the build passes and the existing comparison tests still pass
+- [x] 2.3 Add `GhostTargeting` with `GhostTarget`: per-frame lazy target (cleared on `RenderFrameEvent.Pre`) and `fresh()`, the `drawn` predicate over the LOCKED placements of the dimension drawn through cells last frame (box test first, then `TargetRules`), the `blocks` predicate from the world block's outline shape clipped with the ray inside the cell, cells in the player's box passed over, ray length `max(hudRange, reach)`, and `inReach` from `blockInteractionRange()` (D2, D3, D4); verify the build passes
+- [ ] 2.4 Add the `targeting` config section with `hudRange` (default 32, 0 to 128) and `pickBlock` (default true), with comments (D5); verify the build passes and the client config file gets both keys with their defaults after a `runClient` start (runClient check pending)
+- [ ] 2.5 Add the `logTarget` and `logInventory` DevScreens steps and list them in the class comment (D11); verify in `runClient` **(in-game check)** with a locked test placement: a missing ghost in front of a stone wall, the wall in front of a ghost, two ghosts in a row, a ghost at the feet while looking ahead, a ghost outside the visible layers, a ghost hidden and one dimmed by the in-hand filter, dirt where planks are planned, a tall grass plant where air is planned, an anchored placement, an unselected locked placement sharing a cell with the selected one, and a swapped block, each logged with `logTarget` as the spec scenarios expect (runClient check pending)
+
+## 3. Targeting HUD
+
+- [x] 3.1 Add `TargetHud` as a GUI layer under the crosshair: icon and name, orientation details, the state line from `TargetLines` with the found block, step or water wording filled in, the placement name when not selected, the muted out of reach hint, hidden with a screen open, with the GUI hidden, beyond `hudRange` and when the Jade plugin is active; add the language keys (D6); verify the build passes
+- [ ] 3.2 Add the `logHud` DevScreens step (D11); verify in `runClient` **(in-game check)** with `logHud` and screenshots the "Stairs", "No target", "Screen open", "Wrong block", "Needs a shovel", "Just locked", "Unselected placement", "Selected placement", "Far ghost", "Beyond the range" and "HUD off" scenarios, and tune the HUD's position and background (runClient check pending)
+
+## 4. Overlay
+
+- [ ] 4.1 Make `PlacementOverlay.comparisonLines` take its position from `GhostTargeting.current()` when the target's placement is the selected one, and from `minecraft.hitResult` otherwise (D10); verify in `runClient` **(in-game check)** with `logOverlay` the "Looking at a mistake", "Ghost in front of a mistake", "Looking at an extra block" and "Looking at a block to finish" scenarios (runClient check pending)
+
+## 5. Ghost pick
+
+- [ ] 5.1 Extract from `CarriedItems` a helper that finds the first carried container stack holding an item (inventory slots and the offhand, through the item capability), keeping `CarriedItems`' counts unchanged; verify the build passes and the material list numbers in `logMaterials` are unchanged for a test inventory with a shulker box **(in-game check)** (runClient check pending)
+- [x] 5.2 Add `GhostPick` taking the pick key's clicks on `ClientTickEvent.Pre` (vanilla fires `InputEvent.InteractionKeyMappingTriggered` only on a real hit, see D9): preconditions (setting on, not sneaking, a fresh target, in reach), candidates from `WorldComparison.accepts` of the planned block, a click-time inventory scan, `PickDecision`, cancelling vanilla, and the select, swap click, creative slot and action-bar actions, after checking the 26.1 names of `getSuitableHotbarSlot`, `handleInventoryMouseClick`, `handleCreativeModeItemAdd` and `displayClientMessage` (26.1: `handleContainerInput` with `ContainerInput.SWAP`, `sendOverlayMessage`); add the message keys (D8, D9); verify the build passes
+- [ ] 5.3 Verify in `runClient` singleplayer **(in-game check)** with `press=key.pickItem`, `logInventory` and screenshots: "Ghost within reach", "Sneaking", "Out of reach", "Setting off", "Grass from dirt", "Own item first", "Swapped block", "In the hotbar", "In the main inventory", "Creative, not carried", "Creative, carried", "Stairs in a shulker box" and "No stairs", and that the swap leaves no item lost or duplicated after reopening the world (runClient check pending)
+- [ ] 5.4 Verify on a vanilla dedicated server **(in-game check)** (see the dev-environment notes for the server jar and `HEAVYMATICA_QUICKPLAY`): in survival, picking from the hotbar and from the main inventory keeps the inventory in sync after relogging, and in creative the added item stays after relogging (runClient check pending)
+
+## 6. Jade (optional)
+
+- [x] 6.1 Find the Jade NeoForge 26.1.x artifact (Modrinth maven `maven.modrinth:jade:<version>`, or Jade's own maven) and confirm against its classes: `@WailaPlugin`, `IWailaPlugin.registerClient`, `IWailaClientRegistration.addRayTraceCallback` and its callback signature, `blockAccessor()` and its builder methods, `registerBlockComponent`, `IBlockComponentProvider` and whether a block accessor without a block entity requests server data; record the findings in design.md D7; verify the version and signatures are written down. This task can run first. If the API does not fit, skip 6.2 to 6.4, remove "Jade shows the ghost target" from the spec delta and the Jade lines from proposal.md and design.md, and the HUD always shows
+- [x] 6.2 Add the Modrinth `exclusiveContent` repository, `compileOnly` Jade with `jade_version` in the subproject's `gradle.properties`, a `-PwithJade` switch adding it as `localRuntime`, and the optional `jade` client dependency in `neoforge.mods.toml` (D7); verify `gradlew build` passes, and the built jar's `neoforge.mods.toml` lists `jade` as optional
+- [x] 6.3 Add `targeting.jade.HeavymaticaJadePlugin` with the ray-trace callback replacing Jade's accessor by a block accessor for the planned ghost state, the provider adding the Heavymatica state line for that accessor only, and the `active` flag that hides `TargetHud` (D7); verify the build passes and that no class outside `targeting.jade` imports a Jade type
+- [ ] 6.4 Verify in `runClient -PwithJade` **(in-game check)** with screenshots: "Jade installed" (Jade shows the planned oak stairs with the missing line, no own HUD), a mistake cell showing the planned block with the found block, real blocks without a ghost showing Jade's normal tooltip, and in `runClient` without Jade "Jade not installed" (the mod loads, the HUD shows) (runClient check pending)
+
+## 7. Integration
+
+- [ ] 7.1 Run a scripted session **(in-game check)**: lock a test placement, build part of it by hand using only middle click on ghosts and placing, including a grass block from dirt, stairs from the main inventory and an item kept in a shulker box; verify every pick, HUD line and overlay line along the way, and that the frame time logged by `logPlacements` stays within 1 ms of a run with `hudRange=0` and `pickBlock=false` (runClient check pending)
+- [x] 7.2 Update `ROADMAP.md` step 4 with ghost targeting (HUD, middle-click pick, optional Jade) and the later items (picking from containers, targeting anchored placements); verify the file reads consistently
+
+## Workflow follow-up
+
+- Archive `material-swaps`, `ghost-opacity-wheel` and `block-equivalents` (in that order) before archiving this change; the `client/placement-remote` delta modifies "Finishing in the overlay", which `block-equivalents` adds.
+- Commit the implementation once all tasks are done (Conventional Commits, for example `feat(targeting): add ghost targeting and pick`).
+- Archive the change with `/opsx:archive` when asked.

@@ -35,7 +35,32 @@ sourceSets.main.java.srcDir generatedClient.map { it.dir('src/main/java') }
 tasks.named('compileJava') { dependsOn 'openApiGenerate' }
 tasks.named('openApiGenerate') { dependsOn ':lintContract' }
 
+// Jade is an optional client integration: compiled against, never bundled. Add -PwithJade to run with it in dev runs.
+repositories {
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Modrinth'
+                url = 'https://api.modrinth.com/maven'
+            }
+        }
+        filter {
+            includeGroup 'maven.modrinth'
+        }
+    }
+}
+
+// Runtime-only dependencies of the dev runs that the published mod does not declare.
+configurations {
+    localRuntime
+}
+configurations.runtimeClasspath.extendsFrom configurations.localRuntime
+
 dependencies {
+    compileOnly "maven.modrinth:jade:${jade_version}"
+    if (providers.gradleProperty('withJade').isPresent()) {
+        localRuntime "maven.modrinth:jade:${jade_version}"
+    }
     // Minecraft does not ship Jackson, so it is bundled into the mod jar.
     jarJar(implementation("com.fasterxml.jackson.core:jackson-databind:${jackson_version}"))
     jarJar(implementation("com.fasterxml.jackson.core:jackson-core:${jackson_version}"))

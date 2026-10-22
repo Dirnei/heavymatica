@@ -80,6 +80,17 @@ public final class HeavymaticaConfig {
                     "Higher values notice other players' changes sooner and cost more time per tick.")
             .defineInRange("cellsPerTick", 20_000, 1_000, 1_000_000);
 
+    private static final ModConfigSpec.IntValue TARGETING_HUD_RANGE = BUILDER
+            .pop()
+            .push("targeting")
+            .comment("How far away, in blocks, the ghost under the crosshair is named in a small HUD below the crosshair. 0 turns the HUD off.")
+            .defineInRange("hudRange", 32, 0, 128);
+
+    private static final ModConfigSpec.BooleanValue TARGETING_PICK_BLOCK = BUILDER
+            .comment("Pick block (middle click) on a ghost within reach picks the item for the planned block from the inventory.",
+                    "Sneak while picking, or turn this off, to pick the block behind the ghost as usual.")
+            .define("pickBlock", true);
+
     public static final ModConfigSpec SPEC;
 
     public enum OverlaySide {
@@ -149,6 +160,14 @@ public final class HeavymaticaConfig {
 
     public static int comparisonCellsPerTick() {
         return COMPARISON_CELLS_PER_TICK.get();
+    }
+
+    public static int targetingHudRange() {
+        return TARGETING_HUD_RANGE.get();
+    }
+
+    public static boolean targetingPickBlock() {
+        return TARGETING_PICK_BLOCK.get();
     }
 
     private static boolean isItemId(Object value) {

@@ -14,15 +14,14 @@ import java.util.function.BooleanSupplier;
 import java.util.function.ToDoubleFunction;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.ShapeRenderer;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
 /**
@@ -43,6 +42,8 @@ final class GhostRenderer {
     private int lastMeshes;
     private int lastOutlinesOnly;
     private String lastCells = "";
+    private Set<UUID> drawnThroughCells = Set.of();
+    private @Nullable InHandFilter inHand;
 
     GhostRenderer(PlacementSession session, GhostMeshes meshes, BooleanSupplier remoteHeld) {
         this.session = session;
@@ -70,6 +71,8 @@ final class GhostRenderer {
         int meshesDrawn = 0;
         int outlinesOnly = 0;
         StringBuilder cellsDrawn = new StringBuilder();
+        Set<UUID> throughCells = new HashSet<>();
+        InHandFilter filter = InHandFilter.current();
         for (Placement placement : session.placements().inDimension(dimension)) {
             if (placement.following() && !holding) {
                 continue;
@@ -85,7 +88,7 @@ final class GhostRenderer {
                 WorldComparison comparison = cells == null ? null : session.comparison(placement);
                 if (comparison != null) {
                     Layers.Range layers = Layers.visible(placement, PlacementSession.feetLayer(placement));
-                    ToDoubleFunction<Block> alpha = placement.inHand() ? inHand(opacity, comparison) : block -> opacity;
+                    ToDoubleFunction<Block> alpha = placement.inHand() ? filter.alpha(comparison) : block -> opacity;
                     GpuBuffer mask = comparison.mask();
                     int full = cells.draw(event.getModelViewMatrix(), offset, layers, block -> alpha.applyAsDouble(block) >= opacity ? opacity : 0.0, mask);
                     int dimmed = cells.draw(event.getModelViewMatrix(), offset, layers, block -> {
@@ -94,6 +97,7 @@ final class GhostRenderer {
                     }, mask);
                     comparison.boxes().update();
                     comparison.boxes().draw(event.getModelViewMatrix(), offset, layers.from(), layers.to());
+                    throughCells.add(placement.id());
                     cellsDrawn.append(" ").append(placement.name()).append(" layers ").append(layers.from()).append('-').append(layers.to())
                             .append(": ").append(full).append(" full, ").append(dimmed).append(" dimmed");
                 } else {
@@ -114,29 +118,18 @@ final class GhostRenderer {
         lastMeshes = meshesDrawn;
         lastOutlinesOnly = outlinesOnly;
         lastCells = cellsDrawn.toString();
+        drawnThroughCells = throughCells;
+        inHand = filter;
     }
 
-    /**
-     * The blocks the held block places or counts toward at full opacity, those of other hotbar blocks dimmed,
-     * everything else hidden.
-     */
-    private static ToDoubleFunction<Block> inHand(float opacity, WorldComparison comparison) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) {
-            return block -> 0.0;
-        }
-        Block heldBlock = PlacementSession.placedBlock(player.getMainHandItem());
-        Set<Block> held = heldBlock == null ? Set.of() : comparison.highlights(heldBlock);
-        Set<Block> hotbar = new HashSet<>();
-        Inventory inventory = player.getInventory();
-        for (int slot = 0; slot < Inventory.getSelectionSize(); slot++) {
-            Block block = PlacementSession.placedBlock(inventory.getItem(slot));
-            if (block != null) {
-                hotbar.addAll(comparison.highlights(block));
-            }
-        }
-        float dimmed = opacity * HeavymaticaConfig.layersHotbarOpacity();
-        return block -> held.contains(block) ? opacity : hotbar.contains(block) ? dimmed : 0.0;
+    /** The placements whose ghosts the last frame drew cell by cell, with the comparison mask and the boxes. */
+    Set<UUID> drawnThroughCells() {
+        return drawnThroughCells;
+    }
+
+    /** The in-hand filter the last frame drew with, or the current one before the first frame. */
+    InHandFilter inHand() {
+        return inHand != null ? inHand : InHandFilter.current();
     }
 
     /** Meshes drawn and placements shown as outlines only in the last frame, for development checks. */

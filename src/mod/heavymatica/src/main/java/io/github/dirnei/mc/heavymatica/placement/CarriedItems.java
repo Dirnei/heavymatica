@@ -44,14 +44,37 @@ public final class CarriedItems {
             return;
         }
         counts.merge(stack.getItem(), stack.getCount(), Integer::sum);
-        contents(ItemAccess.forPlayerSlot(player, slot), stack, 1, counts);
+        Map<Item, Integer> inside = contents(ItemAccess.forPlayerSlot(player, slot), stack, 1);
+        if (inside != null) {
+            inside.forEach((item, count) -> counts.merge(item, count, Integer::sum));
+        }
     }
 
-    /** Adds what a stack holds to {@code into}; a handler that fails adds nothing, so its stack counts as itself only. */
-    private static void contents(ItemAccess access, ItemStack stack, int depth, Map<Item, Integer> into) {
+    /**
+     * The first carried stack, in inventory slot order and then the offhand, that holds the item somewhere inside it;
+     * null when none does.
+     */
+    public static @Nullable ItemStack containerHolding(Player player, Item item) {
+        Inventory inventory = player.getInventory();
+        for (int slot = 0; slot <= Inventory.INVENTORY_SIZE; slot++) {
+            int index = slot == Inventory.INVENTORY_SIZE ? Inventory.SLOT_OFFHAND : slot;
+            ItemStack stack = inventory.getItem(index);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            Map<Item, Integer> inside = contents(ItemAccess.forPlayerSlot(player, index), stack, 1);
+            if (inside != null && inside.containsKey(item)) {
+                return stack;
+            }
+        }
+        return null;
+    }
+
+    /** What a stack holds, nested contents included; null when it holds nothing or its handler fails. */
+    private static @Nullable Map<Item, Integer> contents(ItemAccess access, ItemStack stack, int depth) {
         ResourceHandler<ItemResource> handler = handler(access, stack);
         if (handler == null) {
-            return;
+            return null;
         }
         Map<Item, Integer> inside = new IdentityHashMap<>();
         try {
@@ -63,14 +86,17 @@ public final class CarriedItems {
                 }
                 inside.merge(resource.getItem(), (int) Math.min(Integer.MAX_VALUE, amount), Integer::sum);
                 if (depth < MAX_DEPTH) {
-                    contents(ItemAccess.forHandlerIndex(handler, index), resource.toStack(), depth + 1, inside);
+                    Map<Item, Integer> nested = contents(ItemAccess.forHandlerIndex(handler, index), resource.toStack(), depth + 1);
+                    if (nested != null) {
+                        nested.forEach((item, count) -> inside.merge(item, count, Integer::sum));
+                    }
                 }
             }
         } catch (RuntimeException e) {
             Heavymatica.LOGGER.debug("Could not read the contents of {}", stack, e);
-            return;
+            return null;
         }
-        inside.forEach((item, count) -> into.merge(item, count, Integer::sum));
+        return inside;
     }
 
     private static @Nullable ResourceHandler<ItemResource> handler(ItemAccess access, ItemStack stack) {

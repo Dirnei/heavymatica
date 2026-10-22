@@ -227,7 +227,8 @@ public final class WorldComparison implements AutoCloseable {
         return blocks.get(index);
     }
 
-    Bounds bounds() {
+    /** The placement's box in the world, as compared. */
+    public Bounds bounds() {
         return bounds;
     }
 
@@ -255,21 +256,48 @@ public final class WorldComparison implements AutoCloseable {
         int x = pos.getX() - bounds.minX();
         int y = pos.getY() - bounds.minY();
         int z = pos.getZ() - bounds.minZ();
-        if (x < 0 || y < 0 || z < 0 || x >= state.sizeX() || y >= state.sizeY() || z >= state.sizeZ()) {
-            return null;
-        }
-        return state.state(state.index(x, y, z));
+        return contains(x, y, z) ? stateAt(x, y, z) : null;
     }
 
     /** The schematic block as placed at a world position inside the placement. */
     public BlockState expectedAt(BlockPos pos) {
-        return view.placed(view.paletteIndex(pos.getX() - bounds.minX(), pos.getY() - bounds.minY(), pos.getZ() - bounds.minZ(), scratch));
+        return plannedAt(pos.getX() - bounds.minX(), pos.getY() - bounds.minY(), pos.getZ() - bounds.minZ());
     }
 
     /** The step that finishes the block expected at a world position inside the placement, or null when nothing does. */
     public BlockEquivalents.@Nullable Finish finishAt(BlockPos pos) {
-        int finish = expected[view.paletteIndex(pos.getX() - bounds.minX(), pos.getY() - bounds.minY(), pos.getZ() - bounds.minZ(), scratch)].finish();
+        return finishAt(pos.getX() - bounds.minX(), pos.getY() - bounds.minY(), pos.getZ() - bounds.minZ());
+    }
+
+    /** True when a position relative to the placement's minimum corner lies inside it. */
+    public boolean contains(int x, int y, int z) {
+        return x >= 0 && y >= 0 && z >= 0 && x < state.sizeX() && y < state.sizeY() && z < state.sizeZ();
+    }
+
+    /** The state at a local position inside the placement. */
+    public CellState stateAt(int x, int y, int z) {
+        return state.state(state.index(x, y, z));
+    }
+
+    /** What kind of position a local position inside the placement is: ignored, air or a block. */
+    public Expected.Kind kindAt(int x, int y, int z) {
+        return expected[view.paletteIndex(x, y, z, scratch)].kind();
+    }
+
+    /** The schematic block as placed, after swaps, rotation and mirror, at a local position inside the placement. */
+    public BlockState plannedAt(int x, int y, int z) {
+        return view.placed(view.paletteIndex(x, y, z, scratch));
+    }
+
+    /** The step that finishes the block at a local position inside the placement, or null when nothing does. */
+    public BlockEquivalents.@Nullable Finish finishAt(int x, int y, int z) {
+        int finish = expected[view.paletteIndex(x, y, z, scratch)].finish();
         return finish < 0 ? null : BlockEquivalents.Finish.values()[finish];
+    }
+
+    /** The {@link #plannedBlock} index of the block at a local position inside the placement, or -1 when no item places it. */
+    public int plannedIndexAt(int x, int y, int z) {
+        return plannedOf[view.paletteIndex(x, y, z, scratch)];
     }
 
     /** The orientation properties and waterlogging of a state, as {@code name=value} pairs, for showing to the player. */
