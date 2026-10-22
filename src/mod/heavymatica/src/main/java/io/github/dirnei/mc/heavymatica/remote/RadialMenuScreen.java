@@ -56,6 +56,8 @@ public final class RadialMenuScreen extends Screen {
     private int spanCount = -1;
     private double mouseX = Double.NaN;
     private double mouseY = Double.NaN;
+    /** Holding the key sends repeated presses, which must not count as a second tap. */
+    private boolean wheelKeyHeld;
 
     /** @param before the player's movement input of the last tick, for sneak and sprint in toggle mode */
     public RadialMenuScreen(RadialMenu menu, Consumer<RadialMenu.Command> commands, Input before) {
@@ -63,6 +65,7 @@ public final class RadialMenuScreen extends Screen {
         this.menu = menu;
         this.commands = commands;
         this.before = before;
+        this.wheelKeyHeld = physicallyDown(RemoteKeys.WHEEL);
     }
 
     public RadialMenu menu() {
@@ -144,7 +147,10 @@ public final class RadialMenuScreen extends Screen {
         if (event.isEscape()) {
             apply(menu.escape());
         } else if (!RemoteKeys.WHEEL.isUnbound() && RemoteKeys.WHEEL.matches(event)) {
-            apply(menu.wheelKey());
+            if (!wheelKeyHeld) {
+                wheelKeyHeld = true;
+                apply(menu.wheelKey());
+            }
         }
         return true;
     }
@@ -152,6 +158,7 @@ public final class RadialMenuScreen extends Screen {
     @Override
     public boolean keyReleased(KeyEvent event) {
         if (!RemoteKeys.WHEEL.isUnbound() && RemoteKeys.WHEEL.matches(event)) {
+            wheelKeyHeld = false;
             apply(menu.release(hovered()));
             return true;
         }
