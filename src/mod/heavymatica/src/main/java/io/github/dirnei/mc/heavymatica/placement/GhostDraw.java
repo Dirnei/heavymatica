@@ -2,6 +2,7 @@ package io.github.dirnei.mc.heavymatica.placement;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -22,7 +23,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Ghost quads of {@link GhostPipeline#GHOST}, or of {@link GhostPipeline#GHOST_MASKED} when a mask is given, each draw
- * with its own opacity, sent as one render pass on close.
+ * with its own opacity, sent as one render pass on close: depth for every draw first, then colour.
  * Uniforms and the index buffer are written before the pass opens, since nothing may be written while it is open.
  * Render thread only.
  */
@@ -75,21 +76,28 @@ final class GhostDraw implements AutoCloseable {
         RenderTarget target = minecraft.getMainRenderTarget();
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Heavymatica ghost",
                 target.getColorTextureView(), OptionalInt.empty(), target.useDepth ? target.getDepthTextureView() : null, OptionalDouble.empty())) {
-            pass.setPipeline(mask == null ? GhostPipeline.GHOST : GhostPipeline.GHOST_MASKED);
-            RenderSystem.bindDefaultUniforms(pass);
-            if (mask != null) {
-                pass.setUniform("GhostMask", mask.slice());
-            }
-            pass.bindTexture("Sampler0", minecraft.getTextureManager().getTexture(TextureAtlas.LOCATION_BLOCKS).getTextureView(),
-                    RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, FilterMode.LINEAR, FilterMode.NEAREST, true));
-            pass.bindTexture("Sampler2", minecraft.gameRenderer.lightmap(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
-            pass.setIndexBuffer(indexBuffer, indices.type());
-            for (int i = 0; i < draws.size(); i++) {
-                Quads draw = draws.get(i);
-                pass.setUniform("DynamicTransforms", transforms.get(i));
-                pass.setVertexBuffer(0, draw.vertices());
-                pass.drawIndexed(0, draw.firstQuad() * INDICES_PER_QUAD, (draw.endQuad() - draw.firstQuad()) * INDICES_PER_QUAD, 1);
-            }
+            drawAll(pass, mask == null ? GhostPipeline.GHOST_DEPTH : GhostPipeline.GHOST_MASKED_DEPTH, transforms, indices, indexBuffer);
+            drawAll(pass, mask == null ? GhostPipeline.GHOST : GhostPipeline.GHOST_MASKED, transforms, indices, indexBuffer);
+        }
+    }
+
+    private void drawAll(RenderPass pass, RenderPipeline pipeline, List<GpuBufferSlice> transforms, RenderSystem.AutoStorageIndexBuffer indices,
+            GpuBuffer indexBuffer) {
+        Minecraft minecraft = Minecraft.getInstance();
+        pass.setPipeline(pipeline);
+        RenderSystem.bindDefaultUniforms(pass);
+        if (mask != null) {
+            pass.setUniform("GhostMask", mask.slice());
+        }
+        pass.bindTexture("Sampler0", minecraft.getTextureManager().getTexture(TextureAtlas.LOCATION_BLOCKS).getTextureView(),
+                RenderSystem.getSamplerCache().getSampler(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, FilterMode.LINEAR, FilterMode.NEAREST, true));
+        pass.bindTexture("Sampler2", minecraft.gameRenderer.lightmap(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+        pass.setIndexBuffer(indexBuffer, indices.type());
+        for (int i = 0; i < draws.size(); i++) {
+            Quads draw = draws.get(i);
+            pass.setUniform("DynamicTransforms", transforms.get(i));
+            pass.setVertexBuffer(0, draw.vertices());
+            pass.drawIndexed(0, draw.firstQuad() * INDICES_PER_QUAD, (draw.endQuad() - draw.firstQuad()) * INDICES_PER_QUAD, 1);
         }
     }
 }
