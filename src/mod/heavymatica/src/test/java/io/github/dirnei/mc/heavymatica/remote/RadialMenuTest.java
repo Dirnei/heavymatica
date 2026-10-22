@@ -38,7 +38,7 @@ class RadialMenuTest {
         assertEquals(List.of(Entry.MATERIALS, Entry.LIBRARY), entries(new RadialMenu(Mode.HOLD, Selection.NONE)));
         assertEquals(List.of(Entry.CANCEL, Entry.MATERIALS, Entry.LIBRARY), entries(new RadialMenu(Mode.HOLD, FOLLOWING)));
         assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.MATERIALS, Entry.LIBRARY), entries(new RadialMenu(Mode.HOLD, ANCHORED)));
-        assertEquals(List.of(Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIAL_LIST, Entry.MATERIALS, Entry.LIBRARY),
+        assertEquals(List.of(Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIALS, Entry.LIBRARY),
                 entries(new RadialMenu(Mode.HOLD, LOCKED)));
     }
 
@@ -144,7 +144,7 @@ class RadialMenuTest {
     void otherLockedSegmentsRun() {
         RadialMenu menu = new RadialMenu(Mode.TOGGLE, LOCKED);
         assertEquals(run(Command.TOGGLE_IN_HAND), menu.click(index(menu, Entry.IN_HAND)));
-        assertEquals(run(Command.OPEN_MATERIAL_LIST), menu.click(index(menu, Entry.MATERIAL_LIST)));
+        assertEquals(run(Command.OPEN_MATERIALS), menu.click(index(menu, Entry.MATERIALS)));
         assertEquals(run(Command.OPEN_LIBRARY), menu.click(index(menu, Entry.LIBRARY)));
     }
 

@@ -23,15 +23,22 @@ re-uploading the schematic.
   - On a locked placement the comparison starts over with the new blocks, so blocks already built in the old
     material turn red.
   - Resetting a swap brings them back.
-- **Materials screen.**
-  - A new "Materials" segment on the remote's wheel opens a screen for the selected placement. It shows whenever a
+- **One materials screen.**
+  - A "Materials" segment on the remote's wheel opens a screen for the selected placement. It shows whenever a
     placement is selected, in every state, and greyed out with no selection. Like the other wheel actions it is also
     a rebindable key (works while the remote is held) with no default key.
-  - The screen lists every block type of the schematic with its count and its current swap. Each row has a picker
-    and a reset.
+  - The screen lists every block type of the schematic with its count and what it shows as. Each row has a picker
+    and a reset. A search box narrows the rows.
+  - While the placement is LOCKED, each row also shows the material list's needed, have and short for the item of
+    the block it shows as, sorted by most short first, and the blocks no item places follow under "Can't carry".
+    Unlocked, those columns are hidden and the rows are sorted by most used first.
   - The picker offers every block that has an item, with a search box. Blocks of the same kind are suggested first,
     for example other stairs for stairs.
-- **Overlay:** shows how many swaps the selected placement has, when it has any.
+- **The material list screen merges into it.** The separate material list screen, its "Material list" wheel
+  segment and its "lock the placement first" message go away. The material list key opens the materials screen
+  instead, keeps its binding, and with no selection says to select a placement first.
+- **Overlay:** shows how many swaps the selected placement has, when it has any. The "more short" line points to
+  the materials screen (its key, or the wheel's Materials segment).
 - **Saving:** swaps are saved with the placement. Older placement files load without swaps. A swap to a block the
   game no longer knows, such as one from a removed mod, is ignored and shown as missing in the screen.
 
@@ -44,25 +51,28 @@ Out of scope:
 ## Capabilities
 
 ### New Capabilities
-- `client/material-swaps`: what a swap is, how states carry over, what follows the swapped blocks, the Materials
-  segment on the wheel, the materials screen and the block picker.
+- `client/material-swaps`: what a swap is, how states carry over, what follows the swapped blocks, the materials
+  screen (including the material list's counts on a locked placement) and the block picker.
 
 ### Modified Capabilities
 - `client/schematic-placement`: a placement also carries its swaps, and saving includes them.
 - `client/placement-remote`: the default key layout lists the materials screen among the actions without a default
-  key, and the overlay shows the number of swaps.
-- `client/radial-menu` is not modified as a delta, since it only exists in the unarchived `radial-menu` change. The
-  Materials segment is specified in `client/material-swaps` as an addition to the wheel's segment lists.
+  key, and a new requirement has the overlay show the number of swaps.
+- `client/radial-menu`: the wheel shows Materials in every state (greyed out with no selection) instead of
+  Material list on a locked placement, the material list key becomes the materials key, and the shortage pointer
+  names the Materials segment.
+- `client/material-list`: the material list screen is removed, since the materials screen replaces it, and the
+  overlay's "more short" line names the materials key. Counting, sorting and summing the material list stay as
+  they are.
 
 ## Impact
 
 - **Mod code only (`src/mod/heavymatica`):**
   - the `placement` package: the placement record, the store, `GhostView`, the mesh cache key, comparison and
     controller
-  - the `remote` package: the wheel segment, the key and the overlay line
-  - the `ui` package: the materials screen and the block picker
+  - the `remote` package: the wheel segment (replacing Material list), the key and the overlay lines
+  - the `ui` package: the materials screen, which replaces the material list screen, and the block picker
 - **Saved data:** placement files gain an optional `swaps` field. Older files still load.
-- **Depends on `world-comparison`, `material-list` and `radial-menu`.** All three modify the key layout or overlay
-  requirements, and this delta builds on their text. Archive order: `world-comparison` → `material-list` →
-  `radial-menu` → `material-swaps`.
+- **Comes first among the open changes.** `ghost-opacity-wheel` and `block-equivalents` build on this change's
+  requirements, so archive it before them: `material-swaps` → `ghost-opacity-wheel` → `block-equivalents`.
 - No cloud, API or server changes.

@@ -11,7 +11,6 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import org.jetbrains.annotations.Nullable;
@@ -44,7 +43,7 @@ public final class BlockPickerScreen extends Screen {
     private final List<Choice> all;
     private List<Line> lines = List.of();
     private @Nullable EditBox search;
-    private double scroll;
+    private final ScrollBar scroll = new ScrollBar();
 
     public BlockPickerScreen(Screen parent, String originalId, Consumer<String> choose) {
         super(Component.translatable("heavymatica.picker.title", name(originalId)));
@@ -107,7 +106,7 @@ public final class BlockPickerScreen extends Screen {
             choices.others().forEach(choice -> next.add(new Line(choice, Component.empty())));
         }
         lines = next;
-        scroll = 0;
+        scroll.reset();
     }
 
     @Override
@@ -124,18 +123,36 @@ public final class BlockPickerScreen extends Screen {
         return height - 32;
     }
 
-    private double maxScroll() {
-        return Math.max(0, lines.size() * ROW - (bottom() - TOP));
+    private int barX() {
+        return width / 2 + PANEL / 2 + 4;
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        scroll = Mth.clamp(scroll - scrollY * ROW, 0, maxScroll());
+        scroll.scrollBy(-scrollY * ROW, lines.size() * ROW, bottom() - TOP);
         return true;
     }
 
     @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        if (scroll.dragging()) {
+            scroll.drag(event.y(), TOP, lines.size() * ROW, bottom() - TOP);
+            return true;
+        }
+        return super.mouseDragged(event, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        scroll.release();
+        return super.mouseReleased(event);
+    }
+
+    @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (ScrollBars.onTrack(event.x(), barX()) && scroll.press(event.y(), TOP, lines.size() * ROW, bottom() - TOP)) {
+            return true;
+        }
         if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
@@ -143,7 +160,7 @@ public final class BlockPickerScreen extends Screen {
         if (event.x() < left || event.x() >= left + PANEL || event.y() < TOP || event.y() >= bottom()) {
             return false;
         }
-        int index = (int) ((event.y() - TOP + scroll) / ROW);
+        int index = (int) ((event.y() - TOP + scroll.offset()) / ROW);
         if (index >= 0 && index < lines.size() && lines.get(index).choice() != null) {
             choose.accept(lines.get(index).choice().id());
             minecraft.setScreen(parent);
@@ -161,9 +178,10 @@ public final class BlockPickerScreen extends Screen {
             graphics.centeredText(font, Component.translatable("heavymatica.picker.nothing"), width / 2, TOP + 6, MUTED);
             return;
         }
-        scroll = Mth.clamp(scroll, 0, maxScroll());
+        scroll.clamp(lines.size() * ROW, bottom() - TOP);
+        ScrollBars.draw(graphics, scroll, barX(), TOP, lines.size() * ROW, bottom() - TOP, mouseX, mouseY);
         graphics.enableScissor(left, TOP, left + PANEL, bottom());
-        int y = TOP - (int) scroll;
+        int y = TOP - (int) scroll.offset();
         for (Line line : lines) {
             if (y + ROW > TOP && y < bottom()) {
                 Choice choice = line.choice();

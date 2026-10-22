@@ -185,7 +185,6 @@ public final class PlacementOverlay {
             boundHint(lines, RemoteKeys.CYCLE_LAYERS, "heavymatica.overlay.hint.cycle_layers");
             boundHint(lines, RemoteKeys.IN_HAND, "heavymatica.overlay.hint.in_hand");
             boundHint(lines, RemoteKeys.MATERIALS, "heavymatica.overlay.hint.materials");
-            boundHint(lines, RemoteKeys.MATERIALS_SCREEN, "heavymatica.overlay.hint.materials_screen");
             boundHint(lines, RemoteKeys.LOCK, "heavymatica.overlay.hint.unlock");
             return lines;
         }
@@ -210,7 +209,7 @@ public final class PlacementOverlay {
             boundHint(lines, RemoteKeys.LOCK, "heavymatica.overlay.hint.lock");
         }
         boundHint(lines, RemoteKeys.REMOVE, placement.following() ? "heavymatica.overlay.hint.cancel" : "heavymatica.overlay.hint.remove");
-        boundHint(lines, RemoteKeys.MATERIALS_SCREEN, "heavymatica.overlay.hint.materials_screen");
+        boundHint(lines, RemoteKeys.MATERIALS, "heavymatica.overlay.hint.materials");
         return lines;
     }
 

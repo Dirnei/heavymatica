@@ -1,5 +1,10 @@
 # Spec Delta
 
+## Purpose
+
+Lets a player replace block types of a schematic with other blocks per placement, without editing or re-uploading
+the schematic, and shows a placement's blocks and, while it is locked, its material list in one materials screen.
+
 ## ADDED Requirements
 
 ### Requirement: Per-block swaps
@@ -46,30 +51,48 @@ Swaps SHALL be changeable while the placement is FOLLOWING, ANCHORED or LOCKED. 
 - **THEN** the placement shows oak stairs again and built oak stairs match again
 
 ### Requirement: Materials screen
-While a remote is held and a placement is selected, the wheel's Materials segment, or the materials key when bound, SHALL open a screen listing every block type of the selected placement's schematic except air and structure void, with how many positions use it and its current swap, most used first. Each row SHALL let the player pick a replacement or reset the swap. Changes SHALL apply at once. When no placement is selected, the materials key SHALL tell the player to select one.
+While a remote is held, the wheel's Materials segment or the bound materials key SHALL open one screen for the selected placement in every state. It SHALL list every block type of the placement's schematic except air and structure void with how many positions use it and what it shows as. Each row SHALL pick a replacement or reset the swap, at once. When no placement is selected, the materials key SHALL tell the player to select one.
 
 #### Scenario: Open the screen
-- **WHEN** a player holding the remote picks Materials on the wheel with `Castle Gate` selected
-- **THEN** a screen lists `Castle Gate`'s block types with their counts, most used first
+- **WHEN** a player holding the remote picks Materials on the wheel with the anchored `Castle Gate` selected
+- **THEN** a screen lists `Castle Gate`'s block types with their counts and what each shows as, most used first, without needed, had or short counts
 
 #### Scenario: No selection
 - **WHEN** a player has bound the materials key to N and presses N while holding the remote with no placement selected
 - **THEN** no screen opens and a message says to select a placement first
 
-#### Scenario: Bound key
-- **WHEN** a player has bound the materials key to N and presses N while holding the remote with a placement selected
+#### Scenario: Bound key on an anchored placement
+- **WHEN** a player has bound the materials key to N and presses N while holding the remote with an anchored placement selected
 - **THEN** the materials screen opens
 
-### Requirement: Materials on the wheel
-In addition to the segments the wheel shows for each state, it SHALL show a Materials segment whenever a placement is selected, whether FOLLOWING, ANCHORED or LOCKED. With no placement selected it SHALL show Materials greyed out, and picking it SHALL do nothing. The materials key SHALL have no default key.
+### Requirement: Materials screen search and updates
+A search box in the materials screen SHALL narrow the rows by the name or ID of the block or of what it shows as. While the schematic is still loading, the screen SHALL say so. The screen SHALL update while it is open and SHALL NOT pause the game.
 
-#### Scenario: Anchored placement
-- **WHEN** the selected placement is ANCHORED and the player opens the wheel
-- **THEN** it shows Lock, Remove, Materials and Library
+#### Scenario: Search
+- **WHEN** the screen lists oak stairs swapped to spruce stairs, oak planks and stone bricks, and the player types `spruce`
+- **THEN** only the oak stairs row is listed
 
-#### Scenario: Greyed out without a selection
-- **WHEN** no placement is selected and the player opens the wheel and clicks Materials
-- **THEN** Materials shows greyed out, no screen opens and the wheel stays open
+### Requirement: Needs on a locked placement
+While the placement shown in the materials screen is LOCKED, each row SHALL also show, for the item that places the block the row shows as, how many its material list still needs, how many the player has and how many are short, with a shortage above 0 in red. Rows whose blocks show as the same item SHALL show the same counts. While the placement is not locked, the screen SHALL show none of these counts.
+
+#### Scenario: Locked placement
+- **WHEN** the selected locked placement swaps stone bricks to deepslate bricks, still needs 800 deepslate bricks and 300 oak planks, and the player has 512 oak planks and no deepslate bricks
+- **THEN** the stone bricks row shows deepslate bricks with 800 needed, 0 had and 800 short in red, listed above the oak planks row with 300 needed, 512 had and 0 short
+
+#### Scenario: Shared item
+- **WHEN** a locked placement swaps oak stairs to spruce stairs and also contains spruce stairs
+- **THEN** both rows show the same needed, had and short counts for spruce stairs
+
+#### Scenario: Picking up items while it is open
+- **WHEN** the screen is open on a locked placement and the player picks up 12 oak planks
+- **THEN** the oak planks row shows 12 more had and up to 12 less short
+
+### Requirement: Materials screen order and can't carry
+While the placement is LOCKED, the materials screen's rows SHALL be sorted by most short first, then most needed, then most used, and the blocks no item places SHALL follow in a separate "can't carry" part with how many positions still need them. While it is not locked, the rows SHALL be sorted by most used first and there SHALL be no "can't carry" part.
+
+#### Scenario: Water
+- **WHEN** a locked placement still needs 12 water source blocks
+- **THEN** the screen lists water 12 under "can't carry"
 
 ### Requirement: Block picker
 Picking a replacement SHALL offer every block that has an item, searchable by name. Blocks of the same kind as the original SHALL be listed first as suggestions. The original block itself SHALL be offered too, which resets the swap.

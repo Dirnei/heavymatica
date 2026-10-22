@@ -42,7 +42,6 @@ public final class RadialMenu {
         UNLOCK,
         IN_HAND,
         LAYERS,
-        MATERIAL_LIST,
         MATERIALS,
         LAYERS_OFF,
         LAYERS_FROM_TO,
@@ -65,7 +64,6 @@ public final class RadialMenu {
         LAYERS_OFF,
         LAYERS_FROM_TO,
         LAYERS_FOLLOW,
-        OPEN_MATERIAL_LIST,
         OPEN_MATERIALS;
 
         /** The layer mode a layers command sets, or null for other commands. */
@@ -122,7 +120,7 @@ public final class RadialMenu {
                 case FOLLOWING -> List.of(segment(Entry.CANCEL), segment(Entry.MATERIALS), segment(Entry.LIBRARY));
                 case ANCHORED -> List.of(segment(Entry.LOCK), segment(Entry.REMOVE), segment(Entry.MATERIALS), segment(Entry.LIBRARY));
                 case LOCKED -> List.of(segment(Entry.UNLOCK), new Segment(Entry.IN_HAND, true, selection.inHand()), segment(Entry.LAYERS),
-                        segment(Entry.MATERIAL_LIST), segment(Entry.MATERIALS), segment(Entry.LIBRARY));
+                        segment(Entry.MATERIALS), segment(Entry.LIBRARY));
             };
             case LAYERS -> List.of(layer(Entry.LAYERS_OFF, Layers.Mode.OFF), layer(Entry.LAYERS_FROM_TO, Layers.Mode.FROM_TO),
                     layer(Entry.LAYERS_FOLLOW, Layers.Mode.FOLLOW));
@@ -177,7 +175,6 @@ public final class RadialMenu {
             case UNLOCK -> turnTo(Page.CONFIRM_UNLOCK);
             case IN_HAND -> run(Command.TOGGLE_IN_HAND);
             case LAYERS -> turnTo(Page.LAYERS);
-            case MATERIAL_LIST -> run(Command.OPEN_MATERIAL_LIST);
             case MATERIALS -> run(Command.OPEN_MATERIALS);
             case LAYERS_OFF -> run(Command.LAYERS_OFF);
             case LAYERS_FROM_TO -> run(Command.LAYERS_FROM_TO);

@@ -34,10 +34,15 @@ public final class Materials {
         ticks++;
     }
 
-    /** Makes the next list count the player's items again, for example when the material list screen opens. */
+    /** Makes the next list count the player's items again, for example when the materials screen opens. */
     public void refreshNow() {
         carriedAt = ticks - REFRESH_TICKS;
         builtAt = ticks - REFRESH_TICKS;
+    }
+
+    /** How many of an item the player had when their items were last counted. */
+    int carried(Item item) {
+        return carried.count(item);
     }
 
     MaterialList<Item, Block> list(WorldComparison comparison, Layers.Range range) {

@@ -14,7 +14,7 @@ A placement SHALL refer to exactly one schematic version (a cloud version by sch
 - **THEN** only that placement shows spruce stairs
 
 ### Requirement: Anchored placements persist
-The client SHALL save anchored and locked placements per world (singleplayer) or server address (multiplayer) and restore them when the player joins again, including whether each is locked, its layer setting, its layer window, its in-hand flag and its swaps. FOLLOWING placements SHALL NOT be saved. Placements SHALL stay private to the player's client. Placements saved before locking existed SHALL load as ANCHORED with the layer setting off. Placements saved before swaps existed SHALL load without swaps.
+The client SHALL save anchored and locked placements per world (singleplayer) or server address (multiplayer) and restore them when the player joins again, including whether each is locked, its layer setting, layer window, in-hand flag and swaps. FOLLOWING placements SHALL NOT be saved. Placements SHALL stay private to the player's client. Placements saved before locking existed SHALL load as ANCHORED with the layer setting off. Placements saved before swaps existed SHALL load without swaps.
 
 #### Scenario: Rejoin a server
 - **WHEN** a player anchors two placements on `play.example.net`, disconnects and joins again

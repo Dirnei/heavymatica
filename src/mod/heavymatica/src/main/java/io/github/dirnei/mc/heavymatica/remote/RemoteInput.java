@@ -37,15 +37,13 @@ public final class RemoteInput {
 
     private final PlacementSession session;
     private final Runnable openLibrary;
-    private final Runnable openMaterialList;
     private final Runnable openMaterials;
     private final Map<KeyMapping, Integer> heldTicks = new HashMap<>();
     private boolean useHandled;
 
-    public RemoteInput(PlacementSession session, Runnable openLibrary, Runnable openMaterialList, Runnable openMaterials) {
+    public RemoteInput(PlacementSession session, Runnable openLibrary, Runnable openMaterials) {
         this.session = session;
         this.openLibrary = openLibrary;
-        this.openMaterialList = openMaterialList;
         this.openMaterials = openMaterials;
     }
 
@@ -147,17 +145,10 @@ public final class RemoteInput {
         }
         Placement selected = session.placements().selected().orElse(null);
         while (RemoteKeys.MATERIALS.consumeClick()) {
-            if (selected != null && selected.locked()) {
-                openMaterialList.run();
-            } else {
-                minecraft.player.sendOverlayMessage(Component.translatable("heavymatica.materials.lock_first"));
-            }
-        }
-        while (RemoteKeys.MATERIALS_SCREEN.consumeClick()) {
             if (selected != null) {
                 openMaterials.run();
             } else {
-                minecraft.player.sendOverlayMessage(Component.translatable("heavymatica.swaps.select_first"));
+                minecraft.player.sendOverlayMessage(Component.translatable("heavymatica.materials.select_first"));
             }
         }
         boolean wheel = false;
@@ -235,7 +226,6 @@ public final class RemoteInput {
         PlacementController controller = session.controller();
         switch (command) {
             case OPEN_LIBRARY -> openLibrary.run();
-            case OPEN_MATERIAL_LIST -> openMaterialList.run();
             case OPEN_MATERIALS -> openMaterials.run();
             case CANCEL, REMOVE -> controller.removeNow();
             case LOCK -> controller.lock();

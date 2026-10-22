@@ -70,7 +70,7 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code logComparison}: log the selected placement's comparison: progress, totals, slowest scan tick</li>
  *     <li>{@code logCell=<x>,<y>,<z>}: log the selected placement's comparison state at a world position</li>
  *     <li>{@code logMaterials}: log the selected placement's material list, counting the player's items again, and the
- *     rows of an open material list screen</li>
+ *     rows of an open materials screen</li>
  *     <li>{@code logOverlay}: log the placement overlay's lines as text</li>
  *     <li>{@code logScreen}, {@code closeScreen}: log which screen is open, close it</li>
  *     <li>{@code controls}: open the key bindings screen; {@code scroll=<rows>}: scroll the open screen down</li>
@@ -367,14 +367,17 @@ public final class DevScreens {
         MaterialList<Item, Block> list = session.materials(placement);
         if (list == null) {
             Heavymatica.LOGGER.info("Dev materials: none ({})", placement.state());
-            return;
+        } else {
+            Heavymatica.LOGGER.info("Dev materials: visible {}, rows {}, can't carry {}", Layers.visible(placement, PlacementSession.feetLayer(placement)),
+                    list.rows().stream().map(row -> BuiltInRegistries.ITEM.getKey(row.item()) + " " + row.needed() + "/" + row.had() + "/" + row.shortage())
+                            .toList(),
+                    list.cantCarry().stream().map(entry -> BuiltInRegistries.BLOCK.getKey(entry.block()) + " " + entry.count()).toList());
         }
-        Heavymatica.LOGGER.info("Dev materials: visible {}, rows {}, can't carry {}", Layers.visible(placement, PlacementSession.feetLayer(placement)),
-                list.rows().stream().map(row -> BuiltInRegistries.ITEM.getKey(row.item()) + " " + row.needed() + "/" + row.had() + "/" + row.shortage()).toList(),
-                list.cantCarry().stream().map(entry -> BuiltInRegistries.BLOCK.getKey(entry.block()) + " " + entry.count()).toList());
-        if (minecraft.screen instanceof MaterialListScreen screen) {
-            Heavymatica.LOGGER.info("Dev material screen rows: {}", screen.rowsForDevelopment().stream()
-                    .map(row -> BuiltInRegistries.ITEM.getKey(row.item()) + " " + row.needed() + "/" + row.had() + "/" + row.shortage()).toList());
+        if (minecraft.screen instanceof MaterialsScreen screen) {
+            Heavymatica.LOGGER.info("Dev materials screen rows: {}, can't carry {}", screen.rowsForDevelopment().stream()
+                    .map(row -> row.block() + " " + row.total() + (row.target() == null ? "" : " -> " + row.target())
+                            + (row.numbers() == null ? "" : " " + row.numbers().needed() + "/" + row.numbers().had() + "/" + row.numbers().shortage()))
+                    .toList(), screen.cantCarryForDevelopment().stream().map(entry -> BuiltInRegistries.BLOCK.getKey(entry.block()) + " " + entry.count()).toList());
         }
     }
 

@@ -93,6 +93,11 @@ public final class PlacementSession {
         return comparison == null ? null : materials.list(comparison, Layers.visible(placement, feetLayer(placement)));
     }
 
+    /** How many of an item the player carries, as last counted for the material list. */
+    public int carried(Item item) {
+        return materials.carried(item);
+    }
+
     /** Makes the next material list count the player's items again. */
     public void refreshMaterials() {
         materials.refreshNow();
