@@ -9,9 +9,11 @@ internal sealed class AccountApi(Accounts accounts, IHttpContextAccessor http) :
 {
     public async Task<ActionResult<Contract.Account>> GetMeAsync(CancellationToken cancellationToken = default)
     {
-        var account = await accounts.FindAsync(http.HttpContext!.User.AccountId(), cancellationToken);
-        return account is null
+        var user = http.HttpContext!.User;
+        var account = await accounts.FindAsync(user.AccountId(), cancellationToken);
+        var identity = await accounts.FindIdentityAsync(user.IdentityId(), cancellationToken);
+        return account is null || identity is null || identity.AccountId != account.Id
             ? Problems.Result(StatusCodes.Status401Unauthorized, ProblemCode.Unauthenticated, "The account no longer exists.")
-            : Accounts.ToContract(account);
+            : Accounts.ToContract(account, identity);
     }
 }

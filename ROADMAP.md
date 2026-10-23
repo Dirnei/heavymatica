@@ -110,9 +110,85 @@ change). `.blueprint` (Structurize) import was out of scope.
     sneak or the setting gives vanilla's pick.
   - The overlay's expected and found lines follow the ghost target.
   - Later: picking from carried containers and chests, and targeting anchored or following placements.
-- Step 4 is done. **Next up: multiplayer sync.**
+- Step 4 is done. **Next up: the web UIs (step 5), starting with `web-library`.**
 
-### 5. Multiplayer sync
+### 5. Web UIs
+
+Two separate web apps on the same cloud. They come before multiplayer sync and the machines addon: they only need the
+cloud (steps 1 + 2), and a visible web library makes the cloud easier to test.
+
+- **Player UI** on the public domain: organize schematics and share links in the browser.
+- **Admin UI** on its own hostname (for example `admin.heavymatica.example`) and its own listener in the cloud. The
+  public player domain never routes to admin paths.
+  - It starts **public**, hardened: rate limits on sign-in, setup code and invitations, short-lived single-use setup
+    codes and invitation links, a short-lived admin cookie bound to the admin host, and an audit log of every admin
+    action and every new passkey.
+  - It can move **behind WireGuard** later by changing only DNS (to the VPN address) and the proxy or firewall rules.
+    The hostname stays the same, because passkeys are bound to it; a new hostname would make every admin register
+    again.
+  - Certificates come from Let's Encrypt with the usual HTTP challenge while public; behind the VPN that challenge
+    can't reach the host, so the move switches to the DNS-01 challenge.
+
+Player accounts (decided):
+
+- An **account** owns the schematics and holds a list of linked identities: any number of **Minecraft accounts**
+  (UUID, verified through Mojang as today) and any number of **OIDC logins** (provider + user id, never the email).
+  This allows alts and several providers on one account.
+- **First sign-in** with an unknown identity, in the game or on the web, asks: create a new account, or join an
+  existing one. Creating is one click, so players who never use the web lose nothing.
+- **Joining and linking use a code entered on the website.** The game library shows a short, single-use code that
+  expires after a few minutes, together with a QR code of the link URL, so a phone can open it and sign in there.
+  - **Web identity, Minecraft account exists:** the player signs in on the web, chooses "join existing", and enters
+    the code that the game library shows.
+  - **Minecraft identity, web account exists:** the game library shows the code, and the player enters it on the
+    website while signed in to that account.
+  - **Account settings:** link more identities later with the same flow. An identity can be unlinked, except the
+    last one.
+- **No merging for now:** "join existing" only works for an identity that has no account yet. Combining two accounts
+  that both have data is a later "merge accounts" feature.
+- **Migration:** every existing Minecraft account becomes an account with one Minecraft link. Ownership moves from
+  the UUID to the account ID, and tokens carry the account ID as subject plus the identity that signed in.
+- **Quota stays a per-account entitlement**, so paid plans could raise it later without touching the schematics side.
+
+Sign-in (decided):
+
+- **Players** register and sign in on the web with **GitHub** first (OAuth2, the aspnet-contrib handler), handled by
+  the cloud itself, no broker. **Microsoft and Google** follow later as further providers of the same kind. The game
+  keeps the Mojang handshake and its ES256 tokens.
+- **Admins** sign in with **passkeys only**, built into the cloud (ASP.NET Core Identity passkeys, .NET 10). Admin
+  accounts have no password at all.
+  - The first admin registers with a one-time setup code created by a CLI command on the server.
+  - Further admins join by invitation from an existing admin.
+  - Every admin registers at least two passkeys; lost access is restored by another admin's invitation or the
+    server CLI.
+- Admins are their own principals, with no player account and no Minecraft link.
+
+Stack (decided):
+
+- **Astro**, built statically, with **Svelte** islands for the interactive parts. The cloud serves the built files on
+  the same origin as its API, so the web session is a cookie, with no tokens in the browser and no CORS. The admin UI
+  is a second Astro project, served on the admin host, so the two sessions never mix.
+- A typed API client is generated from `src/api/heavymatica-cloud.v1.yaml`.
+- Share pages get their title and thumbnail meta tags from the cloud, so links show a preview in chat apps.
+- Aspire runs the Astro dev servers next to the cloud during development; production runs only the cloud.
+
+Changes, in order:
+
+1. **`web-library` (done):** the website first. Register and sign in with GitHub only; upload schematics and see and manage
+   them in the browser (list and search, details, versions, rename, delete, storage use). It also brings the account
+   foundation: accounts with a list of linked identities, the migration of existing Minecraft accounts, and tokens
+   with the account ID as subject. Nothing changes for the game yet.
+2. **`account-links` (next):** connecting the game. The game library shows a link code with a QR code, entered on the
+   website; the first-sign-in choice (create new or join existing); linking and unlinking more identities. After
+   this, the game and the website show the same library.
+3. **`admin-web`:** the admin host and its listener, passkey admins with setup code and invitations, account lookup and
+   quota adjustments.
+
+Later in this step: Microsoft and Google sign-in, and share links with previews.
+
+Out of scope for now: billing, subscriptions and marketplace orders.
+
+### 6. Multiplayer sync
 
 - The core mod is optional on the server; when installed, the server relays placements between players.
 - Placements are **private by default**, shared opt-in per placement with "everyone on this server" or "invited
@@ -122,7 +198,7 @@ change). `.blueprint` (Structurize) import was out of scope.
 - Game servers fetch private schematics with short-lived, read-only tokens the placing player hands over; the access
   tokens are already ES256 so servers can check them with the public key.
 
-### 6. Machines addon (`heavymatica_machines`, on Servus: Foundation)
+### 7. Machines addon (`heavymatica_machines`, on Servus: Foundation)
 
 - **Material Monitor:** linked to a placement and to inventories (Utility Duct / item networks, any
   `Capabilities.Item`); shows required minus already built minus stored. World diff is incremental (full scan on
@@ -134,14 +210,6 @@ change). `.blueprint` (Structurize) import was out of scope.
   for obstructions, also placeable by hand. Respects bedrock, unbreakable blocks and claims (FTB Teams via
   `OwnedMachine`); containers spill their contents; drops go to the Cannon's network.
 - The addon is also the "server companion" for creative paste.
-
-### 7. Web dashboard
-
-Organize schematics and share links in the browser. Open decisions:
-
-- **Sign-in:** recommended a link code shown in the game library and confirmed in the browser (reuses the existing
-  identity); alternative Microsoft OAuth (needs an Azure app registration).
-- **Stack:** React/TypeScript with a client generated from the same OpenAPI contract, or Blazor.
 
 ### Later: creator marketplace
 

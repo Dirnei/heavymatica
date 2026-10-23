@@ -2,10 +2,12 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using Heavymatica.Cloud.Contract;
+using Heavymatica.Cloud.Features.Account;
 using Heavymatica.Cloud.Features.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
+using MongoDB.Driver;
 
 namespace Heavymatica.Cloud.Tests.Features.Identity;
 
@@ -36,7 +38,7 @@ public sealed class TokenTests(CloudInfrastructure infrastructure) : IDisposable
         var past = new FakeTimeProvider(DateTimeOffset.UtcNow.AddMinutes(-20));
         var oldTokens = new AccessTokens(factory.Services.GetRequiredService<IOptions<IdentityOptions>>(), past, factory.Services.GetRequiredService<SigningKey>());
 
-        client.Authorize(oldTokens.Issue(session.Account.Uuid.ToString(), "Sleeper", "s").Token);
+        client.Authorize(oldTokens.Issue(TestIdentities.Minecraft(session.Account.Id, "Sleeper"), "s").Token);
         using var response = await client.GetAsync(new Uri("/v1/me", UriKind.Relative), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -67,7 +69,7 @@ public sealed class TokenTests(CloudInfrastructure infrastructure) : IDisposable
         using var otherKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var other = new CloudFactory(infrastructure).With("Identity:SigningKey", otherKey.ExportECPrivateKeyPem());
         disposables.Add(other);
-        var foreign = other.Services.GetRequiredService<AccessTokens>().Issue(Guid.NewGuid().ToString(), "Other", "s").Token;
+        var foreign = other.Services.GetRequiredService<AccessTokens>().Issue(TestIdentities.Minecraft(AccountDocument.NewId(), "Other"), "s").Token;
 
         client.Authorize(foreign);
         using var response = await client.GetAsync(new Uri("/v1/me", UriKind.Relative), TestContext.Current.CancellationToken);
@@ -192,6 +194,65 @@ public sealed class TokenTests(CloudInfrastructure infrastructure) : IDisposable
         var error = Assert.ThrowsAny<Exception>(() => factory.Services.GetRequiredService<SigningKey>());
 
         Assert.Contains("Identity:SigningKey", error.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Access_tokens_name_the_account_as_subject_and_the_identity_that_signed_in()
+    {
+        var factory = Factory();
+        using var client = factory.CreateClient();
+        var profile = Guid.NewGuid();
+
+        var session = await SignIn.AsAsync(client, profile, "Steve");
+
+        var token = new Microsoft.IdentityModel.JsonWebTokens.JsonWebToken(session.AccessToken);
+        var identity = await IdentityDocument.In(factory.Database)
+            .Find(candidate => candidate.Provider == Providers.Minecraft && candidate.Subject == profile.ToString("D"))
+            .SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Matches("^[0-9a-f]{32}$", token.Subject);
+        Assert.NotEqual(profile.ToString("D"), token.Subject);
+        Assert.Equal(identity.AccountId, token.Subject);
+        Assert.Equal(identity.Id, token.GetClaim("iid").Value);
+        Assert.Equal("minecraft", token.GetClaim("idp").Value);
+        Assert.Equal("Steve", token.GetClaim("name").Value);
+    }
+
+    [Fact]
+    public async Task Access_tokens_without_an_identity_are_unauthenticated()
+    {
+        var factory = Factory();
+        using var client = factory.CreateClient();
+        var session = await SignIn.AsAsync(client, Guid.NewGuid(), "Veteran");
+        var legacy = factory.Services.GetRequiredService<AccessTokens>().Issue(
+        [
+            new System.Security.Claims.Claim("sub", session.Account.Id),
+            new System.Security.Claims.Claim("name", "Veteran"),
+            new System.Security.Claims.Claim("sid", "s"),
+        ]).Token;
+
+        client.Authorize(legacy);
+        using var response = await client.GetAsync(new Uri("/v1/me", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(ProblemCode.Unauthenticated, (await response.ProblemAsync()).Code);
+    }
+
+    [Fact]
+    public async Task Refresh_ends_the_session_once_its_identity_is_gone()
+    {
+        var factory = Factory();
+        using var client = factory.CreateClient();
+        var session = await SignIn.AsAsync(client, Guid.NewGuid(), "Unlinked");
+        await IdentityDocument.In(factory.Database).DeleteManyAsync(identity => identity.AccountId == session.Account.Id,
+            TestContext.Current.CancellationToken);
+
+        using var response = await Refresh(client, session.RefreshToken);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(ProblemCode.Refresh_token_invalid, (await response.ProblemAsync()).Code);
+        var stored = await SessionDocument.In(factory.Database).Find(candidate => candidate.AccountId == session.Account.Id)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        Assert.True(stored.Revoked);
     }
 
     private static Task<HttpResponseMessage> Refresh(HttpClient client, string refreshToken) =>

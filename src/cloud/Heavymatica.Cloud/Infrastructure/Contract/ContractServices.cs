@@ -2,6 +2,7 @@ using Heavymatica.Cloud.Contract;
 using Heavymatica.Cloud.Features.Account;
 using Heavymatica.Cloud.Features.Identity;
 using Heavymatica.Cloud.Features.Schematics;
+using Heavymatica.Cloud.Features.Web;
 
 namespace Heavymatica.Cloud.Infrastructure.Contract;
 
@@ -15,6 +16,7 @@ internal static class ContractServices
         services.AddScoped<IAuthController, AuthApi>();
         services.AddScoped<IAccountController, AccountApi>();
         services.AddScoped<ISchematicsController, SchematicsApi>();
+        services.AddScoped<IWebController, WebApi>();
         return services;
     }
 
@@ -29,9 +31,15 @@ internal static class ContractServices
             return Results.Stream(contract, "application/yaml");
         }).AllowAnonymous();
 
-        // Unknown routes are a plain 404, not a sign-in prompt from the fallback authorization policy.
-        app.MapFallback(context => Problems.WriteAsync(context.Response, StatusCodes.Status404NotFound, ProblemCode.Not_found, "No such endpoint."))
-            .AllowAnonymous();
+        // Unknown routes are a plain 404, not a sign-in prompt from the fallback authorization policy: the website's
+        // 404 page outside the API, problem details inside it.
+        app.MapFallback(async context =>
+        {
+            if (!await WebsiteFiles.TryWriteNotFoundPageAsync(context))
+            {
+                await Problems.WriteAsync(context.Response, StatusCodes.Status404NotFound, ProblemCode.Not_found, "No such endpoint.");
+            }
+        }).AllowAnonymous();
         return app;
     }
 

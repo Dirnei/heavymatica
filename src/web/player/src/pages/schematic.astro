@@ -1,0 +1,8 @@
+---
+import Base from '../layouts/Base.astro';
+import Details from '../components/Details.svelte';
+---
+
+<Base title="Schematic" signedIn>
+  <Details client:only="svelte" />
+</Base>

@@ -6,6 +6,7 @@ using Heavymatica.Cloud.Infrastructure.Contract;
 using Heavymatica.Cloud.Infrastructure.Mongo;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 namespace Heavymatica.Cloud.Features.Identity;
@@ -18,8 +19,7 @@ internal static class IdentityServices
     {
         var services = builder.Services;
         services.AddOptions<IdentityOptions>().BindConfiguration(IdentityOptions.Section);
-        services.AddOptions<QuotaOptions>().BindConfiguration(QuotaOptions.Section);
-        services.AddSingleton(TimeProvider.System);
+        services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton(provider => SigningKey.From(
             provider.GetRequiredService<IOptions<IdentityOptions>>().Value,
             provider.GetRequiredService<IHostEnvironment>(),
@@ -27,11 +27,13 @@ internal static class IdentityServices
         services.AddSingleton<AccessTokens>();
         services.AddSingleton<Challenges>();
         services.AddSingleton<Sessions>();
-        services.AddSingleton<Accounts>();
         services.AddHttpClient<MojangSessions>(MojangSessions.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(10));
         services.AddMongoIndexes<IdentityIndexes>();
 
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+        services.AddMongoDataProtection();
+        services.AddAuthentication(WebSessions.PlayerScheme)
+            .AddJwtBearer()
+            .AddWebSessions(builder.Environment);
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .Configure<IOptions<IdentityOptions>, SigningKey>((jwt, identity, key) =>
             {
@@ -39,6 +41,16 @@ internal static class IdentityServices
                 jwt.TokenValidationParameters = AccessTokens.Validation(identity.Value, key);
                 jwt.Events = new JwtBearerEvents
                 {
+                    // Tokens issued before accounts had identities name a Minecraft UUID as subject; the client refreshes.
+                    OnTokenValidated = context =>
+                    {
+                        if (context.Principal?.FindFirstValue(AccessTokens.IdentityClaim) is null)
+                        {
+                            context.Fail("The access token names no identity.");
+                        }
+
+                        return Task.CompletedTask;
+                    },
                     OnChallenge = async context =>
                     {
                         context.HandleResponse();
@@ -48,9 +60,10 @@ internal static class IdentityServices
                 };
             });
 
-        // Every endpoint needs a signed-in player unless it opts out (sign-in, health, the contract).
+        // Every endpoint needs a signed-in player, through an access token or a website session, unless it opts out
+        // (sign-in, health, the contract).
         services.AddAuthorizationBuilder()
-            .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+            .SetFallbackPolicy(new AuthorizationPolicyBuilder(WebSessions.PlayerScheme).RequireAuthenticatedUser().Build());
 
         services.AddRateLimiter(limiter =>
         {
@@ -68,27 +81,39 @@ internal static class IdentityServices
         return builder;
     }
 
-    /// <summary>Endpoint conventions for the generated Auth controller: no sign-in required, sign-in rate limit on the handshake.</summary>
+    /// <summary>
+    /// Endpoint conventions for the generated controllers: the Auth operations and the start of a website sign-in need
+    /// no sign-in, and the handshake and the website sign-in start carry the sign-in rate limit.
+    /// </summary>
     public static void ConfigureAuthEndpoint(EndpointBuilder endpoint)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
         var action = endpoint.Metadata.OfType<Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor>().FirstOrDefault();
-        if (action?.ControllerTypeInfo.AsType() != typeof(AuthController))
+        var controller = action?.ControllerTypeInfo.AsType();
+        var webSignIn = controller == typeof(WebController) && action!.ActionName == nameof(WebController.StartGitHubSignIn);
+        if (controller != typeof(AuthController) && !webSignIn)
         {
             return;
         }
 
         endpoint.Metadata.Add(new AllowAnonymousAttribute());
-        if (action.ActionName is nameof(AuthController.CreateChallenge) or nameof(AuthController.Verify))
+        if (webSignIn || action!.ActionName is nameof(AuthController.CreateChallenge) or nameof(AuthController.Verify))
         {
             endpoint.Metadata.Add(new Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute(SignInRateLimit));
         }
     }
 
-    /// <summary>The signed-in player's account ID (their Minecraft UUID).</summary>
-    public static string AccountId(this ClaimsPrincipal user)
+    /// <summary>The signed-in player's account ID, from an access token or a website session.</summary>
+    public static string AccountId(this ClaimsPrincipal user) => Required(user, AccessTokens.AccountClaim);
+
+    /// <summary>The ID of the identity the player signed in with.</summary>
+    public static string IdentityId(this ClaimsPrincipal user) => Required(user, AccessTokens.IdentityClaim);
+
+    public static string SessionId(this ClaimsPrincipal user) => Required(user, AccessTokens.SessionClaim);
+
+    private static string Required(ClaimsPrincipal user, string claim)
     {
         ArgumentNullException.ThrowIfNull(user);
-        return user.FindFirstValue(AccessTokens.AccountClaim) ?? throw new InvalidOperationException("The request is not signed in.");
+        return user.FindFirstValue(claim) ?? throw new InvalidOperationException("The request is not signed in.");
     }
 }

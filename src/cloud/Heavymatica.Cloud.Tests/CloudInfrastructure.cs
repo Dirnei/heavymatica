@@ -28,7 +28,7 @@ public sealed class CloudInfrastructure : IAsyncLifetime
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
         var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Heavymatica_Cloud_AppHost>(
-            ["--Heavymatica:EphemeralStorage=true"], timeout.Token);
+            ["--Heavymatica:EphemeralStorage=true", "--Heavymatica:WithWebsite=false"], timeout.Token);
         appHost.Resources.Remove(appHost.Resources.Single(resource => resource.Name == "cloud"));
 
         app = await appHost.BuildAsync(timeout.Token);

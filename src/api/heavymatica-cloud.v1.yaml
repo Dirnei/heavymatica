@@ -19,8 +19,11 @@ tags:
     description: The signed-in player's account.
   - name: Schematics
     description: Uploading, organizing, downloading and deleting schematics.
+  - name: Web
+    description: Sign-in and sign-out of the website session.
 security:
   - bearerAuth: []
+  - cookieAuth: []
 
 paths:
   /v1/auth/challenge:
@@ -124,10 +127,10 @@ paths:
       tags: [Account]
       operationId: getMe
       summary: The signed-in account
-      description: Returns the account's current Minecraft name, storage usage and quota.
+      description: Returns the account, the identity in use, the storage usage and the quota.
       responses:
         '200':
-          description: Account name, storage usage and quota.
+          description: Account, identity name, storage usage and quota.
           content:
             application/json:
               schema:
@@ -408,12 +411,72 @@ paths:
         default:
           $ref: '#/components/responses/Problem'
 
+  /v1/web/sign-in/github:
+    get:
+      tags: [Web]
+      operationId: startGitHubSignIn
+      summary: Start a website sign-in with GitHub
+      description: |
+        Redirects the browser to GitHub. After GitHub's consent page the browser returns to the cloud, which signs in
+        to the website and redirects to returnTo, or to the landing page with an error query parameter
+        (cancelled, no_account, github_unavailable or sign_in_failed).
+      security: []
+      parameters:
+        - name: intent
+          in: query
+          required: true
+          description: register creates an account for an unknown GitHub identity; login only signs in to an existing one.
+          schema:
+            type: string
+            enum: [register, login]
+        - name: returnTo
+          in: query
+          description: Local path to open after the sign-in. Anything but a local path opens the library.
+          schema:
+            type: string
+            maxLength: 500
+      responses:
+        '302':
+          description: Redirect to GitHub's authorization page.
+        '400':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/web/sign-out:
+    post:
+      tags: [Web]
+      operationId: signOutWeb
+      summary: Sign out of the website
+      description: Ends the website session and deletes its cookie.
+      responses:
+        '204':
+          description: Signed out.
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: heavymatica
+      description: |
+        The website session, set by the GitHub sign-in. HttpOnly; outside development the cookie is named
+        __Host-heavymatica. Requests that change data also need the header X-Heavymatica-Request: 1 and must come
+        from the service's own origin.
 
   parameters:
     SchematicId:
@@ -479,6 +542,8 @@ components:
         - identity_provider_unavailable
         - unauthenticated
         - refresh_token_invalid
+        - request_forbidden
+        - web_sign_in_unavailable
         # Storage
         - not_found
         - over_quota
@@ -538,13 +603,21 @@ components:
 
     Account:
       type: object
-      required: [uuid, name, usedBytes, quotaBytes]
+      required: [id, provider, name, usedBytes, quotaBytes]
       properties:
+        id:
+          type: string
+          description: The account's opaque ID. It is not derived from any identity.
+        provider:
+          type: string
+          description: Provider of the identity in use, for example minecraft or github.
         uuid:
           type: string
           format: uuid
+          description: The Minecraft UUID of the identity in use; absent when it is not a Minecraft identity.
         name:
           type: string
+          description: Name of the identity in use, the Minecraft name or the GitHub login.
         usedBytes:
           type: integer
           format: int64

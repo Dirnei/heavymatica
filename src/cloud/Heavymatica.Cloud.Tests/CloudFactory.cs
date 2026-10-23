@@ -22,13 +22,30 @@ public class CloudFactory : WebApplicationFactory<ServiceAssembly>
     private readonly Dictionary<string, string?> settings = new(StringComparer.Ordinal);
 
     public CloudFactory(CloudInfrastructure infrastructure)
+        : this(infrastructure, NewDatabaseName())
+    {
+    }
+
+    /// <summary>A factory on an existing test database and its bucket, for example a second instance of the service.</summary>
+    public CloudFactory(CloudInfrastructure infrastructure, string databaseName)
     {
         ArgumentNullException.ThrowIfNull(infrastructure);
         this.infrastructure = infrastructure;
-        DatabaseName = "test_" + Guid.NewGuid().ToString("N")[..12];
+        DatabaseName = databaseName;
+    }
+
+    public static string NewDatabaseName() => "test_" + Guid.NewGuid().ToString("N")[..12];
+
+    public static string BucketFor(string databaseName)
+    {
+        ArgumentNullException.ThrowIfNull(databaseName);
+        return databaseName.Replace('_', '-');
     }
 
     public string DatabaseName { get; }
+
+    /// <summary>Further service replacements, applied after the service's own registrations.</summary>
+    public Action<IServiceCollection>? TestServices { get; init; }
 
     public string Environment { get; init; } = "Development";
 
@@ -51,12 +68,18 @@ public class CloudFactory : WebApplicationFactory<ServiceAssembly>
         builder.UseSetting("S3:ServiceUrl", infrastructure.MinioEndpoint.ToString());
         builder.UseSetting("S3:AccessKey", infrastructure.MinioUser);
         builder.UseSetting("S3:SecretKey", infrastructure.MinioPassword);
-        builder.UseSetting("S3:Bucket", DatabaseName.Replace('_', '-'));
+        builder.UseSetting("S3:Bucket", BucketFor(DatabaseName));
 
         var inProcessMojang = !settings.ContainsKey(MojangUrlKey);
         if (inProcessMojang)
         {
             builder.UseSetting(MojangUrlKey, "http://localhost" + DevMojang.BasePath);
+        }
+
+        // Host settings are visible while the service registers its services; app configuration only afterwards.
+        foreach (var (key, value) in settings)
+        {
+            builder.UseSetting(key, value);
         }
 
         builder.ConfigureAppConfiguration(configuration => configuration.AddInMemoryCollection(settings));
@@ -71,6 +94,8 @@ public class CloudFactory : WebApplicationFactory<ServiceAssembly>
             {
                 services.AddSingleton<TimeProvider>(Clock);
             }
+
+            TestServices?.Invoke(services);
         });
     }
 }

@@ -124,10 +124,32 @@ public sealed class SignInTests(CloudInfrastructure infrastructure) : IDisposabl
         var factory = Factory();
         using var client = factory.CreateClient();
 
-        var session = await SignIn.AsAsync(client, Guid.NewGuid(), "Newcomer");
+        var profile = Guid.NewGuid();
+
+        var session = await SignIn.AsAsync(client, profile, "Newcomer");
 
         Assert.Equal(0, session.Account.UsedBytes);
         Assert.Equal(100L * 1024 * 1024, session.Account.QuotaBytes);
+        var account = Assert.Single(await AccountDocument.In(factory.Database).Find(_ => true).ToListAsync(TestContext.Current.CancellationToken));
+        var identity = Assert.Single(await IdentityDocument.In(factory.Database).Find(_ => true).ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(session.Account.Id, account.Id);
+        Assert.Matches("^[0-9a-f]{32}$", account.Id);
+        Assert.Equal((account.Id, "minecraft", profile.ToString("D"), "Newcomer"), (identity.AccountId, identity.Provider, identity.Subject, identity.Name));
+    }
+
+    [Fact]
+    public async Task A_repeat_sign_in_reaches_the_same_account()
+    {
+        var factory = Factory();
+        using var client = factory.CreateClient();
+        var profile = Guid.NewGuid();
+        var first = await SignIn.AsAsync(client, profile, "Regular");
+
+        var second = await SignIn.AsAsync(client, profile, "Regular");
+
+        Assert.Equal(first.Account.Id, second.Account.Id);
+        Assert.Equal(1, await AccountDocument.In(factory.Database).CountDocumentsAsync(_ => true, cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(1, await IdentityDocument.In(factory.Database).CountDocumentsAsync(_ => true, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -136,13 +158,14 @@ public sealed class SignInTests(CloudInfrastructure infrastructure) : IDisposabl
         var factory = Factory();
         using var client = factory.CreateClient();
         var profile = Guid.NewGuid();
-        await SignIn.AsAsync(client, profile, "OldName");
+        var before = await SignIn.AsAsync(client, profile, "OldName");
 
         var session = await SignIn.AsAsync(client, profile, "NewName");
 
         Assert.Equal("NewName", session.Account.Name);
-        var accounts = await AccountDocument.In(factory.Database).Find(_ => true).ToListAsync(TestContext.Current.CancellationToken);
-        Assert.Equal("NewName", Assert.Single(accounts).Name);
+        Assert.Equal(before.Account.Id, session.Account.Id);
+        var identities = await IdentityDocument.In(factory.Database).Find(_ => true).ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("NewName", Assert.Single(identities).Name);
     }
 
     [Fact]
@@ -150,12 +173,15 @@ public sealed class SignInTests(CloudInfrastructure infrastructure) : IDisposabl
     {
         var factory = Factory();
         using var client = factory.CreateClient();
-        var session = await SignIn.AsAsync(client, Guid.NewGuid(), "Viewer");
+        var profile = Guid.NewGuid();
+        var session = await SignIn.AsAsync(client, profile, "Viewer");
 
         var me = await client.Authorize(session.AccessToken)
             .GetFromJsonAsync<Contract.Account>(new Uri("/v1/me", UriKind.Relative), SignIn.Json, TestContext.Current.CancellationToken);
 
-        Assert.Equal(session.Account.Uuid, me!.Uuid);
+        Assert.Equal(session.Account.Id, me!.Id);
+        Assert.Equal("minecraft", me.Provider);
+        Assert.Equal(profile, me.Uuid);
         Assert.Equal("Viewer", me.Name);
     }
 

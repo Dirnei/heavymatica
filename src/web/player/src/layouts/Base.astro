@@ -1,0 +1,35 @@
+---
+import AccountBar from '../components/AccountBar.svelte';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  signedIn?: boolean;
+}
+
+const { title, signedIn = false } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} · Heavymatica</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href={signedIn ? '/library/' : '/'}>
+        <img src="/favicon.svg" alt="" width="24" height="24" />
+        Heavymatica
+      </a>
+      {signedIn && <AccountBar client:only="svelte" />}
+    </header>
+    <main>
+      <slot />
+      <noscript><p class="notice warning">The Heavymatica website needs JavaScript.</p></noscript>
+    </main>
+  </body>
+</html>

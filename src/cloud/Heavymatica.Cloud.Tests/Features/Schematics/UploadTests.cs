@@ -80,7 +80,7 @@ public sealed class UploadTests(CloudInfrastructure infrastructure) : IDisposabl
         Assert.Equal(ProblemCode.Malformed_nbt, (await response.ProblemAsync()).Code);
         Assert.Empty((await library.ListAsync()).Items);
         Assert.Equal(0, (await library.MeAsync()).UsedBytes);
-        await AssertNoBlobsAsync(factory, (await library.MeAsync()).Uuid);
+        await AssertNoBlobsAsync(factory, (await library.MeAsync()).Id);
     }
 
     [Theory]
@@ -110,7 +110,7 @@ public sealed class UploadTests(CloudInfrastructure infrastructure) : IDisposabl
         Assert.Equal(ProblemCode.Over_quota, (await response.ProblemAsync()).Code);
         Assert.Empty((await library.ListAsync()).Items);
         Assert.Equal(0, (await library.MeAsync()).UsedBytes);
-        await AssertNoBlobsAsync(factory, (await library.MeAsync()).Uuid);
+        await AssertNoBlobsAsync(factory, (await library.MeAsync()).Id);
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public sealed class UploadTests(CloudInfrastructure infrastructure) : IDisposabl
         Assert.Equal(0, me.UsedBytes);
     }
 
-    private static async Task AssertNoBlobsAsync(CloudFactory factory, Guid account)
+    private static async Task AssertNoBlobsAsync(CloudFactory factory, string account)
     {
         var blobs = factory.Services.GetRequiredService<BlobStore>();
         var stored = new List<StoredBlob>();

@@ -4,23 +4,28 @@ using MongoDB.Driver;
 
 namespace Heavymatica.Cloud.Features.Identity;
 
+internal sealed record RotatedSession(string AccountId, string? IdentityId, string SessionId, string RefreshToken);
+
 /// <summary>
-/// Refresh tokens. A token is <c>{sessionId}.{secret}</c>; only the SHA-256 of the current token is stored.
-/// Exchanging a token rotates it; presenting a token that was already exchanged revokes the whole session.
+/// Game refresh tokens and website sessions. A refresh token is <c>{sessionId}.{secret}</c>; only the SHA-256 of the
+/// current token is stored. Exchanging a token rotates it; presenting a token that was already exchanged revokes the
+/// whole session.
 /// </summary>
 internal sealed class Sessions(IMongoDatabase database, TimeProvider time)
 {
     private readonly IMongoCollection<SessionDocument> sessions = SessionDocument.In(database);
 
-    public async Task<(string SessionId, string RefreshToken)> StartAsync(string accountId, CancellationToken cancellationToken)
+    public async Task<(string SessionId, string RefreshToken)> StartAsync(string accountId, string identityId, CancellationToken cancellationToken)
     {
-        var sessionId = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
+        var sessionId = NewId();
         var token = NewToken(sessionId);
         var now = time.GetUtcNow().UtcDateTime;
         await sessions.InsertOneAsync(new SessionDocument
         {
             Id = sessionId,
             AccountId = accountId,
+            IdentityId = identityId,
+            Kind = SessionKinds.Game,
             CurrentRefreshHash = Hash(token),
             CreatedAt = now,
             LastUsedAt = now,
@@ -28,17 +33,45 @@ internal sealed class Sessions(IMongoDatabase database, TimeProvider time)
         return (sessionId, token);
     }
 
-    /// <summary>The account, session and new refresh token, or null when the token is not (or no longer) valid.</summary>
-    public async Task<(string AccountId, string SessionId, string RefreshToken)?> RotateAsync(string refreshToken, CancellationToken cancellationToken)
+    public async Task<string> StartWebAsync(string accountId, string identityId, CancellationToken cancellationToken)
+    {
+        var sessionId = NewId();
+        var now = time.GetUtcNow().UtcDateTime;
+        await sessions.InsertOneAsync(new SessionDocument
+        {
+            Id = sessionId,
+            AccountId = accountId,
+            IdentityId = identityId,
+            Kind = SessionKinds.Web,
+            CreatedAt = now,
+            LastUsedAt = now,
+        }, cancellationToken: cancellationToken);
+        return sessionId;
+    }
+
+    public Task<SessionDocument?> FindAsync(string sessionId, CancellationToken cancellationToken) =>
+        sessions.Find(session => session.Id == sessionId).FirstOrDefaultAsync(cancellationToken)!;
+
+    public bool IsActive(SessionDocument session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        return !session.Revoked && session.LastUsedAt + IdentityIndexes.SessionIdleLifetime > time.GetUtcNow().UtcDateTime;
+    }
+
+    public Task TouchAsync(string sessionId, CancellationToken cancellationToken) =>
+        sessions.UpdateOneAsync(session => session.Id == sessionId,
+            Builders<SessionDocument>.Update.Set(session => session.LastUsedAt, time.GetUtcNow().UtcDateTime), cancellationToken: cancellationToken);
+
+    /// <summary>The session and its new refresh token, or null when the token is not (or no longer) valid.</summary>
+    public async Task<RotatedSession?> RotateAsync(string refreshToken, CancellationToken cancellationToken)
     {
         if (SessionIdOf(refreshToken) is not { } sessionId)
         {
             return null;
         }
 
-        var session = await sessions.Find(candidate => candidate.Id == sessionId).FirstOrDefaultAsync(cancellationToken);
-        var now = time.GetUtcNow().UtcDateTime;
-        if (session is null || session.Revoked || session.LastUsedAt + IdentityIndexes.SessionIdleLifetime <= now)
+        var session = await FindAsync(sessionId, cancellationToken);
+        if (session is null || !IsActive(session) || session.CurrentRefreshHash is null)
         {
             return null;
         }
@@ -46,7 +79,7 @@ internal sealed class Sessions(IMongoDatabase database, TimeProvider time)
         var presented = Hash(refreshToken);
         if (!CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(presented), Encoding.ASCII.GetBytes(session.CurrentRefreshHash)))
         {
-            await RevokeSessionAsync(sessionId, cancellationToken);
+            await EndAsync(sessionId, cancellationToken);
             return null;
         }
 
@@ -56,15 +89,16 @@ internal sealed class Sessions(IMongoDatabase database, TimeProvider time)
             Builders<SessionDocument>.Filter.Eq(candidate => candidate.Id, sessionId)
                 & Builders<SessionDocument>.Filter.Eq(candidate => candidate.CurrentRefreshHash, presented)
                 & Builders<SessionDocument>.Filter.Eq(candidate => candidate.Revoked, false),
-            Builders<SessionDocument>.Update.Set(candidate => candidate.CurrentRefreshHash, Hash(next)).Set(candidate => candidate.LastUsedAt, now),
+            Builders<SessionDocument>.Update.Set(candidate => candidate.CurrentRefreshHash, Hash(next))
+                .Set(candidate => candidate.LastUsedAt, time.GetUtcNow().UtcDateTime),
             cancellationToken: cancellationToken);
         if (rotated.ModifiedCount == 0)
         {
-            await RevokeSessionAsync(sessionId, cancellationToken);
+            await EndAsync(sessionId, cancellationToken);
             return null;
         }
 
-        return (session.AccountId, sessionId, next);
+        return new RotatedSession(session.AccountId, session.IdentityId, sessionId, next);
     }
 
     /// <summary>Revokes the session the token belongs to. Unknown or invalid tokens are ignored.</summary>
@@ -82,9 +116,11 @@ internal sealed class Sessions(IMongoDatabase database, TimeProvider time)
             cancellationToken: cancellationToken);
     }
 
-    private Task<UpdateResult> RevokeSessionAsync(string sessionId, CancellationToken cancellationToken) =>
+    public Task EndAsync(string sessionId, CancellationToken cancellationToken) =>
         sessions.UpdateOneAsync(candidate => candidate.Id == sessionId, Builders<SessionDocument>.Update.Set(candidate => candidate.Revoked, true),
             cancellationToken: cancellationToken);
+
+    private static string NewId() => Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
 
     private static string NewToken(string sessionId) =>
         sessionId + "." + Base64Url(RandomNumberGenerator.GetBytes(32));

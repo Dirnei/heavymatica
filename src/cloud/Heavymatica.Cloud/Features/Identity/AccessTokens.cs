@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
+using Heavymatica.Cloud.Features.Account;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -9,6 +10,9 @@ namespace Heavymatica.Cloud.Features.Identity;
 internal sealed class AccessTokens
 {
     public const string AccountClaim = "sub";
+    public const string IdentityClaim = "iid";
+    public const string ProviderClaim = "idp";
+    public const string NameClaim = "name";
     public const string SessionClaim = "sid";
 
     private readonly IdentityOptions options;
@@ -23,7 +27,27 @@ internal sealed class AccessTokens
         credentials = new SigningCredentials(key.Key, SecurityAlgorithms.EcdsaSha256);
     }
 
-    public (string Token, DateTimeOffset ExpiresAt) Issue(string accountId, string name, string sessionId)
+    public (string Token, DateTimeOffset ExpiresAt) Issue(SignedInIdentity signedIn, string sessionId)
+    {
+        ArgumentNullException.ThrowIfNull(signedIn);
+        return Issue(Claims(signedIn, sessionId));
+    }
+
+    /// <summary>The claims of a game access token and of a website session.</summary>
+    public static IEnumerable<Claim> Claims(SignedInIdentity signedIn, string sessionId)
+    {
+        ArgumentNullException.ThrowIfNull(signedIn);
+        return
+        [
+            new Claim(AccountClaim, signedIn.Account.Id),
+            new Claim(IdentityClaim, signedIn.Identity.Id),
+            new Claim(ProviderClaim, signedIn.Identity.Provider),
+            new Claim(NameClaim, signedIn.Identity.Name ?? signedIn.Identity.Subject),
+            new Claim(SessionClaim, sessionId),
+        ];
+    }
+
+    internal (string Token, DateTimeOffset ExpiresAt) Issue(IEnumerable<Claim> claims)
     {
         var now = time.GetUtcNow();
         var expires = now + options.AccessTokenLifetime;
@@ -34,7 +58,7 @@ internal sealed class AccessTokens
             IssuedAt = now.UtcDateTime,
             NotBefore = now.UtcDateTime,
             Expires = expires.UtcDateTime,
-            Subject = new ClaimsIdentity([new Claim(AccountClaim, accountId), new Claim("name", name), new Claim(SessionClaim, sessionId)]),
+            Subject = new ClaimsIdentity(claims),
             SigningCredentials = credentials,
         });
         return (token, expires);

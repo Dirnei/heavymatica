@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using Heavymatica.Cloud.Contract;
+using Heavymatica.Cloud.Features.Account;
 using Heavymatica.Cloud.Features.Identity;
 using Heavymatica.Cloud.Infrastructure;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -39,7 +40,7 @@ public sealed class StreamingUploadTests(CloudInfrastructure infrastructure) : I
         host.StartServer();
         var address = host.Services.GetRequiredService<IServer>().Features.GetRequiredFeature<IServerAddressesFeature>().Addresses.First();
         using var client = new HttpClient { BaseAddress = new Uri(address) };
-        client.Authorize(host.Services.GetRequiredService<AccessTokens>().Issue(Guid.NewGuid().ToString(), "Streamer", "session").Token);
+        client.Authorize(host.Services.GetRequiredService<AccessTokens>().Issue(TestIdentities.Minecraft(AccountDocument.NewId(), "Streamer"), "session").Token);
 
         using var content = new PausingContent(drain.FirstBytesRead.Task);
         content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");

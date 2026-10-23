@@ -14,6 +14,7 @@
   <ItemGroup>
     <PackageReference Include="Akka.Hosting" />
     <PackageReference Include="Akka.Streams" />
+    <PackageReference Include="AspNet.Security.OAuth.GitHub" />
     <PackageReference Include="AWSSDK.S3" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="MongoDB.Driver" />
@@ -40,6 +41,7 @@
   <Target Name="LintContract" BeforeTargets="BeforeBuild" Condition="'$(SkipContractLint)' != 'true'" Inputs="$(ContractFile);$(ContractDirectory).spectral.yaml;$(ContractDirectory)package.json" Outputs="$(IntermediateOutputPath)contract-lint.stamp">
     <Exec Command="npm ci --no-audit --no-fund" WorkingDirectory="$(ContractDirectory)" Condition="!Exists('$(ContractDirectory)node_modules')" />
     <Exec Command="npm run --silent lint" WorkingDirectory="$(ContractDirectory)" />
+    <MakeDir Directories="$(IntermediateOutputPath)" />
     <Touch Files="$(IntermediateOutputPath)contract-lint.stamp" AlwaysCreate="true" />
   </Target>
 
@@ -56,6 +58,26 @@
     <Exec Command="$(NSwagExe_Net100) openapi2cscontroller /input:&quot;$(ContractFile)&quot; /output:&quot;$(ContractOutput)&quot; /namespace:Heavymatica.Cloud.Contract /ControllerStyle:Partial /ControllerTarget:AspNetCore /OperationGenerationMode:MultipleClientsFromFirstTagAndOperationId /ClassName:{controller} /UseCancellationToken:true /UseActionResultType:true /GenerateModelValidationAttributes:true /RouteNamingStrategy:OperationId /JsonLibrary:SystemTextJson /GenerateNullableReferenceTypes:true /GenerateOptionalPropertiesAsNullable:true /RequiredPropertiesMustBeDefined:true /GenerateDataAnnotations:true" />
     <!-- Enums travel by their wire value; JsonStringEnumConverter would write member names. -->
     <ReplaceInFile File="$(ContractOutput)" Find="System.Text.Json.Serialization.JsonStringEnumConverter&lt;" Replace="Heavymatica.Cloud.Infrastructure.Contract.WireEnumConverter&lt;" />
+  </Target>
+
+  <!--
+    The player website, built only on publish and copied into wwwroot. A normal build never runs npm.
+    Skip with -p:SkipWebsite=true.
+  -->
+  <PropertyGroup>
+    <WebsiteDirectory>$(MSBuildThisFileDirectory)..\..\web\player\</WebsiteDirectory>
+  </PropertyGroup>
+
+  <Target Name="BuildWebsite" BeforeTargets="PrepareForPublish" Condition="'$(SkipWebsite)' != 'true'">
+    <Exec Command="npm ci --no-audit --no-fund" WorkingDirectory="$(WebsiteDirectory)" />
+    <Exec Command="npm run build" WorkingDirectory="$(WebsiteDirectory)" />
+  </Target>
+
+  <Target Name="IncludeWebsite" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(SkipWebsite)' != 'true'">
+    <ItemGroup>
+      <WebsiteFile Include="$(WebsiteDirectory)dist\**\*" />
+      <ResolvedFileToPublish Include="@(WebsiteFile)" RelativePath="wwwroot\%(RecursiveDir)%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
   </Target>
 
   <UsingTask TaskName="ReplaceInFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">

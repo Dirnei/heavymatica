@@ -4,10 +4,12 @@ using System.Security.Cryptography;
 using Akka.Actor;
 using Akka.Hosting;
 using Heavymatica.Cloud.Contract;
+using Heavymatica.Cloud.Features.Schematics;
 using Heavymatica.Cloud.Features.Schematics.Sweeper;
 using Heavymatica.Cloud.Infrastructure.S3;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
+using MongoDB.Driver;
 
 namespace Heavymatica.Cloud.Tests.Features.Schematics;
 
@@ -69,6 +71,26 @@ public sealed class LibraryTests(CloudInfrastructure infrastructure) : IDisposab
 
         Assert.Equal(2, entry.Latest.Number);
         Assert.Equal(10, entry.Latest.Dimensions.Width);
+    }
+
+    [Fact]
+    public async Task Schematics_versions_and_files_belong_to_the_account_id()
+    {
+        var factory = Factory();
+        var library = await Library.SignedInAsync(factory, "Keeper");
+        var uploaded = await library.NewAsync("Owned", Library.Fixture("house.nbt"));
+        var account = (await library.MeAsync()).Id;
+
+        var schematic = await SchematicDocument.In(factory.Database).Find(candidate => candidate.Id == uploaded.SchematicId)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        var version = await VersionDocument.In(factory.Database).Find(candidate => candidate.SchematicId == uploaded.SchematicId)
+            .SingleAsync(TestContext.Current.CancellationToken);
+
+        Assert.Matches("^[0-9a-f]{32}$", account);
+        Assert.Equal(account, schematic.Owner);
+        Assert.Equal(account, version.Owner);
+        Assert.True(await factory.Services.GetRequiredService<BlobStore>().ExistsAsync(BlobStore.FileKey(account, version.Sha256),
+            TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -258,7 +280,7 @@ public sealed class LibraryTests(CloudInfrastructure infrastructure) : IDisposab
         disposables.Add(factory);
         var library = await Library.SignedInAsync(factory);
         var kept = await library.NewAsync("Kept", Library.Fixture("house.nbt"));
-        var account = (await library.MeAsync()).Uuid.ToString();
+        var account = (await library.MeAsync()).Id;
         var blobs = factory.Services.GetRequiredService<BlobStore>();
         var orphan = BlobStore.FileKey(account, new string('0', 64));
         await blobs.PutBytesAsync(orphan, [1, 2, 3], "application/octet-stream", TestContext.Current.CancellationToken);

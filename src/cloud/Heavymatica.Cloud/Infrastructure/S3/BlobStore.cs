@@ -57,6 +57,16 @@ internal sealed class BlobStore(IAmazonS3 s3, IOptions<S3Options> options)
 
     public Task DeleteAsync(string key, CancellationToken cancellationToken) => s3.DeleteObjectAsync(Bucket, key, cancellationToken);
 
+    /// <summary>A server-side copy within the bucket.</summary>
+    public Task CopyAsync(string sourceKey, string targetKey, CancellationToken cancellationToken) =>
+        s3.CopyObjectAsync(new CopyObjectRequest
+        {
+            SourceBucket = Bucket,
+            SourceKey = sourceKey,
+            DestinationBucket = Bucket,
+            DestinationKey = targetKey,
+        }, cancellationToken);
+
     /// <summary>A link that downloads the object without credentials until <paramref name="expiresAt"/>.</summary>
     public Task<string> LinkAsync(string key, DateTimeOffset expiresAt) =>
         s3.GetPreSignedURLAsync(new GetPreSignedUrlRequest

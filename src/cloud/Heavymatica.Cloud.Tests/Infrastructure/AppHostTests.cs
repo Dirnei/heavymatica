@@ -8,12 +8,17 @@ namespace Heavymatica.Cloud.Tests.Infrastructure;
 public sealed class AppHostTests
 {
     [Fact]
-    public async Task AppHost_starts_mongo_minio_and_a_healthy_service()
+    public async Task AppHost_starts_mongo_minio_and_a_healthy_service_with_github_sign_in()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         // Ephemeral storage: a running development AppHost keeps its data volumes locked.
         var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Heavymatica_Cloud_AppHost>(
-            ["--Heavymatica:EphemeralStorage=true"], cancellationToken);
+        [
+            "--Heavymatica:EphemeralStorage=true",
+            "--Heavymatica:WithWebsite=false",
+            "--Parameters:github-client-id=dummy-client-id",
+            "--Parameters:github-client-secret=dummy-client-secret",
+        ], cancellationToken);
         await using var app = await appHost.BuildAsync(cancellationToken);
         await app.StartAsync(cancellationToken);
 
@@ -25,7 +30,30 @@ public sealed class AppHostTests
 
         using var client = app.CreateHttpClient("cloud");
         using var response = await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);
+        using var browser = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = app.GetEndpoint("cloud", "http") };
+        using var signIn = await browser.GetAsync(new Uri("/v1/web/sign-in/github?intent=login", UriKind.Relative), cancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, signIn.StatusCode);
+        Assert.Equal("github.com", signIn.Headers.Location?.Host);
+        Assert.Contains("client_id=dummy-client-id", signIn.Headers.Location?.Query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AppHost_runs_the_website_dev_server_on_its_fixed_port_unless_disabled()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        var withWebsite = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Heavymatica_Cloud_AppHost>(
+            ["--Heavymatica:EphemeralStorage=true"], cancellationToken);
+        var withoutWebsite = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Heavymatica_Cloud_AppHost>(
+            ["--Heavymatica:EphemeralStorage=true", "--Heavymatica:WithWebsite=false"], cancellationToken);
+
+        var website = Assert.Single(withWebsite.Resources, resource => resource.Name == "website");
+        var endpoints = website.Annotations.OfType<Aspire.Hosting.ApplicationModel.EndpointAnnotation>();
+        Assert.Contains(endpoints, endpoint => endpoint.Port == 4321 && !endpoint.IsProxied);
+        Assert.DoesNotContain(withoutWebsite.Resources, resource => resource.Name == "website");
+        await withWebsite.DisposeAsync();
+        await withoutWebsite.DisposeAsync();
     }
 }

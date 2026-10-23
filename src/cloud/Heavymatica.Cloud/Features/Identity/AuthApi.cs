@@ -56,22 +56,36 @@ internal sealed class AuthApi(
                 "Mojang did not confirm this player. Cloud sign-in needs a Microsoft-authenticated Minecraft account.");
         }
 
-        var account = await accounts.SignedInAsync(profile.Id, profile.Name, cancellationToken);
-        var (sessionId, refreshToken) = await sessions.StartAsync(account.Id, cancellationToken);
-        return SessionFor(account, sessionId, refreshToken);
+        var (signedIn, _) = await accounts.CreateWithIdentityAsync(Providers.Minecraft, MinecraftSubject(profile.Id), profile.Name, cancellationToken);
+        var (sessionId, refreshToken) = await sessions.StartAsync(signedIn.Account.Id, signedIn.Identity.Id, cancellationToken);
+        return SessionFor(signedIn, sessionId, refreshToken);
     }
 
     public async Task<ActionResult<Session>> RefreshAsync(RefreshRequest body, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        if (await sessions.RotateAsync(body.RefreshToken, cancellationToken) is not { } rotated
-            || await accounts.FindAsync(rotated.AccountId, cancellationToken) is not { } account)
+        if (await sessions.RotateAsync(body.RefreshToken, cancellationToken) is not { } rotated)
         {
-            return Problems.Result(StatusCodes.Status401Unauthorized, ProblemCode.Refresh_token_invalid, "The session has ended. Sign in again.");
+            return SessionEnded();
         }
 
-        return SessionFor(account, rotated.SessionId, rotated.RefreshToken);
+        if (rotated.IdentityId is null
+            || await accounts.FindIdentityAsync(rotated.IdentityId, cancellationToken) is not { } identity
+            || identity.AccountId != rotated.AccountId
+            || await accounts.FindAsync(rotated.AccountId, cancellationToken) is not { } account)
+        {
+            await sessions.EndAsync(rotated.SessionId, cancellationToken);
+            return SessionEnded();
+        }
+
+        return SessionFor(new SignedInIdentity(account, identity), rotated.SessionId, rotated.RefreshToken);
     }
+
+    /// <summary>The subject of a Minecraft identity: the UUID in its dashed lower-case form.</summary>
+    public static string MinecraftSubject(Guid uuid) => uuid.ToString("D");
+
+    private static ObjectResult SessionEnded() =>
+        Problems.Result(StatusCodes.Status401Unauthorized, ProblemCode.Refresh_token_invalid, "The session has ended. Sign in again.");
 
     public async Task<IActionResult> RevokeSessionAsync(RefreshRequest body, CancellationToken cancellationToken = default)
     {
@@ -80,15 +94,15 @@ internal sealed class AuthApi(
         return new NoContentResult();
     }
 
-    private Session SessionFor(AccountDocument account, string sessionId, string refreshToken)
+    private Session SessionFor(SignedInIdentity signedIn, string sessionId, string refreshToken)
     {
-        var (accessToken, expiresAt) = tokens.Issue(account.Id, account.Name, sessionId);
+        var (accessToken, expiresAt) = tokens.Issue(signedIn, sessionId);
         return new Session
         {
             AccessToken = accessToken,
             AccessTokenExpiresAt = expiresAt,
             RefreshToken = refreshToken,
-            Account = Accounts.ToContract(account),
+            Account = Accounts.ToContract(signedIn.Account, signedIn.Identity),
         };
     }
 }

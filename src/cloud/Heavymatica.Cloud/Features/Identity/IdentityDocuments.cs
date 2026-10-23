@@ -21,9 +21,19 @@ internal sealed class ChallengeDocument
     public static IMongoCollection<ChallengeDocument> In(IMongoDatabase database) => database.GetCollection<ChallengeDocument>(Collection);
 }
 
+internal static class SessionKinds
+{
+    /// <summary>The mod: access tokens and a rotating refresh token.</summary>
+    public const string Game = "game";
+
+    /// <summary>The website: a session cookie, no refresh token.</summary>
+    public const string Web = "web";
+}
+
 /// <summary>
-/// A sign-in session, the family every rotated refresh token of one sign-in belongs to. Only the hash of the
-/// current refresh token is stored; presenting an older one revokes the family. Idle sessions expire after 30 days.
+/// A sign-in session. For the game it is the family every rotated refresh token of one sign-in belongs to: only the
+/// hash of the current refresh token is stored, and presenting an older one revokes the family. Idle sessions expire
+/// after 30 days.
 /// </summary>
 internal sealed class SessionDocument
 {
@@ -34,7 +44,12 @@ internal sealed class SessionDocument
 
     public required string AccountId { get; init; }
 
-    public required string CurrentRefreshHash { get; init; }
+    /// <summary>The identity that signed in; it must still belong to the account for the session to stay valid.</summary>
+    public string? IdentityId { get; init; }
+
+    public string Kind { get; init; } = SessionKinds.Game;
+
+    public string? CurrentRefreshHash { get; init; }
 
     public bool Revoked { get; init; }
 

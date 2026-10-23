@@ -50,6 +50,8 @@ internal static class Problems
         [ProblemCode.Identity_provider_unavailable] = "Mojang is unavailable",
         [ProblemCode.Unauthenticated] = "Sign-in required",
         [ProblemCode.Refresh_token_invalid] = "Session expired",
+        [ProblemCode.Request_forbidden] = "Request forbidden",
+        [ProblemCode.Web_sign_in_unavailable] = "Website sign-in unavailable",
         [ProblemCode.Not_found] = "Not found",
         [ProblemCode.Over_quota] = "Storage quota exceeded",
         [ProblemCode.Last_version] = "Last remaining version",

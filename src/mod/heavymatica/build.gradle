@@ -27,6 +27,7 @@ openApiGenerate {
             useBeanValidation  : 'false',
             useJakartaEe       : 'true',
             hideGenerationTimestamp: 'true',
+            enumUnknownDefaultCase : 'true',
             sourceFolder       : 'src/main/java',
     ]
 }

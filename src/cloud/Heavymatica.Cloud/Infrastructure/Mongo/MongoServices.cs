@@ -15,7 +15,7 @@ internal static class MongoServices
 {
     public const string ConnectionName = "heavymatica";
 
-    public static WebApplicationBuilder AddMongo(this WebApplicationBuilder builder)
+    private static readonly Lazy<bool> Conventions = new(() =>
     {
         ConventionRegistry.Register("heavymatica", new ConventionPack
         {
@@ -23,6 +23,15 @@ internal static class MongoServices
             new IgnoreExtraElementsConvention(true),
             new EnumRepresentationConvention(BsonType.String),
         }, _ => true);
+        return true;
+    });
+
+    /// <summary>Registers the document conventions once per process.</summary>
+    public static void RegisterConventions() => _ = Conventions.Value;
+
+    public static WebApplicationBuilder AddMongo(this WebApplicationBuilder builder)
+    {
+        RegisterConventions();
 
         var connectionString = builder.Configuration.GetConnectionString(ConnectionName)
             ?? throw new InvalidOperationException($"ConnectionStrings:{ConnectionName} is not configured.");
