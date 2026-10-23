@@ -159,6 +159,113 @@ class CellStateTest {
         for (CellState state : CellState.values()) {
             assertEquals(state.mistake() || state == CellState.NEEDS_FINISHING, state.boxed(), state.name());
         }
-        assertEquals(CellState.values().length - 1, CellState.NEEDS_FINISHING.ordinal());
+        assertEquals(8, CellState.NEEDS_FINISHING.ordinal());
+    }
+
+    private static final int CANDLES = 50;
+    private static final int PICKLES = 51;
+    private static final int SNOW = 52;
+    private static final int STONE_SLAB = 53;
+    private static final int SINGLE = 0;
+    private static final int LOWER = 1;
+    private static final int UPPER = 2;
+
+    private static Expected amount(int block, boolean waterlogged, int amount, int half) {
+        return Expected.block(block, NONE, waterlogged).withAmount(amount, half);
+    }
+
+    private static Found found(int block, boolean waterlogged, int amount, int half) {
+        return Found.block(block, NONE, waterlogged, amount, half);
+    }
+
+    @Test
+    void newStatesKeepTheStoredOrdinals() {
+        assertEquals(9, CellState.INCOMPLETE.ordinal());
+        assertEquals(10, CellState.TOO_MANY.ordinal());
+        assertEquals(11, CellState.values().length);
+    }
+
+    @Test
+    void incompleteShowsAGhostAndNeedsItems() {
+        assertEquals(true, CellState.INCOMPLETE.showsGhost());
+        assertEquals(true, CellState.INCOMPLETE.needsItem());
+        assertEquals(false, CellState.INCOMPLETE.mistake());
+        assertEquals(false, CellState.INCOMPLETE.boxed());
+    }
+
+    @Test
+    void tooManyIsABoxedMistakeWithoutGhostOrItem() {
+        assertEquals(false, CellState.TOO_MANY.showsGhost());
+        assertEquals(false, CellState.TOO_MANY.needsItem());
+        assertEquals(true, CellState.TOO_MANY.mistake());
+        assertEquals(true, CellState.TOO_MANY.boxed());
+    }
+
+    @Test
+    void candlesAreComparedByCount() {
+        Expected three = amount(CANDLES, false, 3, SINGLE);
+        assertEquals(CellState.INCOMPLETE, CellState.classify(three, found(CANDLES, false, 1, SINGLE)));
+        assertEquals(CellState.INCOMPLETE, CellState.classify(three, found(CANDLES, false, 2, SINGLE)));
+        assertEquals(CellState.MATCHING, CellState.classify(three, found(CANDLES, false, 3, SINGLE)));
+        assertEquals(CellState.TOO_MANY, CellState.classify(three, found(CANDLES, false, 4, SINGLE)));
+        assertEquals(CellState.MISSING, CellState.classify(three, Found.NOTHING));
+    }
+
+    @Test
+    void snowLayersAreComparedByCount() {
+        Expected five = amount(SNOW, false, 5, SINGLE);
+        assertEquals(CellState.INCOMPLETE, CellState.classify(five, found(SNOW, false, 2, SINGLE)));
+        assertEquals(CellState.MATCHING, CellState.classify(five, found(SNOW, false, 5, SINGLE)));
+    }
+
+    @Test
+    void eitherSingleSlabUnderAPlannedDoubleIsIncomplete() {
+        Expected doubleSlab = amount(STONE_SLAB, false, 2, SINGLE);
+        assertEquals(CellState.INCOMPLETE, CellState.classify(doubleSlab, found(STONE_SLAB, false, 1, LOWER)));
+        assertEquals(CellState.INCOMPLETE, CellState.classify(doubleSlab, found(STONE_SLAB, false, 1, UPPER)));
+        assertEquals(CellState.MATCHING, CellState.classify(doubleSlab, found(STONE_SLAB, false, 2, SINGLE)));
+    }
+
+    @Test
+    void aDoubleSlabWhereASingleIsPlannedIsTooMany() {
+        assertEquals(CellState.TOO_MANY, CellState.classify(amount(STONE_SLAB, false, 1, LOWER), found(STONE_SLAB, false, 2, SINGLE)));
+        assertEquals(CellState.TOO_MANY, CellState.classify(amount(STONE_SLAB, false, 1, UPPER), found(STONE_SLAB, false, 2, SINGLE)));
+    }
+
+    @Test
+    void topAgainstBottomSlabIsWrongOrientation() {
+        assertEquals(CellState.WRONG_ORIENTATION, CellState.classify(amount(STONE_SLAB, false, 1, LOWER), found(STONE_SLAB, false, 1, UPPER)));
+        assertEquals(CellState.MATCHING, CellState.classify(amount(STONE_SLAB, false, 1, UPPER), found(STONE_SLAB, false, 1, UPPER)));
+    }
+
+    @Test
+    void amountComesBeforeWater() {
+        assertEquals(CellState.INCOMPLETE, CellState.classify(amount(STONE_SLAB, false, 2, SINGLE), found(STONE_SLAB, true, 1, LOWER)));
+        assertEquals(CellState.TOO_MANY, CellState.classify(amount(PICKLES, true, 2, SINGLE), found(PICKLES, false, 3, SINGLE)));
+        assertEquals(CellState.INCOMPLETE, CellState.classify(amount(PICKLES, true, 2, SINGLE), found(PICKLES, false, 1, SINGLE)));
+        assertEquals(CellState.WRONG_WATER, CellState.classify(amount(PICKLES, true, 2, SINGLE), found(PICKLES, false, 2, SINGLE)));
+        assertEquals(CellState.WRONG_WATER, CellState.classify(amount(STONE_SLAB, true, 1, LOWER), found(STONE_SLAB, false, 1, LOWER)));
+    }
+
+    @Test
+    void orientationComesBeforeAmount() {
+        Expected north = Expected.block(CANDLES, NORTH, false).withAmount(3, SINGLE);
+        assertEquals(CellState.WRONG_ORIENTATION, CellState.classify(north, Found.block(CANDLES, EAST, false, 4, SINGLE)));
+        assertEquals(CellState.WRONG_ORIENTATION, CellState.classify(north, Found.block(CANDLES, EAST, false, 1, SINGLE)));
+        assertEquals(CellState.WRONG_BLOCK, CellState.classify(north, Found.block(PICKLES, NORTH, false, 1, SINGLE)));
+    }
+
+    @Test
+    void amountComesBeforeFinishing() {
+        Expected path = PATH_PLANNED.withAmount(2, SINGLE);
+        assertEquals(CellState.INCOMPLETE, CellState.classify(path, found(DIRT, false, 1, SINGLE)));
+        assertEquals(CellState.NEEDS_FINISHING, CellState.classify(path, found(DIRT, false, 2, SINGLE)));
+    }
+
+    @Test
+    void blocksWithoutAmountsHaveOne() {
+        assertEquals(1, Expected.block(OAK_PLANKS, NONE, false).amount());
+        assertEquals(1, Found.block(OAK_PLANKS, NONE, false).amount());
+        assertEquals(CellState.MATCHING, CellState.classify(Expected.block(OAK_PLANKS, NONE, false), Found.block(OAK_PLANKS, NONE, false)));
     }
 }

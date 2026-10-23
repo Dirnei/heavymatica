@@ -10,18 +10,22 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Stream;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.world.level.block.state.properties.SlabType;
 import org.jetbrains.annotations.Nullable;
 
 /**
  * Turns block states into the comparison's {@link Expected} and {@link Found} terms: block identity, an orientation
- * key over the placement properties only, and waterlogging. Found keys are cached per state. Game thread only.
+ * key over the placement properties only, the amount, the slab half and waterlogging. Found keys are cached per state.
+ * Game thread only.
  */
 final class CellKeys {
 
@@ -36,10 +40,14 @@ final class CellKeys {
             BlockStateProperties.ROTATION_16,
             BlockStateProperties.HALF,
             BlockStateProperties.DOUBLE_BLOCK_HALF,
-            BlockStateProperties.SLAB_TYPE,
             BlockStateProperties.DOOR_HINGE,
             BlockStateProperties.ATTACH_FACE,
             BlockStateProperties.ORIENTATION);
+
+    /** The properties shown to the player for a block: the orientation and the slab type. */
+    static final List<Property<?>> SHOWN = Stream.concat(ORIENTATION.stream(), Stream.of(BlockStateProperties.SLAB_TYPE)).toList();
+
+    private static final List<IntegerProperty> AMOUNTS = List.of(BlockStateProperties.CANDLES, BlockStateProperties.PICKLES, BlockStateProperties.LAYERS);
 
     private final Map<List<Object>, Integer> orientations = new HashMap<>();
     private final Map<BlockState, Found> found = new IdentityHashMap<>();
@@ -61,7 +69,7 @@ final class CellKeys {
         }
         Equivalence equivalence = equivalence(resolved.getBlock());
         return Expected.block(block(resolved), orientation(resolved), waterlogged(resolved), ids(equivalence.same()), ids(equivalence.finishFrom()),
-                equivalence.finish() == null ? -1 : equivalence.finish().ordinal());
+                equivalence.finish() == null ? -1 : equivalence.finish().ordinal()).withAmount(amount(resolved), half(resolved));
     }
 
     /**
@@ -88,7 +96,29 @@ final class CellKeys {
     }
 
     Found found(BlockState state) {
-        return found.computeIfAbsent(state, key -> key.isAir() ? Found.NOTHING : Found.block(block(key), orientation(key), waterlogged(key)));
+        return found.computeIfAbsent(state, key -> key.isAir() ? Found.NOTHING
+                : Found.block(block(key), orientation(key), waterlogged(key), amount(key), half(key)));
+    }
+
+    /** The candles, pickles or snow layers of a state, 2 for a double slab, otherwise 1. */
+    static int amount(BlockState state) {
+        for (IntegerProperty property : AMOUNTS) {
+            if (state.hasProperty(property)) {
+                return state.getValue(property);
+            }
+        }
+        return state.hasProperty(BlockStateProperties.SLAB_TYPE) && state.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.DOUBLE ? 2 : 1;
+    }
+
+    private static int half(BlockState state) {
+        if (!state.hasProperty(BlockStateProperties.SLAB_TYPE)) {
+            return 0;
+        }
+        return switch (state.getValue(BlockStateProperties.SLAB_TYPE)) {
+            case BOTTOM -> 1;
+            case TOP -> 2;
+            case DOUBLE -> 0;
+        };
     }
 
     private static int block(BlockState state) {

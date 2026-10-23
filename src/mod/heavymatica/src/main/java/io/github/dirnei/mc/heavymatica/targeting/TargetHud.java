@@ -18,6 +18,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jetbrains.annotations.Nullable;
@@ -138,7 +139,7 @@ public final class TargetHud {
         return lines;
     }
 
-    /** The target's state in its comparison colour, naming the found block or its orientation where that differs. */
+    /** The target's state in its comparison colour, naming the found block, its orientation or its amount where that differs. */
     public static @Nullable Line stateLine(GhostTarget target) {
         TargetLines.StateLine line = TargetLines.state(target.state(), target.finish(), target.plannedWaterlogged());
         if (line == null) {
@@ -149,10 +150,21 @@ public final class TargetHud {
             text = Component.translatable(line.key(), target.found().getBlock().getName());
         } else if (target.state() == CellState.WRONG_ORIENTATION && target.found() != null) {
             text = Component.translatable(line.key(), WorldComparison.details(target.found()));
+        } else if ((target.state() == CellState.INCOMPLETE || target.state() == CellState.TOO_MANY) && target.found() != null) {
+            text = amountText(target.state(), target.planned(), target.found());
         } else {
             text = Component.translatable(line.key());
         }
         return new Line(text, line.color());
+    }
+
+    /** How many more an incomplete position needs, or how many a too many position holds, against the planned amount. */
+    public static Component amountText(CellState state, BlockState planned, BlockState found) {
+        int plannedAmount = WorldComparison.amount(planned);
+        int foundAmount = WorldComparison.amount(found);
+        return state == CellState.INCOMPLETE
+                ? Component.translatable("heavymatica.target.incomplete", plannedAmount - foundAmount, foundAmount, plannedAmount)
+                : Component.translatable("heavymatica.target.too_many", foundAmount, plannedAmount);
     }
 
     /** The HUD's lines as text, or why it is hidden, for development checks. */

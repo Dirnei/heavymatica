@@ -2,12 +2,14 @@ package io.github.dirnei.mc.heavymatica.placement;
 
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The comparison result of one locked placement: a state per position, kept in placement-local (rotated) coordinates
  * with x fastest, then z, then y, plus the counters and dirty marks derived from it. Every change goes through
  * {@link #set}, which keeps progress, totals, the ghost mask (one bit per cell, set while the ghost shows) and the
- * dirty box sections up to date.
+ * dirty box sections up to date, and remembers the amount found at incomplete positions.
  */
 public final class ComparisonState {
 
@@ -32,6 +34,7 @@ public final class ComparisonState {
     private final Section[] sections;
     private final byte[] mask;
     private final BitSet dirtyBoxSections = new BitSet();
+    private final Map<Integer, Integer> incompleteFound = new HashMap<>();
     private int dirtyMaskFrom = Integer.MAX_VALUE;
     private int dirtyMaskTo = -1;
     private int pending;
@@ -97,6 +100,11 @@ public final class ComparisonState {
         return CellState.of(cells[index]);
     }
 
+    /** The amount found at an incomplete position; 0 at any other. */
+    public int found(int index) {
+        return incompleteFound.getOrDefault(index, 0);
+    }
+
     public boolean counted(int index) {
         return counted.get(index);
     }
@@ -108,6 +116,16 @@ public final class ComparisonState {
 
     /** Sets a position's state and returns the state it had. */
     public CellState set(int index, CellState state) {
+        return set(index, state, 0);
+    }
+
+    /** Sets a position's state with the amount found there and returns the state it had. */
+    public CellState set(int index, CellState state, int found) {
+        if (state == CellState.INCOMPLETE) {
+            incompleteFound.put(index, found);
+        } else {
+            incompleteFound.remove(index);
+        }
         CellState old = CellState.of(cells[index]);
         if (old == state) {
             return old;

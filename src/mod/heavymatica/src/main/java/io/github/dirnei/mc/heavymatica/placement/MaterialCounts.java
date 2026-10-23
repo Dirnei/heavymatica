@@ -35,6 +35,14 @@ public final class MaterialCounts {
         change(layer, demand, -demand.amount());
     }
 
+    /** Replaces what a position asked for in its old state with what it asks for in its new one. */
+    public void move(int layer, Demand demand, CellState old, int oldFound, CellState next, int nextFound) {
+        int difference = demand.amountFor(next, nextFound) - demand.amountFor(old, oldFound);
+        if (difference != 0) {
+            change(layer, demand, difference);
+        }
+    }
+
     private void change(int layer, Demand demand, int amount) {
         switch (demand.kind()) {
             case NONE -> {

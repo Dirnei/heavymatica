@@ -47,6 +47,16 @@ class TargetLinesTest {
         assertEquals(new StateLine("heavymatica.target.missing", TargetLines.TEXT), TargetLines.state(CellState.MISSING, null, false));
     }
 
+    @Test
+    void incompleteIsPlain() {
+        assertEquals(new StateLine("heavymatica.target.incomplete", TargetLines.TEXT), TargetLines.state(CellState.INCOMPLETE, null, false));
+    }
+
+    @Test
+    void tooManyIsOrange() {
+        assertEquals(new StateLine("heavymatica.target.too_many", TargetLines.ORANGE), TargetLines.state(CellState.TOO_MANY, null, false));
+    }
+
     @ParameterizedTest
     @EnumSource(value = CellState.class, names = {"MATCHING", "IGNORED", "EXTRA"})
     void noLineForStatesThatAreNeverTargets(CellState state) {

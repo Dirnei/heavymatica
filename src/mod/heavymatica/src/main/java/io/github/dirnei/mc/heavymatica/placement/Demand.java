@@ -21,4 +21,12 @@ public record Demand(Kind kind, int index, int amount) {
     public static Demand cantCarry(int block, int amount) {
         return new Demand(Kind.CANT_CARRY, block, amount);
     }
+
+    /** What a position in {@code state} asks for, {@code found} being the amount it holds when incomplete. */
+    public int amountFor(CellState state, int found) {
+        if (kind == Kind.NONE || !state.needsItem()) {
+            return 0;
+        }
+        return state == CellState.INCOMPLETE ? Math.max(0, amount - found) : amount;
+    }
 }

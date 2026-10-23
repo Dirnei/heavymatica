@@ -25,21 +25,17 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
-import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.block.state.properties.Property;
-import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.level.chunk.LevelChunk;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
 /**
  * One locked placement compared with the world: what each position should hold, the {@link ComparisonState}, the
- * {@link MaterialCounts} of the positions that still need their item or finishing, and its GPU side (the ghost mask
+ * {@link MaterialCounts} of the positions that still need items or finishing, and its GPU side (the ghost mask
  * and the boxes). Game and render thread, which are the same on the client.
  */
 public final class WorldComparison implements AutoCloseable {
-
-    private static final List<IntegerProperty> AMOUNTS = List.of(BlockStateProperties.CANDLES, BlockStateProperties.PICKLES, BlockStateProperties.LAYERS);
 
     private final Placement placement;
     private final Bounds bounds;
@@ -147,16 +143,7 @@ public final class WorldComparison implements AutoCloseable {
         if (plannedBlock < 0) {
             return Demand.cantCarry(index(placed.getBlock(), blockIndex, blocks), 1);
         }
-        int amount = 1;
-        if (placed.hasProperty(BlockStateProperties.SLAB_TYPE) && placed.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.DOUBLE) {
-            amount = 2;
-        }
-        for (IntegerProperty property : AMOUNTS) {
-            if (placed.hasProperty(property)) {
-                amount = placed.getValue(property);
-            }
-        }
-        return Demand.planned(plannedBlock, amount);
+        return Demand.planned(plannedBlock, CellKeys.amount(placed));
     }
 
     private static <T> int index(T key, Map<T, Integer> indices, List<T> keys) {
@@ -232,16 +219,15 @@ public final class WorldComparison implements AutoCloseable {
         return bounds;
     }
 
-    /** Sets a position's state, moving its demand and finishing into or out of the material counts when they change. */
-    private void set(int x, int y, int z, int entry, CellState next) {
-        CellState old = state.set(x, y, z, next);
-        if (old.needsItem() != next.needsItem()) {
-            if (next.needsItem()) {
-                materials.add(y, demands[entry]);
-            } else {
-                materials.remove(y, demands[entry]);
-            }
-        }
+    /**
+     * Sets a position's state and the amount found there, moving its demand and finishing in the material counts when
+     * they change.
+     */
+    private void set(int x, int y, int z, int entry, CellState next, int found) {
+        int index = state.index(x, y, z);
+        int oldFound = state.found(index);
+        CellState old = state.set(index, next, found);
+        materials.move(y, demands[entry], old, oldFound, next, found);
         if (old != next && plannedOf[entry] >= 0) {
             if (old == CellState.NEEDS_FINISHING) {
                 materials.removeFinishing(y, plannedOf[entry]);
@@ -300,10 +286,15 @@ public final class WorldComparison implements AutoCloseable {
         return plannedOf[view.paletteIndex(x, y, z, scratch)];
     }
 
-    /** The orientation properties and waterlogging of a state, as {@code name=value} pairs, for showing to the player. */
+    /** The candles, pickles or snow layers of a state, 2 for a double slab, otherwise 1. */
+    public static int amount(BlockState state) {
+        return CellKeys.amount(state);
+    }
+
+    /** The orientation properties, slab type and waterlogging of a state, as {@code name=value} pairs, for showing to the player. */
     public static String details(BlockState state) {
         StringBuilder text = new StringBuilder();
-        for (Property<?> property : CellKeys.ORIENTATION) {
+        for (Property<?> property : CellKeys.SHOWN) {
             if (state.hasProperty(property)) {
                 text.append(text.isEmpty() ? "" : ", ").append(property.getName()).append('=')
                         .append(state.getValue(property).toString().toLowerCase(Locale.ROOT));
@@ -318,7 +309,8 @@ public final class WorldComparison implements AutoCloseable {
     /** Compares one local position with the block the world holds there. */
     void compare(int x, int y, int z, BlockState world, CellKeys keys) {
         int entry = view.paletteIndex(x, y, z, scratch);
-        set(x, y, z, entry, CellState.classify(expected[entry], keys.found(world)));
+        CellState.Found found = keys.found(world);
+        set(x, y, z, entry, CellState.classify(expected[entry], found), found.amount());
     }
 
     /**
@@ -338,7 +330,7 @@ public final class WorldComparison implements AutoCloseable {
                 for (int y = min[1]; y < maxY; y++) {
                     if (chunk == null) {
                         int entry = view.paletteIndex(x, y, z, scratch);
-                        set(x, y, z, entry, expected[entry].kind() == Expected.Kind.IGNORED ? CellState.IGNORED : CellState.UNKNOWN);
+                        set(x, y, z, entry, expected[entry].kind() == Expected.Kind.IGNORED ? CellState.IGNORED : CellState.UNKNOWN, 0);
                     } else {
                         compare(x, y, z, chunk.getBlockState(pos.set(bounds.minX() + x, bounds.minY() + y, bounds.minZ() + z)), keys);
                     }

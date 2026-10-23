@@ -17,8 +17,8 @@ class MaterialCountsTest {
     private static final int WATER = 0;
 
     @Test
-    void onlyMissingWrongBlockAndUnknownNeedAnItem() {
-        Set<CellState> needing = EnumSet.of(CellState.UNKNOWN, CellState.MISSING, CellState.WRONG_BLOCK);
+    void onlyMissingWrongBlockUnknownAndIncompleteNeedAnItem() {
+        Set<CellState> needing = EnumSet.of(CellState.UNKNOWN, CellState.MISSING, CellState.WRONG_BLOCK, CellState.INCOMPLETE);
         for (CellState state : CellState.values()) {
             assertEquals(needing.contains(state), state.needsItem(), state.name());
         }
@@ -108,5 +108,87 @@ class MaterialCountsTest {
         assertArrayEquals(new int[] {0, 15}, counts.sum(0, 2).finishing());
         assertArrayEquals(new int[] {1, 0}, counts.sum(2, 3).finishing());
         assertArrayEquals(new int[] {0, 0}, counts.sum(3, 2).finishing());
+    }
+
+    @Test
+    void contributionByState() {
+        Demand candles = Demand.planned(PLANKS, 3);
+        for (CellState state : CellState.values()) {
+            int expected = switch (state) {
+                case UNKNOWN, MISSING, WRONG_BLOCK -> 3;
+                case INCOMPLETE -> 2;
+                default -> 0;
+            };
+            assertEquals(expected, candles.amountFor(state, 1), state.name());
+        }
+        assertEquals(0, candles.amountFor(CellState.INCOMPLETE, 5));
+        assertEquals(0, Demand.NONE.amountFor(CellState.MISSING, 0));
+    }
+
+    /** One cell of a comparison: its state and found amount, moved the way the comparison moves them. */
+    private static final class Cell {
+
+        private final ComparisonState state = new ComparisonState(1, 2, 1, new BitSet());
+        private final MaterialCounts counts;
+        private final int layer;
+        private final Demand demand;
+
+        Cell(MaterialCounts counts, int layer, Demand demand) {
+            this.counts = counts;
+            this.layer = layer;
+            this.demand = demand;
+            counts.add(layer, demand);
+        }
+
+        void set(CellState next, int found) {
+            int index = state.index(0, layer, 0);
+            int oldFound = state.found(index);
+            CellState old = state.set(index, next, found);
+            counts.move(layer, demand, old, oldFound, next, found);
+        }
+    }
+
+    @Test
+    void candlesKeepTheirCountExactThroughEveryChange() {
+        MaterialCounts counts = new MaterialCounts(2, 2, 0);
+        Cell cell = new Cell(counts, 1, Demand.planned(SLAB, 3));
+        int[][] steps = {
+                {CellState.INCOMPLETE.ordinal(), 1, 2},
+                {CellState.INCOMPLETE.ordinal(), 2, 1},
+                {CellState.INCOMPLETE.ordinal(), 1, 2},
+                {CellState.MATCHING.ordinal(), 3, 0},
+                {CellState.TOO_MANY.ordinal(), 4, 0},
+                {CellState.INCOMPLETE.ordinal(), 2, 1},
+                {CellState.MISSING.ordinal(), 0, 3},
+                {CellState.INCOMPLETE.ordinal(), 1, 2},
+                {CellState.UNKNOWN.ordinal(), 0, 3},
+                {CellState.WRONG_ORIENTATION.ordinal(), 3, 0},
+                {CellState.WRONG_BLOCK.ordinal(), 1, 3},
+        };
+        assertEquals(3, counts.sum(0, 1).needed()[SLAB]);
+        for (int[] step : steps) {
+            cell.set(CellState.values()[step[0]], step[1]);
+            assertEquals(step[2], counts.sum(0, 1).needed()[SLAB], CellState.values()[step[0]] + " " + step[1]);
+            assertEquals(step[2], counts.sum(1, 1).needed()[SLAB]);
+            assertEquals(0, counts.sum(0, 0).needed()[SLAB]);
+        }
+    }
+
+    @Test
+    void aDoubleSlabNeedsItsSecondHalf() {
+        MaterialCounts counts = new MaterialCounts(1, 2, 0);
+        Cell first = new Cell(counts, 0, Demand.planned(SLAB, 2));
+        Cell second = new Cell(counts, 0, Demand.planned(SLAB, 2));
+        Cell planks = new Cell(counts, 0, Demand.planned(PLANKS, 1));
+        assertArrayEquals(new int[] {1, 4}, counts.sum(0, 0).needed());
+        first.set(CellState.MISSING, 0);
+        second.set(CellState.INCOMPLETE, 1);
+        planks.set(CellState.MATCHING, 1);
+        assertArrayEquals(new int[] {0, 3}, counts.sum(0, 0).needed());
+        first.set(CellState.INCOMPLETE, 1);
+        second.set(CellState.MATCHING, 2);
+        assertArrayEquals(new int[] {0, 1}, counts.sum(0, 0).needed());
+        first.set(CellState.MATCHING, 2);
+        assertArrayEquals(new int[] {0, 0}, counts.sum(0, 0).needed());
     }
 }

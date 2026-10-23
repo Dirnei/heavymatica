@@ -55,7 +55,7 @@ final class MistakeBoxes implements AutoCloseable {
     static int color(CellState cell) {
         return switch (cell) {
             case WRONG_BLOCK -> WRONG_BLOCK_COLOR;
-            case WRONG_ORIENTATION -> WRONG_ORIENTATION_COLOR;
+            case WRONG_ORIENTATION, TOO_MANY -> WRONG_ORIENTATION_COLOR;
             case WRONG_WATER -> WRONG_WATER_COLOR;
             case EXTRA -> EXTRA_COLOR;
             case NEEDS_FINISHING -> NEEDS_FINISHING_COLOR;

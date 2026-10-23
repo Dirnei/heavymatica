@@ -15,6 +15,7 @@ import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
 import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting;
+import io.github.dirnei.mc.heavymatica.targeting.TargetHud;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -231,7 +232,7 @@ public final class PlacementOverlay {
 
     /**
      * Progress, layer progress, the mistake counts, the positions to finish in the visible layers per step and, when
-     * the crosshair is on a mistake or a block to finish, what belongs there.
+     * the crosshair is on a mistake, a block to finish or an incomplete block, what belongs there.
      */
     private static void comparisonLines(Minecraft minecraft, Placement placement, WorldComparison comparison, List<Line> lines) {
         ComparisonState state = comparison.state();
@@ -248,15 +249,21 @@ public final class PlacementOverlay {
         lines.add(Line.text(Component.empty()
                 .append(count(state, CellState.WRONG_BLOCK, "wrong_block", MISTAKE_RED)).append("  ")
                 .append(count(state, CellState.WRONG_ORIENTATION, "wrong_orientation", MISTAKE_ORANGE)).append("  ")
+                .append(count(state, CellState.TOO_MANY, "too_many", MISTAKE_ORANGE)).append("  ")
                 .append(count(state, CellState.WRONG_WATER, "wrong_water", MISTAKE_CYAN)).append("  ")
                 .append(count(state, CellState.EXTRA, "extra", MISTAKE_MAGENTA)), TEXT));
         finishingLines(placement, comparison, lines);
         BlockPos targeted = crosshairTarget(minecraft, placement);
         if (targeted != null && minecraft.level != null) {
             CellState target = comparison.stateAt(targeted);
-            if (target != null && target.boxed()) {
-                lines.add(Line.text(Component.translatable("heavymatica.overlay.expected", block(comparison.expectedAt(targeted))), MUTED));
-                lines.add(Line.text(Component.translatable("heavymatica.overlay.found", block(minecraft.level.getBlockState(targeted))), MUTED));
+            if (target != null && (target.boxed() || target == CellState.INCOMPLETE)) {
+                BlockState expected = comparison.expectedAt(targeted);
+                BlockState found = minecraft.level.getBlockState(targeted);
+                lines.add(Line.text(Component.translatable("heavymatica.overlay.expected", block(expected)), MUTED));
+                lines.add(Line.text(Component.translatable("heavymatica.overlay.found", block(found)), MUTED));
+                if ((target == CellState.INCOMPLETE || target == CellState.TOO_MANY) && !found.isAir()) {
+                    lines.add(Line.text(TargetHud.amountText(target, expected, found), target == CellState.TOO_MANY ? MISTAKE_ORANGE : TEXT));
+                }
                 BlockEquivalents.Finish finish = comparison.finishAt(targeted);
                 if (target == CellState.NEEDS_FINISHING && finish != null) {
                     lines.add(Line.text(Component.translatable("heavymatica.overlay.finish_target." + stepName(finish)), FINISHING_YELLOW));

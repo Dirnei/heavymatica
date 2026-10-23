@@ -182,4 +182,46 @@ class ComparisonStateTest {
         state.set(95, CellState.NEEDS_FINISHING);
         assertEquals(90, state.matching(0, 0));
     }
+
+    @Test
+    void incompleteShowsTheGhostAndIsNotDone() {
+        ComparisonState state = halfSolid();
+        state.set(0, CellState.MATCHING);
+        state.takeDirtyMask();
+        state.set(0, CellState.INCOMPLETE, 1);
+        assertEquals(0, state.matching(0, 9));
+        assertTrue((state.mask()[0] & 1) != 0);
+        assertArrayEquals(new int[] {0, 1}, state.takeDirtyMask());
+        assertTrue(state.takeDirtyBoxSections().isEmpty());
+        assertEquals(1, state.total(CellState.INCOMPLETE));
+    }
+
+    @Test
+    void tooManyShowsABoxAndNoGhost() {
+        ComparisonState state = halfSolid();
+        state.takeDirtyBoxSections();
+        state.set(0, CellState.TOO_MANY);
+        assertEquals(0, state.mask()[0] & 1);
+        assertFalse(state.takeDirtyBoxSections().isEmpty());
+    }
+
+    @Test
+    void theFoundAmountIsKeptOnlyWhileIncomplete() {
+        ComparisonState state = halfSolid();
+        assertEquals(0, state.found(7));
+        state.set(7, CellState.INCOMPLETE, 1);
+        assertEquals(1, state.found(7));
+        state.takeDirtyMask();
+        assertEquals(CellState.INCOMPLETE, state.set(7, CellState.INCOMPLETE, 2));
+        assertEquals(2, state.found(7));
+        assertNull(state.takeDirtyMask());
+        assertEquals(1, state.total(CellState.INCOMPLETE));
+        state.set(7, CellState.MATCHING, 3);
+        assertEquals(0, state.found(7));
+        state.set(7, CellState.TOO_MANY, 4);
+        assertEquals(0, state.found(7));
+        state.set(7, CellState.INCOMPLETE, 1);
+        state.set(7, CellState.UNKNOWN);
+        assertEquals(0, state.found(7));
+    }
 }
