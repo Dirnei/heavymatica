@@ -56,6 +56,81 @@ class LibraryTest {
     }
 
     @Test
+    void a_folder_filter_includes_its_subfolders_but_not_lookalikes() {
+        LibraryEntry tower = entry("Tower", "castle/towers", List.of());
+        LibraryEntry keep = entry("Keep", "castle", List.of("spruce"));
+        LibraryEntry lookalike = entry("Lookalike", "castles", List.of());
+        LibraryEntry loose = entry("Loose", null, List.of());
+
+        assertTrue(tower.matches("", "castle", null));
+        assertTrue(keep.matches("", "castle", null));
+        assertFalse(lookalike.matches("", "castle", null));
+        assertFalse(loose.matches("", "castle", null));
+        assertFalse(keep.matches("", "castle/towers", null));
+        assertTrue(entry("Spruce Tower", "houses/oak", List.of("spruce")).matches("tow", "houses", "spruce"));
+    }
+
+    @Test
+    void opening_a_folder_shows_the_way_up_its_subfolders_and_only_its_own_entries() {
+        List<LibraryEntry> entries = List.of(entry("Keep", "castle", List.of()), entry("Tower", "castle/towers", List.of()),
+                entry("North", "castle/towers/north", List.of()), entry("Lookalike", "castles", List.of()), entry("Loose", null, List.of()));
+
+        List<LibraryItem> castle = Library.view(entries, "castle", false, "", null);
+
+        assertEquals(List.of(new LibraryItem.Up(""), new LibraryItem.Folder("castle/towers", "towers", 2), new LibraryItem.Entry(entries.get(0))), castle);
+        assertEquals(new LibraryItem.Up("castle"), Library.view(entries, "castle/towers", false, "", null).getFirst());
+    }
+
+    @Test
+    void the_top_level_shows_top_folders_and_entries_in_no_folder_without_a_way_up() {
+        LibraryEntry loose = entry("Loose", null, List.of());
+        LibraryEntry local = new LibraryEntry(LibraryEntry.Kind.LOCAL, "abc", "house", null, List.of(), "abc", "sponge", 1, 1, 1, 1, false, 0, null);
+        List<LibraryEntry> entries = List.of(entry("Keep", "castle", List.of()), entry("Tower", "castle/towers", List.of()), loose,
+                entry("Lookalike", "castles", List.of()), local);
+
+        List<LibraryItem> top = Library.view(entries, "", false, "  ", null);
+
+        assertEquals(List.of(new LibraryItem.Folder("castle", "castle", 2), new LibraryItem.Folder("castles", "castles", 1),
+                new LibraryItem.Entry(loose), new LibraryItem.Entry(local)), top);
+    }
+
+    @Test
+    void search_and_tags_cover_the_open_folder_and_below_without_folder_cards() {
+        LibraryEntry tower = entry("Spruce Tower", "houses/oak", List.of("spruce"));
+        LibraryEntry hut = entry("Spruce Hut", "houses", List.of("spruce"));
+        LibraryEntry outside = entry("Spruce Tower 2", "housesmall", List.of("spruce"));
+        List<LibraryEntry> entries = List.of(tower, hut, outside);
+
+        assertEquals(List.of(new LibraryItem.Entry(tower)), Library.view(entries, "houses", false, "tow", "spruce"));
+        assertEquals(List.of(new LibraryItem.Entry(tower), new LibraryItem.Entry(hut)), Library.view(entries, "houses", false, "", "spruce"));
+        assertEquals(List.of(new LibraryItem.Entry(tower), new LibraryItem.Entry(outside)), Library.view(entries, "", false, "tower", null));
+    }
+
+    @Test
+    void all_schematics_lists_every_entry_without_folder_or_up_cards() {
+        List<LibraryEntry> entries = List.of(entry("Keep", "castle", List.of()), entry("Tower", "castle/towers", List.of()), entry("Loose", null, List.of()));
+
+        List<LibraryItem> all = Library.view(entries, "castle", true, "", null);
+
+        assertEquals(entries.stream().map(LibraryItem.Entry::new).toList(), all);
+    }
+
+    @Test
+    void the_explorer_comes_from_the_cloud_listing_and_local_entries() throws Exception {
+        Library library = signedInLibrary();
+        library.local().add(fixture("house.nbt"));
+        cloud.stub().answer(200, page(summaryIn("s1", "Tower", "castle/towers"), summaryIn("s2", "Keep", "castle")));
+
+        library.refresh().get(10, TimeUnit.SECONDS);
+
+        assertEquals(List.of("castle:2", "house"), library.view("", false, "", null).stream().map(item -> switch (item) {
+            case LibraryItem.Folder folder -> folder.path() + ":" + folder.totalCount();
+            case LibraryItem.Entry entry -> entry.entry().name();
+            case LibraryItem.Up up -> "up";
+        }).toList());
+    }
+
+    @Test
     void cloud_and_local_entries_appear_in_one_list() throws Exception {
         Library library = signedInLibrary();
         library.local().add(fixture("house.nbt"));
@@ -198,6 +273,10 @@ class LibraryTest {
         return "{\"id\":\"" + id + "\",\"name\":\"" + name + "\",\"folder\":null,\"tags\":[],\"updatedAt\":\"" + updatedAt + "\",\"latest\":{"
                 + "\"number\":1,\"sha256\":\"ab\",\"format\":\"sponge\",\"sizeBytes\":5,\"dimensions\":{\"width\":1,\"height\":2,\"length\":3},"
                 + "\"dataVersion\":null,\"blockTotal\":4,\"blockCounts\":[],\"skippedEntities\":0,\"hasThumbnail\":false,\"createdAt\":\"" + updatedAt + "\"}}";
+    }
+
+    private static String summaryIn(String id, String name, String folder) {
+        return summary(id, name, "2026-10-21T10:00:00Z").replace("\"folder\":null", "\"folder\":\"" + folder + "\"");
     }
 
     static String page(String... summaries) {

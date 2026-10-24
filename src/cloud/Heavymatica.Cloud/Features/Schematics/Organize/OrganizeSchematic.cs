@@ -1,5 +1,4 @@
 using Heavymatica.Cloud.Contract;
-using Heavymatica.Cloud.Features.Schematics.Listing;
 using Heavymatica.Cloud.Infrastructure.Contract;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
@@ -36,7 +35,7 @@ internal sealed class OrganizeSchematic(IMongoDatabase database, TimeProvider ti
                 return Invalid("A folder path has at most 200 characters.");
             }
 
-            update = update.Set(schematic => schematic.Folder, Folders.Normalize(request.Folder));
+            update = update.Set(schematic => schematic.Folder, FolderPaths.Normalize(request.Folder));
         }
 
         if (request.Tags is not null)

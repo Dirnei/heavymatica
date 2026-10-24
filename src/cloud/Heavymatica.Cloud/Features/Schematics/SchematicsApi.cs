@@ -17,19 +17,25 @@ internal sealed class SchematicsApi(
     GetSchematic get,
     UploadSchematic upload,
     OrganizeSchematic organize,
+    MoveSchematics move,
     DeleteSchematics delete,
     AttachThumbnail thumbnails,
-    CreateLinks links) : ISchematicsController
+    CreateLinks links,
+    ShowThumbnail thumbnail) : ISchematicsController
 {
     private string Owner => http.HttpContext!.User.AccountId();
 
-    public Task<ActionResult<SchematicPage>> ListSchematicsAsync(string? q, string? folder, string? tag, string? cursor, int limit, CancellationToken cancellationToken = default) =>
-        list.ListAsync(Owner, q, folder, tag, cursor, limit, cancellationToken);
+    public Task<ActionResult<SchematicPage>> ListSchematicsAsync(string? q, string? folder, bool includeSubfolders, bool unfiled, string? tag, string? cursor, int limit,
+        CancellationToken cancellationToken = default) =>
+        list.ListAsync(Owner, q, folder, includeSubfolders, unfiled, tag, cursor, limit, cancellationToken);
 
-    public Task<ActionResult<UploadResult>> UploadSchematicAsync(string name, IFormFile body, CancellationToken cancellationToken = default)
+    public Task<ActionResult<MoveResult>> MoveSchematicsAsync(MoveRequest body, CancellationToken cancellationToken = default) =>
+        move.MoveAsync(Owner, body, cancellationToken);
+
+    public Task<ActionResult<UploadResult>> UploadSchematicAsync(string name, string? folder, IFormFile body, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        return upload.NewAsync(Owner, name, body.OpenReadStream(), cancellationToken);
+        return upload.NewAsync(Owner, name, folder, body.OpenReadStream(), cancellationToken);
     }
 
     public Task<ActionResult<SchematicDetails>> GetSchematicAsync(string schematicId, CancellationToken cancellationToken = default) =>
@@ -55,6 +61,9 @@ internal sealed class SchematicsApi(
         ArgumentNullException.ThrowIfNull(body);
         return thumbnails.AttachAsync(Owner, schematicId, versionNumber, body.OpenReadStream(), cancellationToken);
     }
+
+    public Task<ActionResult<Problem>> GetThumbnailAsync(string schematicId, int versionNumber, CancellationToken cancellationToken = default) =>
+        thumbnail.ShowAsync(http.HttpContext!.Response, Owner, schematicId, versionNumber, cancellationToken);
 
     public Task<ActionResult<DownloadLinks>> CreateLinksAsync(string schematicId, int versionNumber, CancellationToken cancellationToken = default) =>
         links.CreateAsync(Owner, schematicId, versionNumber, cancellationToken);

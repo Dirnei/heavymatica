@@ -7,7 +7,7 @@
     "generate": "openapi-typescript ../../api/heavymatica-cloud.v1.yaml -o src/api/schema.d.ts",
     "dev": "npm run generate && astro dev",
     "build": "npm run generate && astro build",
-    "check": "npm run generate && astro check",
+    "check": "npm run generate && astro check && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "test": "vitest run"
   },
   "dependencies": {
@@ -19,6 +19,7 @@
     "astro": "7.3.8",
     "openapi-typescript": "7.13.0",
     "svelte": "5.57.2",
+    "svelte-check": "4.7.7",
     "typescript": "5.9.3",
     "vitest": "5.0.3"
   }

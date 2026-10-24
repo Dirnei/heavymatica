@@ -11,6 +11,7 @@ import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.formats.SchematicReader;
 import io.github.dirnei.mc.heavymatica.library.Library;
 import io.github.dirnei.mc.heavymatica.library.LibraryEntry;
+import io.github.dirnei.mc.heavymatica.library.LibraryItem;
 import io.github.dirnei.mc.heavymatica.library.LocalLibrary;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
 import java.nio.file.Path;
@@ -32,7 +33,7 @@ import net.minecraft.util.Util;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The schematic library: search, folder and tag filters, a card grid of cloud and local entries, details of the
+ * The schematic library: an explorer of folders and of cloud and local entries, search and tag filters, details of the
  * selected entry, and organizing actions. Everything loads in the background; the screen shows loading, offline and
  * error states instead of waiting.
  */
@@ -46,6 +47,7 @@ public class LibraryScreen extends Screen {
 
     private static final int MARGIN = 8;
     private static final int SIDEBAR = 104;
+    private static final int PATH_ROW = 12;
     private static final int ACTION_STEP = 72;
 
     private final CloudAccount account;
@@ -64,7 +66,8 @@ public class LibraryScreen extends Screen {
     private CardGrid grid;
     private DetailsPanel details;
     private Button signInOut;
-    private @Nullable String folder;
+    private String folder = "";
+    private boolean all;
     private @Nullable String tag;
     private @Nullable LibraryEntry selected;
     private @Nullable SchematicDetails selectedDetails;
@@ -102,14 +105,17 @@ public class LibraryScreen extends Screen {
 
         int top = MARGIN + 26;
         int contentWidth = width - SIDEBAR - MARGIN * 3;
-        int gridHeight = Math.max(CardGrid.CARD_HEIGHT + 4, (int) ((height - top - MARGIN) * 0.58));
-        sidebar = addRenderableWidget(new FilterSidebar(MARGIN, top, SIDEBAR, height - top - MARGIN, (newFolder, newTag) -> {
-            folder = newFolder;
+        int gridTop = top + PATH_ROW;
+        int gridHeight = Math.max(CardGrid.CARD_HEIGHT + 4, (int) ((height - gridTop - MARGIN) * 0.58));
+        sidebar = addRenderableWidget(new FilterSidebar(MARGIN, top, SIDEBAR, height - top - MARGIN, (newAll, newTag) -> {
+            all = newAll;
             tag = newTag;
+            grid.scrollToTop();
             refreshEntries();
         }));
-        grid = addRenderableWidget(new CardGrid(SIDEBAR + MARGIN * 2, top, contentWidth, gridHeight, thumbnails, this::available, this::select));
-        int detailsTop = top + gridHeight + 6;
+        grid = addRenderableWidget(new CardGrid(SIDEBAR + MARGIN * 2, gridTop, contentWidth, gridHeight, thumbnails, this::available, this::select,
+                this::openFolder));
+        int detailsTop = gridTop + gridHeight + 6;
         int buttonRow = height - MARGIN - 20;
         details = addRenderableOnly(new DetailsPanel(SIDEBAR + MARGIN * 2, detailsTop, contentWidth, buttonRow - detailsTop - 4, this::chooseVersion));
         // Place sits on the details panel: drawn after it, and asked for clicks before it.
@@ -183,8 +189,9 @@ public class LibraryScreen extends Screen {
         if (grid == null) {
             return;
         }
-        grid.setEntries(library.filtered(search.getValue(), folder, tag));
-        sidebar.setOptions(library.folders(), library.tags());
+        grid.setItems(library.view(folder, all, search.getValue(), tag));
+        sidebar.setOptions(library.tags());
+        sidebar.setAll(all);
         if (selected != null) {
             String id = selected.id();
             selected = library.entries().stream().filter(entry -> entry.id().equals(id)).findFirst().orElse(null);
@@ -278,12 +285,35 @@ public class LibraryScreen extends Screen {
         return search;
     }
 
-    /** Development aid for {@link DevScreens}: selects the first card. */
+    /** Development aid for {@link DevScreens}: selects the first schematic card. */
     void selectFirstForDevelopment() {
-        List<LibraryEntry> entries = library.filtered(search.getValue(), folder, tag);
-        if (!entries.isEmpty()) {
-            select(entries.getFirst());
+        library.view(folder, all, search.getValue(), tag).stream()
+                .filter(LibraryItem.Entry.class::isInstance)
+                .findFirst()
+                .ifPresent(item -> select(((LibraryItem.Entry) item).entry()));
+    }
+
+    /** Development aid for {@link DevScreens}: opens a folder, {@code ""} for the top level. */
+    void openFolderForDevelopment(String path) {
+        openFolder(path);
+    }
+
+    /** Opens a folder of the explorer, which also leaves the flat view of everything. */
+    private void openFolder(String path) {
+        folder = path;
+        all = false;
+        grid.scrollToTop();
+        refreshEntries();
+    }
+
+    /** "Library › builds › medieval", "All schematics", or where search and tag results come from. */
+    private String location() {
+        if (all) {
+            return Component.translatable("heavymatica.library.all").getString();
         }
+        String path = Component.translatable("heavymatica.library.top").getString() + (folder.isEmpty() ? "" : " › " + folder.replace("/", " › "));
+        boolean filtering = !search.getValue().isBlank() || tag != null;
+        return filtering ? Component.translatable("heavymatica.library.results", path).getString() : path;
     }
 
     private void chooseVersion(int version) {
@@ -500,6 +530,9 @@ public class LibraryScreen extends Screen {
         }
         if (message != null) {
             graphics.text(font, message, right - font.width(message), infoY, messageIsError ? 0xFFFF8080 : 0xFFA0E0A0, false);
+        }
+        if (grid != null) {
+            graphics.text(font, CardGrid.ellipsize(font, location(), grid.getWidth()), grid.getX(), grid.getY() - PATH_ROW + 1, 0xFFE0E0E0, false);
         }
         if (grid != null && library.entries().isEmpty() && library.cloudState() != Library.CloudState.LOADING) {
             graphics.centeredText(font, Component.translatable("heavymatica.library.empty"), grid.getX() + grid.getWidth() / 2, grid.getY() + 30, 0xFF909090);

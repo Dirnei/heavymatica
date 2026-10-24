@@ -19,9 +19,15 @@ internal sealed class ListSchematics(IMongoDatabase database)
 
     private readonly IMongoCollection<SchematicDocument> schematics = SchematicDocument.In(database);
 
-    public async Task<ActionResult<SchematicPage>> ListAsync(string owner, string? q, string? folder, string? tag, string? cursor, int limit,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<SchematicPage>> ListAsync(string owner, string? q, string? folder, bool includeSubfolders, bool unfiled, string? tag,
+        string? cursor, int limit, CancellationToken cancellationToken)
     {
+        var path = FolderPaths.Normalize(folder);
+        if (unfiled && path is not null)
+        {
+            return Problems.Result(StatusCodes.Status400BadRequest, ProblemCode.Invalid_request, "Choose either a folder or the schematics in no folder.");
+        }
+
         var size = limit <= 0 ? DefaultLimit : Math.Min(limit, MaxLimit);
         var filters = Builders<SchematicDocument>.Filter;
         var filter = filters.Eq(schematic => schematic.Owner, owner);
@@ -30,9 +36,13 @@ internal sealed class ListSchematics(IMongoDatabase database)
             filter &= filters.Regex(schematic => schematic.NameLower, new BsonRegularExpression(Regex.Escape(q.Trim().ToLowerInvariant())));
         }
 
-        if (!string.IsNullOrWhiteSpace(folder))
+        if (path is not null)
         {
-            filter &= filters.Eq(schematic => schematic.Folder, Folders.Normalize(folder));
+            filter &= includeSubfolders ? FolderPaths.InOrBelow(path) : filters.Eq(schematic => schematic.Folder, path);
+        }
+        else if (unfiled)
+        {
+            filter &= filters.Eq(schematic => schematic.Folder, null);
         }
 
         if (!string.IsNullOrWhiteSpace(tag))
@@ -90,17 +100,3 @@ internal sealed class ListSchematics(IMongoDatabase database)
     }
 }
 
-/// <summary>Folder paths: slash-separated, without leading, trailing or repeated slashes.</summary>
-internal static class Folders
-{
-    public static string? Normalize(string? folder)
-    {
-        if (folder is null)
-        {
-            return null;
-        }
-
-        var parts = folder.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return parts.Length == 0 ? null : string.Join('/', parts);
-    }
-}

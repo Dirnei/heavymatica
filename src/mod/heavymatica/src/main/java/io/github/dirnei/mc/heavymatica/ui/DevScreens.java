@@ -57,7 +57,9 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code library}: open the library</li>
  *     <li>{@code select}: select the first card</li>
  *     <li>{@code search=<text>}: type into the search box, character by character</li>
- *     <li>{@code clickSidebar=<label>}, {@code clickCard=<index>}, {@code clickVersion=<index>}: click there</li>
+ *     <li>{@code clickSidebar=<label>}, {@code clickCard=<index>}, {@code clickVersion=<index>}: click there; card indexes
+ *     count the up and folder cards too</li>
+ *     <li>{@code openFolder=<path>}: open a folder of the library explorer ({@code openFolder=} for the top level)</li>
  *     <li>{@code clickButton=<translation key>}: click the button with that label</li>
  *     <li>{@code chooseAll}, {@code confirmImport}: tick every file in the import list and import them</li>
  *     <li>{@code drop=<dir>}: drop every file of the directory onto the screen</li>
@@ -168,6 +170,11 @@ public final class DevScreens {
             case "clickSidebar" -> {
                 if (minecraft.screen instanceof LibraryScreen screen) {
                     click(screen, screen.sidebarPointForDevelopment(argument));
+                }
+            }
+            case "openFolder" -> {
+                if (minecraft.screen instanceof LibraryScreen screen) {
+                    screen.openFolderForDevelopment(argument);
                 }
             }
             case "clickCard" -> {

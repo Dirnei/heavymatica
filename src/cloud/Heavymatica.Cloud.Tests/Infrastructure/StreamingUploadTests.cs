@@ -87,7 +87,7 @@ public sealed class StreamingUploadTests(CloudInfrastructure infrastructure) : I
 
         public long BytesReadBeforeClientFinished { get; private set; } = -1;
 
-        public async Task<ActionResult<UploadResult>> UploadSchematicAsync(string name, IFormFile body, CancellationToken cancellationToken = default)
+        public async Task<ActionResult<UploadResult>> UploadSchematicAsync(string name, string? folder, IFormFile body, CancellationToken cancellationToken = default)
         {
             var buffer = new byte[64 * 1024];
             await using var stream = body.OpenReadStream();
@@ -108,7 +108,10 @@ public sealed class StreamingUploadTests(CloudInfrastructure infrastructure) : I
             return new StatusCodeResult(StatusCodes.Status202Accepted);
         }
 
-        public Task<ActionResult<SchematicPage>> ListSchematicsAsync(string? q, string? folder, string? tag, string? cursor, int limit, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ActionResult<SchematicPage>> ListSchematicsAsync(string? q, string? folder, bool includeSubfolders, bool unfiled, string? tag, string? cursor, int limit,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<ActionResult<MoveResult>> MoveSchematicsAsync(MoveRequest body, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task<ActionResult<SchematicDetails>> GetSchematicAsync(string schematicId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
@@ -121,6 +124,9 @@ public sealed class StreamingUploadTests(CloudInfrastructure infrastructure) : I
         public Task<IActionResult> DeleteVersionAsync(string schematicId, int versionNumber, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task<IActionResult> AttachThumbnailAsync(IFormFile body, string schematicId, int versionNumber, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<ActionResult<Problem>> GetThumbnailAsync(string schematicId, int versionNumber, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
 
         public Task<ActionResult<DownloadLinks>> CreateLinksAsync(string schematicId, int versionNumber, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }

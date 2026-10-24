@@ -17,7 +17,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -130,18 +132,41 @@ public final class Library {
         return all;
     }
 
-    public List<LibraryEntry> filtered(String text, @Nullable String folder, @Nullable String tag) {
-        return entries().stream().filter(entry -> entry.matches(text, folder, tag)).toList();
+    /**
+     * The cards for a place in the explorer. Browsing ({@code all} off, no text, no tag) shows the way up, the folders
+     * directly below {@code folder} and the entries directly in it; the top level ({@code ""}) holds the entries in no
+     * folder, which includes every local entry. Text and tag filters show matching entries from {@code folder} and
+     * below it instead, and {@code all} shows matching entries from everywhere.
+     */
+    public List<LibraryItem> view(String folder, boolean all, String text, @Nullable String tag) {
+        return view(entries(), folder, all, text, tag);
     }
 
-    public List<String> folders() {
-        TreeSet<String> folders = new TreeSet<>();
-        cloud.forEach(entry -> {
-            if (entry.getFolder() != null) {
-                folders.add(entry.getFolder());
+    static List<LibraryItem> view(List<LibraryEntry> entries, String folder, boolean all, String text, @Nullable String tag) {
+        List<LibraryItem> items = new ArrayList<>();
+        if (all || !text.isBlank() || tag != null) {
+            entries.stream()
+                    .filter(entry -> entry.matches(text, all || folder.isEmpty() ? null : folder, tag))
+                    .forEach(entry -> items.add(new LibraryItem.Entry(entry)));
+            return List.copyOf(items);
+        }
+        if (!folder.isEmpty()) {
+            int slash = folder.lastIndexOf('/');
+            items.add(new LibraryItem.Up(slash < 0 ? "" : folder.substring(0, slash)));
+        }
+        String prefix = folder.isEmpty() ? "" : folder + "/";
+        TreeMap<String, Integer> children = new TreeMap<>();
+        for (LibraryEntry entry : entries) {
+            String path = entry.folder();
+            if (path != null && path.startsWith(prefix) && path.length() > prefix.length()) {
+                int end = path.indexOf('/', prefix.length());
+                children.merge(end < 0 ? path : path.substring(0, end), 1, Integer::sum);
             }
-        });
-        return List.copyOf(folders);
+        }
+        children.forEach((path, total) -> items.add(new LibraryItem.Folder(path, path.substring(prefix.length()), total)));
+        String direct = folder.isEmpty() ? null : folder;
+        entries.stream().filter(entry -> Objects.equals(entry.folder(), direct)).forEach(entry -> items.add(new LibraryItem.Entry(entry)));
+        return List.copyOf(items);
     }
 
     public List<String> tags() {
@@ -235,7 +260,7 @@ public final class Library {
     }
 
     private CompletableFuture<List<SchematicSummary>> fetchAll(@Nullable String cursor, List<SchematicSummary> collected) {
-        return account.client().call(apis -> apis.schematics().listSchematics(null, null, null, cursor, PAGE_SIZE)).thenCompose((SchematicPage page) -> {
+        return account.client().call(apis -> apis.schematics().listSchematics(null, null, null, null, null, cursor, PAGE_SIZE)).thenCompose((SchematicPage page) -> {
             collected.addAll(page.getItems());
             return page.getNextCursor() == null ? CompletableFuture.completedFuture(collected) : fetchAll(page.getNextCursor(), collected);
         });

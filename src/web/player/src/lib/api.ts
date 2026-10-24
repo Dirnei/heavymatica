@@ -7,6 +7,9 @@ export type SchematicSummary = components['schemas']['SchematicSummary'];
 export type SchematicDetails = components['schemas']['SchematicDetails'];
 export type Version = components['schemas']['Version'];
 export type UploadResult = components['schemas']['UploadResult'];
+export type FolderEntry = components['schemas']['FolderEntry'];
+export type FolderList = components['schemas']['FolderList'];
+export type TagList = components['schemas']['TagList'];
 
 /** Requests that change data are refused without this header when they come with the session cookie. */
 export const requestMarker = { name: 'X-Heavymatica-Request', value: '1' } as const;

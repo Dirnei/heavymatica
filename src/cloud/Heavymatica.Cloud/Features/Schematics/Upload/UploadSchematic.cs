@@ -19,12 +19,17 @@ internal sealed class UploadSchematic(UploadSpool spool, IMongoDatabase database
     private readonly IMongoCollection<SchematicDocument> schematics = SchematicDocument.In(database);
     private readonly IMongoCollection<VersionDocument> versions = VersionDocument.In(database);
 
-    public async Task<ActionResult<UploadResult>> NewAsync(string owner, string? name, Stream body, CancellationToken cancellationToken)
+    public async Task<ActionResult<UploadResult>> NewAsync(string owner, string? name, string? folder, Stream body, CancellationToken cancellationToken)
     {
         var trimmed = name?.Trim();
         if (string.IsNullOrEmpty(trimmed) || trimmed.Length > 100)
         {
             return Problems.Result(StatusCodes.Status400BadRequest, ProblemCode.Invalid_request, "A name of 1 to 100 characters is required.");
+        }
+
+        if (folder?.Length > FolderPaths.MaxLength)
+        {
+            return Problems.Result(StatusCodes.Status400BadRequest, ProblemCode.Invalid_request, "A folder path has at most 200 characters.");
         }
 
         return await StoreAsync(owner, body, existing: null, async (upload, model, ct) =>
@@ -40,6 +45,7 @@ internal sealed class UploadSchematic(UploadSpool spool, IMongoDatabase database
                     Owner = owner,
                     Name = trimmed,
                     NameLower = trimmed.ToLowerInvariant(),
+                    Folder = FolderPaths.Normalize(folder),
                     NextVersion = 2,
                     Latest = version,
                     UpdatedAt = version.CreatedAt,

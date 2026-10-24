@@ -154,6 +154,35 @@ public sealed class WebSessionTests(CloudInfrastructure infrastructure) : IDispo
     }
 
     [Fact]
+    public async Task Folder_operations_accept_the_cookie_and_its_moves_and_renames_need_the_marker()
+    {
+        var factory = Factory();
+        using var client = factory.CreateClient();
+        var (_, _, cookie) = await WebCookies.SessionAsync(factory);
+        var schematicId = await UploadAsync(client, cookie);
+
+        var moveWithout = await WebCookies.StatusAsync(client, Json(HttpMethod.Post, "/v1/schematics/move", cookie, new { schematicIds = new[] { schematicId }, folder = "village" }, marker: false));
+        var moveWith = await WebCookies.StatusAsync(client, Json(HttpMethod.Post, "/v1/schematics/move", cookie, new { schematicIds = new[] { schematicId }, folder = "village" }, marker: true));
+        var renameWithout = await WebCookies.StatusAsync(client, Json(HttpMethod.Post, "/v1/folders/rename", cookie, new { from = "village", to = "town" }, marker: false));
+        var renameWith = await WebCookies.StatusAsync(client, Json(HttpMethod.Post, "/v1/folders/rename", cookie, new { from = "village", to = "town" }, marker: true));
+        using var folders = await client.SendAsync(WebCookies.Request(HttpMethod.Get, "/v1/folders", cookie), Cancel);
+
+        Assert.Equal(HttpStatusCode.Forbidden, moveWithout);
+        Assert.Equal(HttpStatusCode.OK, moveWith);
+        Assert.Equal(HttpStatusCode.Forbidden, renameWithout);
+        Assert.Equal(HttpStatusCode.OK, renameWith);
+        Assert.Equal(HttpStatusCode.OK, folders.StatusCode);
+        Assert.Equal(["town"], (await folders.Content.ReadFromJsonAsync<FolderList>(SignIn.Json, Cancel))!.Folders.Select(folder => folder.Path));
+    }
+
+    private static HttpRequestMessage Json(HttpMethod method, string path, string cookie, object body, bool marker)
+    {
+        var request = WebCookies.Request(method, path, cookie, marker, origin: "http://localhost");
+        request.Content = JsonContent.Create(body);
+        return request;
+    }
+
+    [Fact]
     public async Task A_bearer_delete_needs_neither_marker_nor_origin()
     {
         var factory = Factory();

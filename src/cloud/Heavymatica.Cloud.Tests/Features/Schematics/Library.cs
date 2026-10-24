@@ -20,15 +20,16 @@ internal sealed class Library(HttpClient client)
         return new Library(client);
     }
 
-    public Task<HttpResponseMessage> UploadNewAsync(string name, byte[] file) =>
-        Client.PostAsync(new Uri("/v1/schematics?name=" + Uri.EscapeDataString(name), UriKind.Relative), Binary(file), TestContext.Current.CancellationToken);
+    public Task<HttpResponseMessage> UploadNewAsync(string name, byte[] file, string? folder = null) =>
+        Client.PostAsync(new Uri("/v1/schematics?name=" + Uri.EscapeDataString(name) + (folder is null ? string.Empty : "&folder=" + Uri.EscapeDataString(folder)), UriKind.Relative),
+            Binary(file), TestContext.Current.CancellationToken);
 
     public Task<HttpResponseMessage> UploadVersionAsync(string schematicId, byte[] file) =>
         Client.PostAsync(new Uri($"/v1/schematics/{schematicId}/versions", UriKind.Relative), Binary(file), TestContext.Current.CancellationToken);
 
-    public async Task<UploadResult> NewAsync(string name, byte[] file)
+    public async Task<UploadResult> NewAsync(string name, byte[] file, string? folder = null)
     {
-        using var response = await UploadNewAsync(name, file);
+        using var response = await UploadNewAsync(name, file, folder);
         Assert.Equal(System.Net.HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<UploadResult>(SignIn.Json, TestContext.Current.CancellationToken))!;
     }
@@ -48,6 +49,15 @@ internal sealed class Library(HttpClient client)
 
     public async Task<Contract.Account> MeAsync() =>
         (await Client.GetFromJsonAsync<Contract.Account>(new Uri("/v1/me", UriKind.Relative), SignIn.Json, TestContext.Current.CancellationToken))!;
+
+    public async Task<FolderList> FoldersAsync() =>
+        (await Client.GetFromJsonAsync<FolderList>(new Uri("/v1/folders", UriKind.Relative), SignIn.Json, TestContext.Current.CancellationToken))!;
+
+    public Task<HttpResponseMessage> MoveAsync(IEnumerable<string> schematicIds, string folder) =>
+        Client.PostAsJsonAsync(new Uri("/v1/schematics/move", UriKind.Relative), new { schematicIds, folder }, TestContext.Current.CancellationToken);
+
+    public Task<HttpResponseMessage> RenameFolderAsync(string from, string to) =>
+        Client.PostAsJsonAsync(new Uri("/v1/folders/rename", UriKind.Relative), new { from, to }, TestContext.Current.CancellationToken);
 
     public Task<HttpResponseMessage> OrganizeAsync(string schematicId, object request) =>
         Client.PatchAsJsonAsync(new Uri($"/v1/schematics/{schematicId}", UriKind.Relative), request, TestContext.Current.CancellationToken);

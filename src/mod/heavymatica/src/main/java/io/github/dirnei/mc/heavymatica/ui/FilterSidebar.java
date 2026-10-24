@@ -3,7 +3,6 @@ package io.github.dirnei.mc.heavymatica.ui;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.BiConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -14,38 +13,42 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
-/** Folders and tags to filter by. Clicking a selected row clears that filter. */
+/** The "All schematics" switch and the tags to filter by. Clicking a selected row turns it off again. */
 final class FilterSidebar extends AbstractWidget {
 
     private static final int ROW = 12;
 
-    private record Row(String label, @Nullable String folder, @Nullable String tag, boolean heading) {
+    /** Receives whether the flat view of everything is on and the selected tag, null when not filtering. */
+    interface Listener {
+        void changed(boolean all, @Nullable String tag);
     }
 
-    private final BiConsumer<String, String> onChange;
+    private record Row(String label, boolean allRow, @Nullable String tag, boolean heading) {
+    }
+
+    private final Listener onChange;
     private final List<Row> rows = new ArrayList<>();
-    private @Nullable String folder;
+    private boolean all;
     private @Nullable String tag;
     private double scroll;
 
-    /** @param onChange receives the selected folder and tag, each null when not filtering */
-    FilterSidebar(int x, int y, int width, int height, BiConsumer<String, String> onChange) {
+    FilterSidebar(int x, int y, int width, int height, Listener onChange) {
         super(x, y, width, height, Component.translatable("heavymatica.library.filters"));
         this.onChange = onChange;
     }
 
-    void setOptions(List<String> folders, List<String> tags) {
+    void setOptions(List<String> tags) {
         rows.clear();
-        rows.add(new Row(Component.translatable("heavymatica.library.folders").getString(), null, null, true));
-        folders.forEach(value -> rows.add(new Row(value, value, null, false)));
-        rows.add(new Row(Component.translatable("heavymatica.library.tags").getString(), null, null, true));
-        tags.forEach(value -> rows.add(new Row("#" + value, null, value, false)));
-        if (folder != null && !folders.contains(folder)) {
-            folder = null;
-        }
+        rows.add(new Row(Component.translatable("heavymatica.library.all").getString(), true, null, false));
+        rows.add(new Row(Component.translatable("heavymatica.library.tags").getString(), false, null, true));
+        tags.forEach(value -> rows.add(new Row("#" + value, false, value, false)));
         if (tag != null && !tags.contains(tag)) {
             tag = null;
         }
+    }
+
+    void setAll(boolean all) {
+        this.all = all;
     }
 
     /** Centre of the row with this label, in screen coordinates. */
@@ -66,12 +69,12 @@ final class FilterSidebar extends AbstractWidget {
         for (int i = 0; i < rows.size(); i++) {
             Row row = rows.get(i);
             int y = getY() + 4 + i * ROW - (int) scroll;
-            boolean active = row.folder() != null && row.folder().equals(folder) || row.tag() != null && row.tag().equals(tag);
+            boolean active = row.allRow() && all || row.tag() != null && row.tag().equals(tag);
             if (active) {
                 graphics.fill(getX() + 2, y - 2, getX() + width - 2, y + ROW - 2, 0xA0305080);
             }
             int color = row.heading() ? 0xFFFFD060 : active ? 0xFFFFFFFF : 0xFFC0C0C0;
-            graphics.text(font, CardGrid.ellipsize(font, row.label(), width - 10), getX() + (row.heading() ? 4 : 8), y, color, false);
+            graphics.text(font, CardGrid.ellipsize(font, row.label(), width - 10), getX() + (row.heading() || row.allRow() ? 4 : 8), y, color, false);
         }
         graphics.disableScissor();
     }
@@ -83,12 +86,12 @@ final class FilterSidebar extends AbstractWidget {
             return;
         }
         Row row = rows.get(index);
-        if (row.folder() != null) {
-            folder = Objects.equals(folder, row.folder()) ? null : row.folder();
+        if (row.allRow()) {
+            all = !all;
         } else {
             tag = Objects.equals(tag, row.tag()) ? null : row.tag();
         }
-        onChange.accept(folder, tag);
+        onChange.changed(all, tag);
     }
 
     @Override

@@ -178,10 +178,16 @@ Changes, in order:
    them in the browser (list and search, details, versions, rename, delete, storage use). It also brings the account
    foundation: accounts with a list of linked identities, the migration of existing Minecraft accounts, and tokens
    with the account ID as subject. Nothing changes for the game yet.
-2. **`account-links` (next):** connecting the game. The game library shows a link code with a QR code, entered on the
+2. **`web-folders` (done):** the library becomes a file explorer of cards, on the website and in the game: folder
+   cards and a breadcrumb, an "All schematics" view, tags in the sidebar, and search inside a folder. The website
+   adds a folder tree, thumbnails on the cards, moving several schematics at once (dialog or drag and drop),
+   renaming whole folders and editing tags.
+3. **`cloud-thumbnails` (next):** the cloud renders a thumbnail for every version uploaded without one (website uploads),
+   and backfills older versions.
+4. **`account-links`:** connecting the game. The game library shows a link code with a QR code, entered on the
    website; the first-sign-in choice (create new or join existing); linking and unlinking more identities. After
    this, the game and the website show the same library.
-3. **`admin-web`:** the admin host and its listener, passkey admins with setup code and invitations, account lookup and
+5. **`admin-web`:** the admin host and its listener, passkey admins with setup code and invitations, account lookup and
    quota adjustments.
 
 Later in this step: Microsoft and Google sign-in, and share links with previews.

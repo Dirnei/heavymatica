@@ -19,6 +19,10 @@ tags:
     description: The signed-in player's account.
   - name: Schematics
     description: Uploading, organizing, downloading and deleting schematics.
+  - name: Folders
+    description: The folder tree of the caller's schematics.
+  - name: Tags
+    description: The tags on the caller's schematics.
   - name: Web
     description: Sign-in and sign-out of the website session.
 security:
@@ -155,10 +159,22 @@ paths:
             maxLength: 100
         - name: folder
           in: query
-          description: Only schematics in exactly this folder.
+          description: Only schematics in exactly this folder, or also below it with includeSubfolders.
           schema:
             type: string
             maxLength: 200
+        - name: includeSubfolders
+          in: query
+          description: Makes the folder filter include the folders below it.
+          schema:
+            type: boolean
+            default: false
+        - name: unfiled
+          in: query
+          description: Only schematics in no folder. Cannot be combined with folder.
+          schema:
+            type: boolean
+            default: false
         - name: tag
           in: query
           description: Only schematics carrying this tag.
@@ -205,6 +221,12 @@ paths:
             type: string
             minLength: 1
             maxLength: 100
+        - name: folder
+          in: query
+          description: Slash-separated folder to put the new schematic in. Left out, it is in no folder.
+          schema:
+            type: string
+            maxLength: 200
       requestBody:
         required: true
         content:
@@ -226,6 +248,35 @@ paths:
         '413':
           $ref: '#/components/responses/Problem'
         '422':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/schematics/move:
+    post:
+      tags: [Schematics]
+      operationId: moveSchematics
+      summary: Move several schematics into one folder
+      description: |
+        Unknown IDs and schematics of other accounts are skipped. Never creates a version.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveRequest'
+      responses:
+        '200':
+          description: How many schematics moved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveResult'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
           $ref: '#/components/responses/Problem'
         default:
           $ref: '#/components/responses/Problem'
@@ -360,6 +411,22 @@ paths:
     parameters:
       - $ref: '#/components/parameters/SchematicId'
       - $ref: '#/components/parameters/VersionNumber'
+    get:
+      tags: [Schematics]
+      operationId: getThumbnail
+      summary: Show the version's thumbnail
+      description: |
+        Redirects to a short-lived link to the thumbnail PNG, so pages can show it as a plain image. Versions without
+        a thumbnail, and versions of other accounts' schematics, are reported as not found.
+      responses:
+        '302':
+          description: Redirect to the thumbnail.
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
     put:
       tags: [Schematics]
       operationId: attachThumbnail
@@ -407,6 +474,76 @@ paths:
         '401':
           $ref: '#/components/responses/Problem'
         '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/folders:
+    get:
+      tags: [Folders]
+      operationId: listFolders
+      summary: The caller's folders with their schematic counts
+      description: |
+        Every folder that holds a schematic directly or below it, sorted by path (ordinal), so parents come before
+        their subfolders.
+      responses:
+        '200':
+          description: The folders.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderList'
+        '401':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/folders/rename:
+    post:
+      tags: [Folders]
+      operationId: renameFolder
+      summary: Rename a folder with everything below it
+      description: |
+        Replaces the path at the start of every schematic's folder that is the folder or below it. Renaming onto an
+        existing folder merges the two. Rejected as a whole if any resulting path would exceed 200 characters.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenameFolderRequest'
+      responses:
+        '200':
+          description: How many schematics moved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveResult'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/tags:
+    get:
+      tags: [Tags]
+      operationId: listTags
+      summary: The caller's tags with their schematic counts
+      description: Every tag on the caller's schematics, sorted by tag (ordinal).
+      responses:
+        '200':
+          description: The tags.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagList'
+        '401':
           $ref: '#/components/responses/Problem'
         default:
           $ref: '#/components/responses/Problem'
@@ -771,6 +908,91 @@ components:
             type: string
             minLength: 1
             maxLength: 50
+
+    MoveRequest:
+      type: object
+      required: [schematicIds, folder]
+      properties:
+        schematicIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items:
+            type: string
+        folder:
+          type: string
+          maxLength: 200
+          description: Slash-separated folder path. An empty string moves the schematics out of every folder.
+
+    MoveResult:
+      type: object
+      required: [moved]
+      properties:
+        moved:
+          type: integer
+          format: int32
+
+    RenameFolderRequest:
+      type: object
+      required: [from, to]
+      properties:
+        from:
+          type: string
+          minLength: 1
+          maxLength: 200
+        to:
+          type: string
+          minLength: 1
+          maxLength: 200
+
+    FolderList:
+      type: object
+      required: [folders, unfiledCount]
+      properties:
+        folders:
+          type: array
+          items:
+            $ref: '#/components/schemas/FolderEntry'
+        unfiledCount:
+          type: integer
+          format: int32
+          description: Schematics in no folder.
+
+    FolderEntry:
+      type: object
+      required: [path, directCount, totalCount]
+      properties:
+        path:
+          type: string
+        directCount:
+          type: integer
+          format: int32
+          description: Schematics directly in this folder.
+        totalCount:
+          type: integer
+          format: int32
+          description: Schematics in this folder and every folder below it.
+
+    TagList:
+      type: object
+      required: [tags]
+      properties:
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/TagEntry'
+
+    TagEntry:
+      type: object
+      required: [tag, count]
+      properties:
+        tag:
+          type: string
+        count:
+          type: integer
+          format: int32
+          description: Schematics carrying this tag.
 
     UploadResult:
       type: object

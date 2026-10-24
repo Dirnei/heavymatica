@@ -2,6 +2,8 @@ using Heavymatica.Cloud.Contract;
 using Heavymatica.Cloud.Features.Account;
 using Heavymatica.Cloud.Features.Identity;
 using Heavymatica.Cloud.Features.Schematics;
+using Heavymatica.Cloud.Features.Schematics.Folders;
+using Heavymatica.Cloud.Features.Schematics.Tags;
 using Heavymatica.Cloud.Features.Web;
 
 namespace Heavymatica.Cloud.Infrastructure.Contract;
@@ -16,6 +18,8 @@ internal static class ContractServices
         services.AddScoped<IAuthController, AuthApi>();
         services.AddScoped<IAccountController, AccountApi>();
         services.AddScoped<ISchematicsController, SchematicsApi>();
+        services.AddScoped<IFoldersController, FoldersApi>();
+        services.AddScoped<ITagsController, TagsApi>();
         services.AddScoped<IWebController, WebApi>();
         return services;
     }

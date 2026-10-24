@@ -5,8 +5,9 @@ export type UploadOutcome =
   | { kind: 'rejected'; status: number; problem: unknown }
   | { kind: 'failed' };
 
-export function newSchematicUrl(name: string): string {
-  return `/v1/schematics?name=${encodeURIComponent(name)}`;
+/** The upload address for a new schematic, put straight into `folder` unless that is empty. */
+export function newSchematicUrl(name: string, folder = ''): string {
+  return `/v1/schematics?name=${encodeURIComponent(name)}${folder ? `&folder=${encodeURIComponent(folder)}` : ''}`;
 }
 
 export function newVersionUrl(schematicId: string): string {
@@ -48,4 +49,14 @@ function parse(text: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+/** One file in the library's upload queue. */
+export interface QueuedUpload {
+  key: number;
+  name: string;
+  folder: string;
+  progress: number;
+  state: 'waiting' | 'uploading' | 'done' | 'failed';
+  message?: string;
 }

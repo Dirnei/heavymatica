@@ -3,9 +3,10 @@
   import { api, type SchematicDetails } from '../lib/api';
   import { blockName, sortBlockCounts } from '../lib/blocks';
   import { formatBytes, formatCount, formatDimensions, formatTime } from '../lib/format';
-  import { libraryPath, uploadUrl } from '../lib/navigation';
+  import { libraryPath, libraryUrl, uploadUrl } from '../lib/navigation';
   import { messageOf, problemMessage } from '../lib/problems';
   import { refreshAccount } from '../lib/session';
+  import TagEditor from './TagEditor.svelte';
 
   const id = new URLSearchParams(window.location.search).get('id') ?? '';
 
@@ -112,6 +113,22 @@
     }
   }
 
+  async function saveTags(tags: string[]): Promise<string | undefined> {
+    try {
+      const { data, error: problem } = await api.PATCH('/v1/schematics/{schematicId}', {
+        params: { path: { schematicId: id } },
+        body: { tags },
+      });
+      if (!data) {
+        return messageOf(problem);
+      }
+      details = data;
+    } catch {
+      return 'The tags could not be saved. Check your connection and try again.';
+    }
+    return undefined;
+  }
+
   async function deleteSchematic() {
     if (!details) {
       return;
@@ -184,10 +201,10 @@
       </div>
     {/if}
     <div class="meta">
-      {#if details.folder}<span>📁 {details.folder}</span>{/if}
-      {#each details.tags as tag (tag)}<span class="tag">{tag}</span>{/each}
+      {#if details.folder}<a href={libraryUrl({ folder: details.folder, all: false })}>📁 {details.folder}</a>{:else}<span class="muted">No folder</span>{/if}
       <span class="muted">Changed {formatTime(details.updatedAt)}</span>
     </div>
+    <TagEditor tags={details.tags} onsave={saveTags} />
   </header>
 
   {#if version}

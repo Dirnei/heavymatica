@@ -29,15 +29,20 @@ public record LibraryEntry(Kind kind, String id, String name, @Nullable String f
         return width + " x " + height + " x " + length;
     }
 
-    /** Text, folder and tag filters combine; empty filters match everything. */
+    /** Text, folder and tag filters combine; empty filters match everything. A folder filter includes its subfolders. */
     public boolean matches(String text, @Nullable String folderFilter, @Nullable String tagFilter) {
         if (!text.isBlank() && !name.toLowerCase(Locale.ROOT).contains(text.trim().toLowerCase(Locale.ROOT))) {
             return false;
         }
-        if (folderFilter != null && !folderFilter.equals(folder)) {
+        if (folderFilter != null && !inFolder(folder, folderFilter)) {
             return false;
         }
         return tagFilter == null || tags.contains(tagFilter);
+    }
+
+    /** True when {@code path} is {@code folder} or below it: {@code houses} holds {@code houses/oak} but not {@code housesmall}. */
+    public static boolean inFolder(@Nullable String path, String folder) {
+        return path != null && (path.equals(folder) || path.startsWith(folder + "/"));
     }
 
     static LibraryEntry of(SchematicSummary summary) {
