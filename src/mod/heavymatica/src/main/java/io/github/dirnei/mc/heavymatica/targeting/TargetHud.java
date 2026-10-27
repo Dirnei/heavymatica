@@ -158,13 +158,10 @@ public final class TargetHud {
         return new Line(text, line.color());
     }
 
-    /** How many more an incomplete position needs, or how many a too many position holds, against the planned amount. */
+    /** The amount an incomplete or too many position holds against the planned amount. */
     public static Component amountText(CellState state, BlockState planned, BlockState found) {
-        int plannedAmount = WorldComparison.amount(planned);
-        int foundAmount = WorldComparison.amount(found);
-        return state == CellState.INCOMPLETE
-                ? Component.translatable("heavymatica.target.incomplete", plannedAmount - foundAmount, foundAmount, plannedAmount)
-                : Component.translatable("heavymatica.target.too_many", foundAmount, plannedAmount);
+        String key = state == CellState.INCOMPLETE ? "heavymatica.target.incomplete" : "heavymatica.target.too_many";
+        return Component.translatable(key, WorldComparison.amount(found), WorldComparison.amount(planned));
     }
 
     /** The HUD's lines as text, or why it is hidden, for development checks. */
