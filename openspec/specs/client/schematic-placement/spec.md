@@ -7,11 +7,15 @@ Lets a player put schematic versions into the world as ghosts, select one of man
 ## Requirements
 
 ### Requirement: A placement pins a version
-A placement SHALL refer to exactly one schematic version (a cloud version by schematic, version number and content hash, or a local entry by content hash), together with a position, rotation (0, 90, 180 or 270), mirror (none, left-right or front-back) and dimension.
+A placement SHALL refer to exactly one schematic version (a cloud version by schematic, version number and content hash, or a local entry by content hash), together with a position, rotation (0, 90, 180 or 270), mirror (none, left-right or front-back), dimension and its block swaps.
 
 #### Scenario: New version uploaded later
 - **WHEN** a player has a placement of version 2 and later uploads version 3 of the same schematic
 - **THEN** the placement still shows version 2
+
+#### Scenario: Swaps stay with the placement
+- **WHEN** two placements of the same version exist and one swaps oak stairs to spruce stairs
+- **THEN** only that placement shows spruce stairs
 
 ### Requirement: Ghost rendering
 The client SHALL render every placement in the player's current dimension as a translucent ghost of the schematic's blocks, rotated and mirrored as the placement says, with block states such as stair facing turned to match. Blocks the game does not know SHALL be left out.
@@ -155,7 +159,7 @@ A FOLLOWING placement SHALL be shown and follow the crosshair only while a remot
 - **THEN** a message says to hold the remote item (for example "Hold a Stick to place") and the ghost appears once a remote is held
 
 ### Requirement: Anchored placements persist
-The client SHALL save anchored and locked placements per world (singleplayer) or server address (multiplayer) and restore them when the player joins again, including whether each is locked, its layer setting, its layer window and its in-hand flag. FOLLOWING placements SHALL NOT be saved. Placements SHALL stay private to the player's client. Placements saved before locking existed SHALL load as ANCHORED with the layer setting off.
+The client SHALL save anchored and locked placements per world (singleplayer) or server address (multiplayer) and restore them when the player joins again, including whether each is locked, its layer setting, layer window, in-hand flag and swaps. FOLLOWING placements SHALL NOT be saved. Placements SHALL stay private to the player's client. Placements saved before locking existed SHALL load as ANCHORED with the layer setting off. Placements saved before swaps existed SHALL load without swaps.
 
 #### Scenario: Rejoin a server
 - **WHEN** a player anchors two placements on `play.example.net`, disconnects and joins again
@@ -168,6 +172,10 @@ The client SHALL save anchored and locked placements per world (singleplayer) or
 #### Scenario: Locked placement with layers
 - **WHEN** a player locks a placement, sets its window to layers 4 to 6 with the in-hand filter on, and joins again
 - **THEN** the placement is LOCKED with layers 4 to 6 and the in-hand filter on
+
+#### Scenario: Swaps saved
+- **WHEN** a player swaps oak stairs to spruce stairs on an anchored placement and joins again
+- **THEN** the placement still shows spruce stairs
 
 ### Requirement: Unavailable versions
 When a saved placement's version can't be loaded (offline and not cached, or deleted from the library), the client SHALL draw its bounding box outline only, keep the placement, and the overlay SHALL say the version is unavailable when it is selected. The client SHALL retry loading when the cloud becomes reachable again.

@@ -28,11 +28,26 @@ Each entry SHALL show its name, thumbnail (or a placeholder when there is none),
 - **THEN** the card shows a placeholder image and still shows name, dimensions and block count
 
 ### Requirement: Search, folders and tags
-The library SHALL filter entries by name text as the player types, and by folder and tag. Filters SHALL combine.
+Searching by name or choosing a tag SHALL show matching entries from the open folder and below it, without folder cards. Text and tag filters SHALL combine. An "All schematics" view SHALL show every entry without folder cards.
 
 #### Scenario: Combined filter
-- **WHEN** a player selects folder `houses`, tag `spruce`, and types `tow`
-- **THEN** only entries in `houses` tagged `spruce` whose name contains `tow` in any letter case are shown
+- **WHEN** a player has `houses` open, selects tag `spruce`, and types `tow`
+- **THEN** only entries in `houses` or below it, tagged `spruce`, whose name contains `tow` in any letter case are shown
+
+#### Scenario: All schematics
+- **WHEN** a player turns on "All schematics"
+- **THEN** every entry is shown, whatever its folder, and no folder or up cards are shown
+
+### Requirement: Folder explorer
+The library SHALL browse folders like a file explorer. The top level SHALL show the top-level folders as folder cards, then the entries in no folder, including local entries. An open folder SHALL show a card to go up, its subfolders as folder cards with their counts including subfolders, then only the entries directly in it, with its path shown.
+
+#### Scenario: Open a folder
+- **WHEN** a player has entries in `castle` and `castle/towers` and opens `castle`
+- **THEN** the grid shows the up card, a folder card `towers`, then the entries directly in `castle`
+
+#### Scenario: Go up
+- **WHEN** a player in `castle/towers` clicks the up card
+- **THEN** `castle` is open
 
 ### Requirement: Entry details
 Selecting an entry SHALL show its details: all versions with number and upload time, and for the chosen version its metadata and block counts sorted from most to least common.

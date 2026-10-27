@@ -29,7 +29,7 @@ Heavymatica's placement keys SHALL act only while a remote is in the main hand a
 - **THEN** no placement changes
 
 ### Requirement: Default key layout
-The placement keys SHALL default to: arrow keys to move horizontally, numpad + and numpad - to move up and down, R to rotate, M to mirror, and V to open the wheel. Remove, lock and unlock, the in-hand filter, the material list and cycling the layer setting SHALL have no default key; they are on the wheel. Every placement key SHALL be rebindable in the controls screen under the Heavymatica category.
+The placement keys SHALL default to: arrow keys to move horizontally, numpad + and numpad - to move up and down, R to rotate, M to mirror, and V to open the wheel. Remove, lock and unlock, the in-hand filter, cycling the layer setting and the materials screen (which also holds the material list) SHALL have no default key; they are on the wheel. Every placement key SHALL be rebindable in the controls screen under the Heavymatica category.
 
 #### Scenario: Rebound key
 - **WHEN** a player rebinds "move up" to Page Up
@@ -37,7 +37,7 @@ The placement keys SHALL default to: arrow keys to move horizontally, numpad + a
 
 #### Scenario: Material list on the wheel
 - **WHEN** a player holding the remote presses K with a locked placement selected and default bindings
-- **THEN** no material list opens, and picking Material list on the wheel opens it
+- **THEN** no screen opens, and picking Materials on the wheel opens the materials screen with the material list's counts
 
 ### Requirement: Arrow keys on a locked placement
 While the selected placement is LOCKED, the up and down arrow keys and numpad + / - SHALL control its layers instead of moving it, and the left and right arrow keys SHALL do nothing.
@@ -87,6 +87,8 @@ For a LOCKED selected placement, the overlay SHALL also show:
 - the number of positions per state: wrong block, wrong orientation, wrong water and extra
 - when the crosshair targets a position of the placement in one of those states, the expected and the found block
 
+The crosshair's target SHALL be the ghost target when there is one, and otherwise the real block the crosshair hits.
+
 #### Scenario: Progress and mistakes
 - **WHEN** the selected locked placement has 3104 of 5006 blocks matching, 12 wrong blocks, 4 wrong orientations, 2 wrong water and 3 extra
 - **THEN** the overlay shows `62%`, `3104 / 5006` and the counts 12, 4, 2 and 3 in red, orange, cyan and magenta
@@ -102,6 +104,14 @@ For a LOCKED selected placement, the overlay SHALL also show:
 #### Scenario: Anchored placement shows no progress
 - **WHEN** the selected placement is ANCHORED
 - **THEN** the overlay shows no progress and no counts
+
+#### Scenario: Ghost in front of a mistake
+- **WHEN** a missing ghost of the selected locked placement stands between the player and a wrong block of the same placement
+- **THEN** the overlay shows no expected and found lines, because the target is the missing ghost
+
+#### Scenario: Looking at an extra block
+- **WHEN** the crosshair hits a tall grass plant where the selected locked placement has air
+- **THEN** the overlay shows air as expected and the tall grass as found
 
 ### Requirement: Overlay key hints
 The overlay SHALL list hints for the actions available in the current state and only those. Each hint SHALL show the key the player currently has bound, not the default. It SHALL always show the wheel key as "menu". An action that is on the wheel SHALL only get a hint when the player has bound a key for it.
@@ -128,3 +138,48 @@ The client SHALL offer a compact overlay setting that shows only the selected pl
 #### Scenario: Compact enabled
 - **WHEN** compact overlay is on and the player holds the remote
 - **THEN** the overlay shows the name and state badge only
+
+### Requirement: Swap count in the overlay
+While the overlay shows a placement that has swaps, it SHALL also show how many swaps it has, in every state.
+
+#### Scenario: Swaps
+- **WHEN** the selected placement swaps oak stairs and oak planks
+- **THEN** the overlay says it has 2 swaps
+
+#### Scenario: No swaps
+- **WHEN** the selected placement has no swaps
+- **THEN** the overlay shows no swap count
+
+### Requirement: Finishing in the overlay
+For a LOCKED selected placement, the overlay SHALL also show, in yellow, how many positions in the visible layers need each finishing step, for every step that any visible position needs. These lines SHALL follow the layer setting, while the counts per mistake state stay over the whole placement. When the crosshair targets a position of the placement that needs finishing, the overlay SHALL show the expected and the found block and the step. The crosshair's target SHALL be the ghost target when there is one, and otherwise the real block the crosshair hits.
+
+#### Scenario: Finishing steps
+- **WHEN** the visible layers of the selected locked placement have 3 dirt paths on dirt and 2 stripped oak logs on oak logs
+- **THEN** the overlay shows in yellow that 3 blocks need a shovel and 2 blocks need an axe, and no line for a hoe or water
+
+#### Scenario: Nothing to finish
+- **WHEN** no position in the visible layers of the selected locked placement needs finishing
+- **THEN** the overlay shows no finishing line
+
+#### Scenario: Finishing follows the visible layers
+- **WHEN** the selected locked placement shows layers 4 to 6, and layer 2 has 3 dirt paths on dirt and 2 wrong blocks
+- **THEN** the overlay shows no shovel line and still counts the 2 wrong blocks in red
+
+#### Scenario: Looking at a block to finish
+- **WHEN** the crosshair targets a position of the selected locked placement that expects white concrete and holds white concrete powder
+- **THEN** the overlay shows white concrete as expected, white concrete powder as found, and that it needs water
+
+### Requirement: Amounts in the overlay
+For a LOCKED selected placement, the overlay SHALL count too many positions in orange next to the other mistake counts. When the crosshair targets a position of the placement that is too many, it SHALL show the expected and found block and how many there are instead of how many are planned. When it targets a position that is not enough yet, it SHALL show the expected and found block and how many more are needed.
+
+#### Scenario: Too many count
+- **WHEN** the selected locked placement has 2 positions with too many candles
+- **THEN** the overlay shows 2 too many in orange
+
+#### Scenario: Looking at too many candles
+- **WHEN** the crosshair targets a position of the selected locked placement that expects 3 white candles and holds 4
+- **THEN** the overlay shows the expected and found candles and that there are 4 instead of 3
+
+#### Scenario: Looking at one of three candles
+- **WHEN** the crosshair targets a position of the selected locked placement that expects 3 white candles and holds 1
+- **THEN** the overlay shows the expected and found candles and that 2 more are needed

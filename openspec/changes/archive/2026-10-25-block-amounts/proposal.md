@@ -17,9 +17,9 @@ the second slab, because slab type is treated as an orientation.
   - the ghost keeps showing, as for a missing block, and the position can be targeted and picked like one
   - the material list asks only for the rest, such as 2 candles where 1 of 3 stands
   - progress does not count it
-  - the targeting HUD, Jade and the overlay say how many more are needed, such as "2 more (1 of 3)"
+  - the targeting HUD, Jade and the overlay show the placed against the planned amount, such as "1/3"
 - **Too many (new state).** More than planned is a mistake shown in orange like a wrong orientation, with its own
-  count in the overlay and a hint such as "Too many: 4 instead of 3". The player breaks and replaces the block.
+  count in the overlay and the amount in orange, such as "4/3". The player breaks and replaces the block.
 - **Slabs.** Slab type stops being an orientation between a single and a double slab:
   - a top or bottom slab where a double is planned is not enough yet, "1 more", since a slab can be placed into
     either free half

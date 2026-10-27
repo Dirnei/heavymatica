@@ -95,7 +95,7 @@ While a remote is held and the selected LOCKED placement is in follow feet, nump
 - **THEN** the offset is 0 and the shown layers end at the layer the player stands on
 
 ### Requirement: In-hand filter
-While the selected placement is LOCKED and a remote is held, the wheel's In-hand filter segment, or the in-hand filter key when bound, SHALL toggle its in-hand filter. With the filter on, the placement SHALL show the blocks matching the player's held item at normal opacity, and the blocks matching the other hotbar items at a configurable lower opacity (default one third). Other blocks SHALL NOT show. An item matches a block when it places that block, in any block state.
+While the selected placement is LOCKED and a remote is held, the In-hand filter wheel segment or the bound in-hand filter key SHALL toggle its filter. With it on, the placement SHALL show blocks matching the held item at normal opacity, blocks matching other hotbar items at a configurable lower opacity (default one third), and no others. An item SHALL match a block it places in any state and every planned block whose have it counts toward under `client/block-equivalents`.
 
 #### Scenario: Holding oak planks
 - **WHEN** the in-hand filter is on, the player holds oak planks, and oak stairs are in the hotbar
@@ -108,6 +108,26 @@ While the selected placement is LOCKED and a remote is held, the wheel's In-hand
 #### Scenario: Toggle from the wheel
 - **WHEN** the selected locked placement's in-hand filter is off and the player picks In-hand filter on the wheel
 - **THEN** its in-hand filter is on
+
+#### Scenario: Holding dirt
+- **WHEN** the in-hand filter is on and the player holds dirt
+- **THEN** the placement's dirt, grass block, dirt path and farmland ghosts show normally
+
+#### Scenario: Holding a log
+- **WHEN** the in-hand filter is on, the player holds an oak log and the placement has stripped oak logs and stripped spruce logs
+- **THEN** the stripped oak logs show normally and the stripped spruce logs do not show
+
+#### Scenario: Holding concrete powder
+- **WHEN** the in-hand filter is on and the player holds white concrete powder
+- **THEN** the placement's white concrete ghosts show normally
+
+#### Scenario: Holding concrete
+- **WHEN** the in-hand filter is on, the player holds white concrete and the placement has white concrete and white concrete powder
+- **THEN** the white concrete ghosts show normally and the white concrete powder ghosts do not show
+
+#### Scenario: Holding podzol
+- **WHEN** the in-hand filter is on, the player holds podzol and the placement has dirt paths and farmland
+- **THEN** the dirt path ghosts show normally and the farmland ghosts do not show
 
 ### Requirement: Filters combine
 The layer setting and the in-hand filter SHALL apply together: a block SHALL show only when it is in a shown layer and passes the in-hand filter.

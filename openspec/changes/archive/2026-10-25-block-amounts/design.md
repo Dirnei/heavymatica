@@ -114,8 +114,8 @@ The bookkeeping (state change, found amount change, back to unknown when a chunk
 
 ### D5. Text
 
-- HUD and Jade (through `TargetHud.lines`): `INCOMPLETE` → `"%s more (%s of %s)"` (rest, found, planned) in the
-  normal text colour; `TOO_MANY` → `"Too many: %s instead of %s"` in orange. `TargetLines` returns the key and
+- HUD and Jade (through `TargetHud.lines`): `INCOMPLETE` → `"%s/%s"` (found, planned) in the
+  normal text colour; `TOO_MANY` → the same `"%s/%s"` in orange. `TargetLines` returns the key and
   colour; `TargetHud.stateLine` fills the amounts from the target's planned and found block states with
   `WorldComparison.amount(BlockState)`.
 - Overlay: a `"%s too many"` count in orange after the existing counts; for a crosshair target that is `INCOMPLETE`
