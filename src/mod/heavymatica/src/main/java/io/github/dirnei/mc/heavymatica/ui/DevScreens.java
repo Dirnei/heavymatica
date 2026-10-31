@@ -344,8 +344,30 @@ public final class DevScreens {
             case "releaseMovement" -> RadialMenuScreen.holdForDevelopment(argument, false);
             case "logPlayer" -> Heavymatica.LOGGER.info("Dev player: at {}, yaw {}, pitch {}, input {} {}", minecraft.player.position(), minecraft.player.getYRot(),
                     minecraft.player.getXRot(), minecraft.player.input.getClass().getSimpleName(), minecraft.player.input.keyPresses);
+            case "logSpecialGeometry" -> logSpecialGeometry();
             case "quit" -> minecraft.stop();
             default -> Heavymatica.LOGGER.warn("Unknown dev screen step {}", step);
+        }
+    }
+
+    private static void logSpecialGeometry() {
+        java.util.List<net.minecraft.world.level.block.state.BlockState> states = java.util.List.of(
+                net.minecraft.world.level.block.Blocks.RED_BED.defaultBlockState()
+                        .setValue(net.minecraft.world.level.block.BedBlock.PART, net.minecraft.world.level.block.state.properties.BedPart.HEAD),
+                net.minecraft.world.level.block.Blocks.RED_BED.defaultBlockState()
+                        .setValue(net.minecraft.world.level.block.BedBlock.PART, net.minecraft.world.level.block.state.properties.BedPart.FOOT),
+                net.minecraft.world.level.block.Blocks.CHEST.defaultBlockState()
+                        .setValue(net.minecraft.world.level.block.ChestBlock.TYPE, net.minecraft.world.level.block.state.properties.ChestType.LEFT),
+                net.minecraft.world.level.block.Blocks.CHEST.defaultBlockState()
+                        .setValue(net.minecraft.world.level.block.ChestBlock.TYPE, net.minecraft.world.level.block.state.properties.ChestType.RIGHT),
+                net.minecraft.world.level.block.Blocks.OAK_WALL_SIGN.defaultBlockState(),
+                net.minecraft.world.level.block.Blocks.SKELETON_SKULL.defaultBlockState(),
+                net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+        io.github.dirnei.mc.heavymatica.blocks.SpecialGeometry special = io.github.dirnei.mc.heavymatica.blocks.SpecialGeometry.get();
+        special.prepare(states);
+        for (net.minecraft.world.level.block.state.BlockState state : states) {
+            java.util.List<String> parts = special.summary(state);
+            Heavymatica.LOGGER.info("Dev special geometry {}: {}", state, parts.isEmpty() ? "none" : String.join("; ", parts));
         }
     }
 

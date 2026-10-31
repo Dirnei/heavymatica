@@ -6,47 +6,47 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
-import com.mojang.blaze3d.vertex.QuadInstance;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import io.github.dirnei.mc.heavymatica.blocks.BlockGeometry;
+import io.github.dirnei.mc.heavymatica.blocks.ForwardingVertexConsumer;
+import io.github.dirnei.mc.heavymatica.blocks.SpecialGeometry;
+import io.github.dirnei.mc.heavymatica.blocks.TexturedOutput;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ToDoubleFunction;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.geom.builders.UVPair;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
-import net.minecraft.client.renderer.block.BlockStateModelSet;
-import net.minecraft.client.renderer.block.ModelBlockRenderer;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.util.ARGB;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.ColorResolver;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.world.level.material.FluidState;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
-import org.joml.Vector3fc;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * A ghost split into one buffer per block (any state), with its quads ordered by layer, so any layer range of any block
- * draws as one call. Each block is meshed as if everything outside its own block type and layer were air, so slices
- * never show holes. Every vertex carries its cell index (x fastest, then z, then y) in its lightmap coordinates, for
- * {@link GhostPipeline#GHOST_MASKED}.
+ * A ghost split into one buffer per block (any state) and texture, with its quads ordered by layer, so any layer range
+ * of any block draws as one call per texture. Each block is meshed as if everything outside its own block type and
+ * layer were air, so slices never show holes. Every vertex carries its cell index (x fastest, then z, then y) in its
+ * lightmap coordinates, for {@link GhostPipeline#GHOST_MASKED}.
  */
 final class GhostCells implements AutoCloseable {
 
-    /** One block type: its buffer and where each layer's quads start; {@code layerStart[height]} is the total. */
-    private record Cell(Block block, GpuBuffer vertices, int[] layerStart) {
+    /** One block type in one texture: its buffer and where each layer's quads start; {@code layerStart[height]} is the total. */
+    private record Cell(Block block, Identifier texture, GpuBuffer vertices, int[] layerStart) {
+    }
+
+    private record Key(Block block, Identifier texture) {
     }
 
     private final List<Cell> cells;
@@ -57,7 +57,7 @@ final class GhostCells implements AutoCloseable {
 
     /**
      * Draws the layers in {@code layers}; {@code alpha} gives each block's opacity, 0 or less to skip it, and
-     * {@code mask} hides cells (see {@link ComparisonState#mask()}). Returns how many block types were drawn.
+     * {@code mask} hides cells (see {@link ComparisonState#mask()}). Returns how many block buffers were drawn.
      */
     int draw(Matrix4fc modelView, Vector3f offset, Layers.Range layers, ToDoubleFunction<Block> alpha, GpuBuffer mask) {
         int drawn = 0;
@@ -65,7 +65,7 @@ final class GhostCells implements AutoCloseable {
             for (Cell cell : cells) {
                 float opacity = (float) alpha.applyAsDouble(cell.block());
                 if (opacity > 0.0F) {
-                    draw.quads(cell.vertices(), cell.layerStart()[layers.from()], cell.layerStart()[layers.to() + 1], opacity);
+                    draw.quads(cell.texture(), cell.vertices(), cell.layerStart()[layers.from()], cell.layerStart()[layers.to() + 1], opacity);
                     drawn++;
                 }
             }
@@ -87,20 +87,21 @@ final class GhostCells implements AutoCloseable {
                 if (cell.mesh() != null) {
                     GpuBuffer buffer = RenderSystem.getDevice().createBuffer(() -> "Heavymatica ghost cells", GpuBuffer.USAGE_VERTEX,
                             cell.mesh().vertexBuffer());
-                    cells.add(new Cell(cell.block(), buffer, cell.layerStart()));
+                    cells.add(new Cell(cell.block(), cell.texture(), buffer, cell.layerStart()));
                 }
             }
             return new GhostCells(cells);
         }
     }
 
-    /** Meshes every block in one pass, y outermost, so each block's quads arrive in layer order. Worker thread. */
+    /**
+     * Meshes every block in one pass, y outermost, so each block's quads arrive in layer order. Worker thread; the view's
+     * states must have been prepared in {@link SpecialGeometry}.
+     */
     static Built build(GhostView view) {
-        Minecraft minecraft = Minecraft.getInstance();
-        BlockStateModelSet models = minecraft.getModelManager().getBlockStateModelSet();
-        ModelBlockRenderer renderer = new ModelBlockRenderer(true, true, minecraft.getBlockColors());
         CellView cellView = new CellView(view);
-        Map<Block, Builder> builders = new LinkedHashMap<>();
+        BlockGeometry geometry = new BlockGeometry(SpecialGeometry.get());
+        Map<Key, Builder> builders = new LinkedHashMap<>();
         try {
             BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
             for (int y = 0; y < view.sizeY(); y++) {
@@ -111,16 +112,19 @@ final class GhostCells implements AutoCloseable {
                     for (int x = 0; x < view.sizeX(); x++) {
                         pos.set(x, y, z);
                         BlockState state = view.getBlockState(pos);
-                        if (state.isAir() || state.getRenderShape() != RenderShape.MODEL) {
+                        if (state.isAir()) {
                             continue;
                         }
-                        cellView.cell(state.getBlock(), y);
+                        Block block = state.getBlock();
+                        cellView.cell(block, y);
                         if (hidden(cellView, pos)) {
                             continue;
                         }
-                        Builder builder = builders.computeIfAbsent(state.getBlock(), block -> new Builder(block, view.sizeX(), view.sizeY(), view.sizeZ()));
-                        BlockPos fixed = pos.immutable();
-                        renderer.tesselateBlock(builder::put, x, y, z, cellView, fixed, state, models.get(state), state.getSeed(fixed));
+                        int cell = x + view.sizeX() * (z + view.sizeZ() * y);
+                        TexturedOutput output = (texture, layer) -> builders
+                                .computeIfAbsent(new Key(block, texture), key -> new Builder(key, view.sizeY()))
+                                .at(cell);
+                        geometry.emit(cellView, pos.immutable(), state, output);
                     }
                 }
             }
@@ -144,44 +148,33 @@ final class GhostCells implements AutoCloseable {
         return true;
     }
 
+    /** One block type's vertices in one texture. */
     private static final class Builder {
 
-        private final Block block;
+        private final Key key;
         private final ByteBufferBuilder bytes = new ByteBufferBuilder(1 << 12);
         private final BufferBuilder buffer = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
-        private final int sizeX;
-        private final int sizeZ;
+        private final CellVertices vertices = new CellVertices(buffer);
         private final int[] layerStart;
-        private int quads;
 
-        Builder(Block block, int sizeX, int height, int sizeZ) {
-            this.block = block;
-            this.sizeX = sizeX;
-            this.sizeZ = sizeZ;
+        Builder(Key key, int height) {
+            this.key = key;
             this.layerStart = new int[height + 1];
         }
 
         void startLayer(int layer) {
-            layerStart[layer] = quads;
+            layerStart[layer] = vertices.quads();
         }
 
-        /** Like {@code putBakedQuad}, with the cell index written where the lightmap coordinates go. */
-        void put(float x, float y, float z, BakedQuad quad, QuadInstance instance) {
-            int cell = (int) x + sizeX * ((int) z + sizeZ * (int) y);
-            Vector3f normal = quad.direction().getUnitVec3f().get(new Vector3f());
-            for (int vertex = 0; vertex < 4; vertex++) {
-                Vector3fc position = quad.position(vertex);
-                long uv = quad.packedUV(vertex);
-                int color = ARGB.multiply(instance.getColor(vertex), quad.bakedColors().color(vertex));
-                buffer.addVertex(position.x() + x, position.y() + y, position.z() + z, color, UVPair.unpackU(uv), UVPair.unpackV(uv),
-                        instance.overlayCoords(), cell, normal.x(), normal.y(), normal.z());
-            }
-            quads++;
+        /** The buffer for the block at {@code cell}. */
+        VertexConsumer at(int cell) {
+            vertices.cell = cell;
+            return vertices;
         }
 
         BuiltCell finish() {
-            layerStart[layerStart.length - 1] = quads;
-            return new BuiltCell(block, bytes, buffer.build(), layerStart);
+            layerStart[layerStart.length - 1] = vertices.quads();
+            return new BuiltCell(key.block(), key.texture(), bytes, buffer.build(), layerStart);
         }
 
         void close() {
@@ -189,8 +182,42 @@ final class GhostCells implements AutoCloseable {
         }
     }
 
-    /** One block's built geometry; {@code mesh} is null when nothing of it is visible. */
-    record BuiltCell(Block block, ByteBufferBuilder bytes, @Nullable MeshData mesh, int[] layerStart) {
+    /** Writes the current cell index where the lightmap coordinates go, and counts quads. */
+    private static final class CellVertices extends ForwardingVertexConsumer {
+
+        private int cell;
+        private int vertexCount;
+
+        CellVertices(VertexConsumer delegate) {
+            super(delegate);
+        }
+
+        int quads() {
+            return vertexCount / 4;
+        }
+
+        @Override
+        public void addVertex(float x, float y, float z, int color, float u, float v, int overlayCoords, int lightCoords, float nx, float ny, float nz) {
+            delegate.addVertex(x, y, z, color, u, v, overlayCoords, cell, nx, ny, nz);
+            vertexCount++;
+        }
+
+        @Override
+        public VertexConsumer addVertex(float x, float y, float z) {
+            delegate.addVertex(x, y, z);
+            vertexCount++;
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setUv2(int u, int v) {
+            delegate.setLight(cell);
+            return this;
+        }
+    }
+
+    /** One block's geometry in one texture; {@code mesh} is null when nothing of it is visible. */
+    record BuiltCell(Block block, Identifier texture, ByteBufferBuilder bytes, @Nullable MeshData mesh, int[] layerStart) {
     }
 
     /** Geometry built off the render thread, waiting for upload. */

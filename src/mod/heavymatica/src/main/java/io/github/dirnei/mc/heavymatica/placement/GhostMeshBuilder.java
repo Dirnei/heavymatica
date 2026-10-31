@@ -3,22 +3,24 @@ package io.github.dirnei.mc.heavymatica.placement;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import net.minecraft.client.Minecraft;
+import io.github.dirnei.mc.heavymatica.blocks.BlockGeometry;
+import io.github.dirnei.mc.heavymatica.blocks.SpecialGeometry;
+import io.github.dirnei.mc.heavymatica.blocks.TexturedOutput;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
-import net.minecraft.client.renderer.block.BlockQuadOutput;
-import net.minecraft.client.renderer.block.BlockStateModelSet;
-import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * Tessellates a ghost off the render thread: every block of a view of size {@code sx x sy x sz} that is not air,
- * has a model and is not fully hidden by full opaque neighbours. Like vanilla section compiling, this only reads models
- * and may run on a worker thread.
+ * Tessellates a ghost off the render thread, one buffer per texture: every block of a view of size
+ * {@code sx x sy x sz} that is not air, has geometry and is not fully hidden by full opaque neighbours. The view's
+ * states must have been prepared in {@link SpecialGeometry}.
  */
 final class GhostMeshBuilder {
 
@@ -26,19 +28,10 @@ final class GhostMeshBuilder {
     }
 
     static GhostMesh.Built build(BlockAndTintGetter view, int sx, int sy, int sz) {
-        Minecraft minecraft = Minecraft.getInstance();
-        BlockStateModelSet models = minecraft.getModelManager().getBlockStateModelSet();
-        ModelBlockRenderer renderer = new ModelBlockRenderer(true, true, minecraft.getBlockColors());
-        ByteBufferBuilder bytes = new ByteBufferBuilder(1 << 16);
+        Map<Identifier, BuiltBuffer> buffers = new LinkedHashMap<>();
         try {
-            BufferBuilder buffer = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
-            PoseStack pose = new PoseStack();
-            BlockQuadOutput output = (x, y, z, quad, instance) -> {
-                pose.pushPose();
-                pose.translate(x, y, z);
-                buffer.putBakedQuad(pose.last(), quad, instance);
-                pose.popPose();
-            };
+            TexturedOutput output = (texture, layer) -> buffers.computeIfAbsent(texture, BuiltBuffer::new).buffer;
+            BlockGeometry geometry = new BlockGeometry(SpecialGeometry.get());
             int blocks = 0;
             BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
             for (int y = 0; y < sy; y++) {
@@ -46,18 +39,22 @@ final class GhostMeshBuilder {
                     for (int x = 0; x < sx; x++) {
                         pos.set(x, y, z);
                         BlockState state = view.getBlockState(pos);
-                        if (state.isAir() || state.getRenderShape() != RenderShape.MODEL || hidden(view, pos, sx, sy, sz)) {
+                        if (state.isAir() || hidden(view, pos, sx, sy, sz)) {
                             continue;
                         }
-                        BlockPos fixed = pos.immutable();
-                        renderer.tesselateBlock(output, x, y, z, view, fixed, state, models.get(state), state.getSeed(fixed));
-                        blocks++;
+                        if (geometry.emit(view, pos.immutable(), state, output)) {
+                            blocks++;
+                        }
                     }
                 }
             }
-            return new GhostMesh.Built(bytes, buffer.build(), blocks);
+            List<GhostMesh.BuiltTexture> textures = new ArrayList<>();
+            for (BuiltBuffer buffer : buffers.values()) {
+                textures.add(new GhostMesh.BuiltTexture(buffer.texture, buffer.bytes, buffer.buffer.build()));
+            }
+            return new GhostMesh.Built(textures, blocks);
         } catch (RuntimeException | Error e) {
-            bytes.close();
+            buffers.values().forEach(buffer -> buffer.bytes.close());
             throw e;
         }
     }
@@ -73,5 +70,16 @@ final class GhostMeshBuilder {
             }
         }
         return true;
+    }
+
+    private static final class BuiltBuffer {
+
+        private final Identifier texture;
+        private final ByteBufferBuilder bytes = new ByteBufferBuilder(1 << 16);
+        private final BufferBuilder buffer = new BufferBuilder(bytes, VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+
+        BuiltBuffer(Identifier texture) {
+            this.texture = texture;
+        }
     }
 }

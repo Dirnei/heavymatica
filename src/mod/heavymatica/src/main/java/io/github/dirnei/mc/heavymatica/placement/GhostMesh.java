@@ -4,23 +4,27 @@ import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.MeshData;
+import java.util.ArrayList;
+import java.util.List;
+import net.minecraft.resources.Identifier;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * A ghost's block geometry on the GPU, in placement-local coordinates: drawn every frame with the placement's
- * position as model offset, so moving a placement never rebuilds it.
+ * A ghost's block geometry on the GPU, in placement-local coordinates, one buffer per texture: drawn every frame with
+ * the placement's position as model offset, so moving a placement never rebuilds it.
  */
 public final class GhostMesh implements AutoCloseable {
 
-    private final @Nullable GpuBuffer vertices;
-    private final int indexCount;
+    private record Range(Identifier texture, GpuBuffer vertices, int quads) {
+    }
+
+    private final List<Range> ranges;
     private final int blocks;
 
-    private GhostMesh(@Nullable GpuBuffer vertices, int indexCount, int blocks) {
-        this.vertices = vertices;
-        this.indexCount = indexCount;
+    private GhostMesh(List<Range> ranges, int blocks) {
+        this.ranges = ranges;
         this.blocks = blocks;
     }
 
@@ -28,11 +32,15 @@ public final class GhostMesh implements AutoCloseable {
     static GhostMesh upload(Built built) {
         RenderSystem.assertOnRenderThread();
         try (built) {
-            if (built.mesh() == null) {
-                return new GhostMesh(null, 0, built.blocks());
+            List<Range> ranges = new ArrayList<>();
+            for (BuiltTexture texture : built.textures()) {
+                if (texture.mesh() != null) {
+                    GpuBuffer buffer = RenderSystem.getDevice().createBuffer(() -> "Heavymatica ghost", GpuBuffer.USAGE_VERTEX,
+                            texture.mesh().vertexBuffer());
+                    ranges.add(new Range(texture.texture(), buffer, texture.mesh().drawState().indexCount() / 6));
+                }
             }
-            GpuBuffer buffer = RenderSystem.getDevice().createBuffer(() -> "Heavymatica ghost", GpuBuffer.USAGE_VERTEX, built.mesh().vertexBuffer());
-            return new GhostMesh(buffer, built.mesh().drawState().indexCount(), built.blocks());
+            return new GhostMesh(ranges, built.blocks());
         }
     }
 
@@ -43,30 +51,36 @@ public final class GhostMesh implements AutoCloseable {
 
     /** Draws at {@code offset} (placement minimum corner minus camera position). Render thread only. */
     public void draw(Matrix4fc modelView, Vector3f offset, float alpha) {
-        if (vertices == null || indexCount == 0) {
+        if (ranges.isEmpty()) {
             return;
         }
         try (GhostDraw draw = new GhostDraw(modelView, offset)) {
-            draw.quads(vertices, 0, indexCount / 6, alpha);
+            for (Range range : ranges) {
+                draw.quads(range.texture(), range.vertices(), 0, range.quads(), alpha);
+            }
         }
     }
 
     @Override
     public void close() {
-        if (vertices != null) {
-            vertices.close();
-        }
+        ranges.forEach(range -> range.vertices().close());
     }
 
-    /** Geometry built off the render thread, waiting for upload. {@code mesh} is null when nothing is visible. */
-    record Built(ByteBufferBuilder bytes, @Nullable MeshData mesh, int blocks) implements AutoCloseable {
+    /** One texture's geometry built off the render thread; {@code mesh} is null when it has nothing. */
+    record BuiltTexture(Identifier texture, ByteBufferBuilder bytes, @Nullable MeshData mesh) {
+    }
+
+    /** Geometry built off the render thread, waiting for upload. */
+    record Built(List<BuiltTexture> textures, int blocks) implements AutoCloseable {
 
         @Override
         public void close() {
-            if (mesh != null) {
-                mesh.close();
+            for (BuiltTexture texture : textures) {
+                if (texture.mesh() != null) {
+                    texture.mesh().close();
+                }
+                texture.bytes().close();
             }
-            bytes.close();
         }
     }
 }

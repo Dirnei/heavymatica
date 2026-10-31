@@ -1,6 +1,7 @@
 package io.github.dirnei.mc.heavymatica.placement;
 
 import io.github.dirnei.mc.heavymatica.Heavymatica;
+import io.github.dirnei.mc.heavymatica.blocks.SpecialGeometry;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.placement.Placement.Flip;
 import io.github.dirnei.mc.heavymatica.placement.Placement.Turn;
@@ -46,10 +47,10 @@ final class GhostMeshes implements AutoCloseable {
         Key key = Key.of(placement);
         GhostMesh mesh = ready.get(key);
         if (mesh == null) {
-            CompletableFuture<GhostMesh.Built> build = building.computeIfAbsent(key, ignored -> CompletableFuture.supplyAsync(() -> {
-                GhostView view = key.view(model);
-                return GhostMeshBuilder.build(view, view.sizeX(), view.sizeY(), view.sizeZ());
-            }, Util.backgroundExecutor()));
+            CompletableFuture<GhostMesh.Built> build = building.computeIfAbsent(key, ignored -> {
+                GhostView view = preparedView(key, model);
+                return CompletableFuture.supplyAsync(() -> GhostMeshBuilder.build(view, view.sizeX(), view.sizeY(), view.sizeZ()), Util.backgroundExecutor());
+            });
             if (build.isDone()) {
                 building.remove(key);
                 if (build.isCompletedExceptionally()) {
@@ -71,6 +72,13 @@ final class GhostMeshes implements AutoCloseable {
         return previous == null ? null : ready.get(previous);
     }
 
+    /** The view to build from, with the display models of its states baked here on the render thread. */
+    private static GhostView preparedView(Key key, SchematicModel model) {
+        GhostView view = key.view(model);
+        SpecialGeometry.get().prepare(view.placedStates());
+        return view;
+    }
+
     /** True when the placement draws from cells: every locked placement, since cells can hide what is already built. */
     static boolean usesCells(Placement placement) {
         return placement.locked();
@@ -83,8 +91,10 @@ final class GhostMeshes implements AutoCloseable {
         if (cells != null) {
             return cells;
         }
-        CompletableFuture<GhostCells.Built> build = buildingCells.computeIfAbsent(key, ignored -> CompletableFuture.supplyAsync(
-                () -> GhostCells.build(key.view(model)), Util.backgroundExecutor()));
+        CompletableFuture<GhostCells.Built> build = buildingCells.computeIfAbsent(key, ignored -> {
+            GhostView view = preparedView(key, model);
+            return CompletableFuture.supplyAsync(() -> GhostCells.build(view), Util.backgroundExecutor());
+        });
         if (!build.isDone()) {
             return null;
         }

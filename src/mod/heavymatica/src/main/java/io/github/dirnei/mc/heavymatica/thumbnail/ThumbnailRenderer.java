@@ -12,6 +12,10 @@ import com.mojang.blaze3d.textures.TextureFormat;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import io.github.dirnei.mc.heavymatica.blocks.BlockGeometry;
+import io.github.dirnei.mc.heavymatica.blocks.PoseVertexConsumer;
+import io.github.dirnei.mc.heavymatica.blocks.SpecialGeometry;
+import io.github.dirnei.mc.heavymatica.blocks.TexturedOutput;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -21,14 +25,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.Projection;
 import net.minecraft.client.renderer.ProjectionMatrixBuffer;
-import net.minecraft.client.renderer.block.BlockQuadOutput;
-import net.minecraft.client.renderer.block.BlockStateModelSet;
-import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
@@ -124,8 +127,8 @@ public final class ThumbnailRenderer {
 
     private static void drawBlocks(SchematicModel model, MultiBufferSource.BufferSource bufferSource, Minecraft minecraft) {
         SchematicView view = new SchematicView(model);
-        BlockStateModelSet models = minecraft.getModelManager().getBlockStateModelSet();
-        ModelBlockRenderer renderer = new ModelBlockRenderer(true, true, minecraft.getBlockColors());
+        SpecialGeometry.get().prepare(view.states());
+        BlockGeometry geometry = new BlockGeometry(SpecialGeometry.get());
 
         // Isometric camera: fit the bounding box's diagonal into the image, centred.
         float diagonal = (float) Math.sqrt((double) model.width() * model.width() + (double) model.height() * model.height() + (double) model.length() * model.length());
@@ -137,17 +140,7 @@ public final class ThumbnailRenderer {
         pose.mulPose(Axis.YP.rotationDegrees(225.0F));
         pose.translate(-model.width() / 2.0F, -model.height() / 2.0F, -model.length() / 2.0F);
 
-        BlockQuadOutput output = (x, y, z, quad, instance) -> {
-            pose.pushPose();
-            pose.translate(x, y, z);
-            ChunkSectionLayer layer = quad.materialInfo().layer();
-            bufferSource.getBuffer(switch (layer) {
-                case SOLID -> RenderTypes.solidMovingBlock();
-                case CUTOUT -> RenderTypes.cutoutMovingBlock();
-                case TRANSLUCENT -> RenderTypes.translucentMovingBlock();
-            }).putBakedQuad(pose.last(), quad, instance);
-            pose.popPose();
-        };
+        TexturedOutput output = (texture, layer) -> new PoseVertexConsumer(bufferSource.getBuffer(renderType(texture, layer)), pose.last());
 
         int drawn = 0;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -156,15 +149,27 @@ public final class ThumbnailRenderer {
                 for (int x = 0; x < model.width() && drawn < BLOCK_BUDGET; x++) {
                     pos.set(x, y, z);
                     BlockState state = view.getBlockState(pos);
-                    if (state.isAir() || state.getRenderShape() != RenderShape.MODEL || hidden(view, pos)) {
+                    if (state.isAir() || hidden(view, pos)) {
                         continue;
                     }
-                    BlockPos fixed = pos.immutable();
-                    renderer.tesselateBlock(output, x, y, z, view, fixed, state, models.get(state), state.getSeed(fixed));
-                    drawn++;
+                    if (geometry.emit(view, pos.immutable(), state, output)) {
+                        drawn++;
+                    }
                 }
             }
         }
+    }
+
+    /** Block atlas geometry draws like a moving block of its layer; other textures like a block entity. */
+    private static RenderType renderType(Identifier texture, ChunkSectionLayer layer) {
+        if (!texture.equals(TextureAtlas.LOCATION_BLOCKS)) {
+            return RenderTypes.entityCutout(texture);
+        }
+        return switch (layer) {
+            case SOLID -> RenderTypes.solidMovingBlock();
+            case CUTOUT -> RenderTypes.cutoutMovingBlock();
+            case TRANSLUCENT -> RenderTypes.translucentMovingBlock();
+        };
     }
 
     /** A block surrounded by full opaque blocks on every side cannot be seen. */

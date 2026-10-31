@@ -1,11 +1,14 @@
 package io.github.dirnei.mc.heavymatica.placement;
 
+import io.github.dirnei.mc.heavymatica.blocks.SchematicTints;
 import io.github.dirnei.mc.heavymatica.formats.BlockStates;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.placement.Placement.Flip;
 import io.github.dirnei.mc.heavymatica.placement.Placement.Turn;
 import io.github.dirnei.mc.heavymatica.thumbnail.SchematicView;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
@@ -30,9 +33,6 @@ import org.jetbrains.annotations.Nullable;
  * rotated, like vanilla structure templates. Fully lit and block-only, for ghost meshes. Unknown blocks read as air.
  */
 final class GhostView implements BlockAndTintGetter {
-
-    /** Plains grass and foliage, since a schematic has no biome. */
-    private static final int DEFAULT_TINT = 0xFF91BD59;
 
     private final SchematicModel model;
     private final Turn rotation;
@@ -102,6 +102,11 @@ final class GhostView implements BlockAndTintGetter {
         return palette[paletteIndex];
     }
 
+    /** Every state the view can show. */
+    List<BlockState> placedStates() {
+        return Arrays.stream(palette).distinct().toList();
+    }
+
     SchematicModel model() {
         return model;
     }
@@ -169,6 +174,6 @@ final class GhostView implements BlockAndTintGetter {
 
     @Override
     public int getBlockTint(BlockPos pos, ColorResolver color) {
-        return DEFAULT_TINT;
+        return SchematicTints.tint(pos, color);
     }
 }

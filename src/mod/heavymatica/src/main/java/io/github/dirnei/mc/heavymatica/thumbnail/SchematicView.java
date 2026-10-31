@@ -1,8 +1,11 @@
 package io.github.dirnei.mc.heavymatica.thumbnail;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import io.github.dirnei.mc.heavymatica.blocks.SchematicTints;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
@@ -24,9 +27,6 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class SchematicView implements BlockAndTintGetter {
 
-    /** Plains grass and foliage, since a schematic has no biome. */
-    private static final int DEFAULT_TINT = 0xFF91BD59;
-
     private final SchematicModel model;
     private final BlockState[] palette;
 
@@ -46,6 +46,11 @@ public final class SchematicView implements BlockAndTintGetter {
 
     SchematicModel model() {
         return model;
+    }
+
+    /** Every state the view can show. */
+    List<BlockState> states() {
+        return Arrays.stream(palette).distinct().toList();
     }
 
     boolean contains(BlockPos pos) {
@@ -102,6 +107,6 @@ public final class SchematicView implements BlockAndTintGetter {
 
     @Override
     public int getBlockTint(BlockPos pos, ColorResolver color) {
-        return DEFAULT_TINT;
+        return SchematicTints.tint(pos, color);
     }
 }
