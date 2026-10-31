@@ -8,6 +8,8 @@ import io.github.dirnei.mc.heavymatica.account.GameSessionJoin;
 import io.github.dirnei.mc.heavymatica.account.SessionJoin;
 import io.github.dirnei.mc.heavymatica.account.SessionStore;
 import io.github.dirnei.mc.heavymatica.cache.SchematicCache;
+import io.github.dirnei.mc.heavymatica.capture.CaptureController;
+import io.github.dirnei.mc.heavymatica.capture.CaptureRenderer;
 import io.github.dirnei.mc.heavymatica.cloud.client.ApiClient;
 import io.github.dirnei.mc.heavymatica.library.Library;
 import io.github.dirnei.mc.heavymatica.library.LocalLibrary;
@@ -68,6 +70,7 @@ public final class HeavymaticaClient {
     private static @Nullable Library library;
     private static @Nullable PlacementSession placements;
     private static @Nullable GhostTargeting targeting;
+    private static @Nullable CaptureController capture;
 
     public HeavymaticaClient(IEventBus modEventBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.CLIENT, HeavymaticaConfig.SPEC);
@@ -100,6 +103,11 @@ public final class HeavymaticaClient {
     /** Null before client setup. */
     public static @Nullable PlacementSession placements() {
         return placements;
+    }
+
+    /** Capture mode; null before client setup. */
+    public static @Nullable CaptureController capture() {
+        return capture;
     }
 
     /** The ghost under the crosshair; null before client setup. */
@@ -177,7 +185,9 @@ public final class HeavymaticaClient {
             targeting = new GhostTargeting(placements);
             targeting.register();
             new GhostPick(placements, targeting).register();
-            new RemoteInput(placements, HeavymaticaClient::openLibrary, HeavymaticaClient::openMaterials).register();
+            capture = new CaptureController(placements.capture(), HeavymaticaClient::library);
+            new RemoteInput(placements, HeavymaticaClient::openLibrary, HeavymaticaClient::openMaterials, capture).register();
+            new CaptureRenderer(placements.capture()).register();
             account.restore();
             library.loadStored();
         });

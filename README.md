@@ -3,6 +3,11 @@
 Schematics for Minecraft with a simple placement UI and a cloud library that follows you to every world and server.
 What is built and what comes next: [ROADMAP.md](ROADMAP.md).
 
+Builds made in the game can be saved as schematics: hold the remote, pick Capture on the wheel (V), right-click two
+corner blocks, then move the active corner with the arrows and numpad + / - (Shift: 10 blocks) and swap corners with
+Shift + scroll. Capture on the wheel saves the area as a local `.litematic` library entry, ready to upload. Export in
+the library writes any entry into `.minecraft/schematics/` for other tools.
+
 ## Layout
 
 ```

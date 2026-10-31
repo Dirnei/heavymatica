@@ -7,22 +7,33 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.Nullable;
 
-/** Asks for one line of text (a new name, folder or tags) and returns to the previous screen. */
-final class TextPromptScreen extends Screen {
+/** Asks for one line of text (a new name, folder or tags) and returns to the previous screen, or to the game. */
+public final class TextPromptScreen extends Screen {
 
-    private final Screen parent;
+    private final @Nullable Screen parent;
     private final Component hint;
     private final String initial;
+    private final @Nullable Component note;
     private final Consumer<String> onSave;
+    private final Runnable onCancel;
     private EditBox input;
 
     TextPromptScreen(Screen parent, Component title, Component hint, String initial, Consumer<String> onSave) {
+        this(parent, title, hint, initial, null, onSave, () -> { });
+    }
+
+    /** @param note a line shown under the input, such as a warning */
+    public TextPromptScreen(@Nullable Screen parent, Component title, Component hint, String initial, @Nullable Component note,
+                            Consumer<String> onSave, Runnable onCancel) {
         super(title);
         this.parent = parent;
         this.hint = hint;
         this.initial = initial;
+        this.note = note;
         this.onSave = onSave;
+        this.onCancel = onCancel;
     }
 
     @Override
@@ -38,18 +49,22 @@ final class TextPromptScreen extends Screen {
     }
 
     private void save() {
-        onSave.accept(input.getValue());
         minecraft.setScreen(parent);
+        onSave.accept(input.getValue());
     }
 
     @Override
     public void onClose() {
         minecraft.setScreen(parent);
+        onCancel.run();
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partial) {
         super.extractRenderState(graphics, mouseX, mouseY, partial);
         graphics.centeredText(font, title, width / 2, height / 2 - 30, 0xFFFFFFFF);
+        if (note != null) {
+            graphics.centeredText(font, note, width / 2, height / 2 + 46, 0xFFE0C040);
+        }
     }
 }

@@ -29,6 +29,12 @@ public final class RadialMenu {
         public static final Selection NONE = new Selection(State.NONE, "", Layers.Mode.OFF, false);
     }
 
+    /** Whether capture mode was on as the wheel opened, and how many corners were set. */
+    public record Capture(boolean on, int corners) {
+
+        public static final Capture OFF = new Capture(false, 0);
+    }
+
     /** The ghost opacity steps and the current ghost opacity as the wheel opened. */
     public record Opacity(List<Double> steps, double current) {
     }
@@ -52,6 +58,11 @@ public final class RadialMenu {
         LAYERS,
         MATERIALS,
         OPACITY,
+        START_CAPTURE,
+        CAPTURE,
+        SWAP_CORNER,
+        RESET_CORNERS,
+        CANCEL_CAPTURE,
         LAYERS_OFF,
         LAYERS_FROM_TO,
         LAYERS_FOLLOW,
@@ -83,7 +94,12 @@ public final class RadialMenu {
         LAYERS_FROM_TO,
         LAYERS_FOLLOW,
         OPEN_MATERIALS,
-        SET_OPACITY;
+        SET_OPACITY,
+        START_CAPTURE,
+        CAPTURE,
+        SWAP_CORNER,
+        RESET_CORNERS,
+        CANCEL_CAPTURE;
 
         /** The layer mode a layers command sets, or null for other commands. */
         public Layers.Mode layerMode() {
@@ -124,6 +140,7 @@ public final class RadialMenu {
     private final Selection selection;
     private final Opacity opacity;
     private final boolean bringBack;
+    private final Capture capture;
     private Page page = Page.MAIN;
 
     public RadialMenu(Mode mode, Selection selection, Opacity opacity) {
@@ -132,10 +149,15 @@ public final class RadialMenu {
 
     /** @param bringBack whether a finished placement can be brought back as the wheel opened */
     public RadialMenu(Mode mode, Selection selection, Opacity opacity, boolean bringBack) {
+        this(mode, selection, opacity, bringBack, Capture.OFF);
+    }
+
+    public RadialMenu(Mode mode, Selection selection, Opacity opacity, boolean bringBack, Capture capture) {
         this.mode = mode;
         this.selection = selection;
         this.opacity = opacity;
         this.bringBack = bringBack;
+        this.capture = capture;
     }
 
     public Mode mode() {
@@ -148,13 +170,16 @@ public final class RadialMenu {
 
     public List<Segment> segments() {
         return switch (page) {
-            case MAIN -> withBringBack(switch (selection.state()) {
-                case NONE -> List.of(new Segment(Entry.MATERIALS, false, false), segment(Entry.OPACITY), segment(Entry.LIBRARY));
+            case MAIN -> capture.on() ? List.of(new Segment(Entry.CAPTURE, capture.corners() == 2, false),
+                    new Segment(Entry.SWAP_CORNER, capture.corners() == 2, false), new Segment(Entry.RESET_CORNERS, capture.corners() > 0, false),
+                    segment(Entry.CANCEL_CAPTURE)) : withBringBack(switch (selection.state()) {
+                case NONE -> List.of(new Segment(Entry.MATERIALS, false, false), segment(Entry.OPACITY), segment(Entry.LIBRARY),
+                        segment(Entry.START_CAPTURE));
                 case FOLLOWING -> List.of(segment(Entry.CANCEL), segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY));
                 case ANCHORED -> List.of(segment(Entry.LOCK), segment(Entry.REMOVE), segment(Entry.MATERIALS), segment(Entry.OPACITY),
-                        segment(Entry.LIBRARY));
+                        segment(Entry.LIBRARY), segment(Entry.START_CAPTURE));
                 case LOCKED -> List.of(segment(Entry.UNLOCK), new Segment(Entry.IN_HAND, true, selection.inHand()), segment(Entry.LAYERS),
-                        segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY));
+                        segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY), segment(Entry.START_CAPTURE));
             });
             case OPACITY -> opacity.steps().stream()
                     .map(step -> new Segment(Entry.OPACITY_STEP, true, OpacitySteps.matches(step, opacity.current()), step))
@@ -177,7 +202,8 @@ public final class RadialMenu {
 
     public Label label() {
         return switch (page) {
-            case MAIN -> selection.state() == State.NONE ? new Label("heavymatica.wheel.none", "") : new Label("heavymatica.wheel.title", selection.name());
+            case MAIN -> capture.on() ? new Label("heavymatica.wheel.capture", "")
+                    : selection.state() == State.NONE ? new Label("heavymatica.wheel.none", "") : new Label("heavymatica.wheel.title", selection.name());
             case LAYERS -> new Label("heavymatica.wheel.layers", selection.name());
             case OPACITY -> new Label("heavymatica.wheel.opacity", "");
             case CONFIRM_REMOVE -> new Label("heavymatica.wheel.confirm.remove", selection.name());
@@ -226,6 +252,11 @@ public final class RadialMenu {
             case LAYERS -> turnTo(Page.LAYERS);
             case MATERIALS -> run(Command.OPEN_MATERIALS);
             case OPACITY -> turnTo(Page.OPACITY);
+            case START_CAPTURE -> run(Command.START_CAPTURE);
+            case CAPTURE -> run(Command.CAPTURE);
+            case SWAP_CORNER -> run(Command.SWAP_CORNER);
+            case RESET_CORNERS -> run(Command.RESET_CORNERS);
+            case CANCEL_CAPTURE -> run(Command.CANCEL_CAPTURE);
             case OPACITY_STEP -> new Outcome.Run(Command.SET_OPACITY, segment.value());
             case LAYERS_OFF -> run(Command.LAYERS_OFF);
             case LAYERS_FROM_TO -> run(Command.LAYERS_FROM_TO);

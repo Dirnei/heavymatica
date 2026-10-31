@@ -241,7 +241,7 @@ public final class RadialMenuScreen extends Screen {
         }
         if (hovered) {
             return switch (segment.entry()) {
-                case REMOVE, CANCEL, NO -> DANGER;
+                case REMOVE, CANCEL, CANCEL_CAPTURE, NO -> DANGER;
                 case YES, BRING_BACK -> CONFIRM;
                 default -> HOVERED;
             };
@@ -266,6 +266,10 @@ public final class RadialMenuScreen extends Screen {
             case MATERIALS -> Items.BRUSH;
             case OPACITY -> Items.TINTED_GLASS;
             case OPACITY_STEP -> Items.GLASS_PANE;
+            case START_CAPTURE, CAPTURE -> Items.STRUCTURE_BLOCK;
+            case SWAP_CORNER -> Items.COMPASS;
+            case RESET_CORNERS -> Items.BUCKET;
+            case CANCEL_CAPTURE -> Items.BARRIER;
             case LAYERS_OFF -> Items.GLASS;
             case LAYERS_FROM_TO -> Items.SCAFFOLDING;
             case LAYERS_FOLLOW -> Items.LEATHER_BOOTS;

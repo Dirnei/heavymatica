@@ -58,17 +58,24 @@ public final class LocalLibrary {
      * ({@link io.github.dirnei.mc.heavymatica.formats.SchematicRejectedException}).
      */
     public synchronized LocalEntry add(Path source) {
-        byte[] content = read(source);
+        String fileName = source.getFileName().toString();
+        int dot = fileName.lastIndexOf('.');
+        String name = dot > 0 ? fileName.substring(0, dot) : fileName;
+        String extension = dot > 0 ? fileName.substring(dot + 1).toLowerCase(Locale.ROOT) : "bin";
+        return add(read(source), name, extension);
+    }
+
+    /**
+     * Validates a file's content and adds it as a local entry named {@code name}. Content identical to an existing
+     * entry returns that entry. Rejected content leaves the library unchanged.
+     */
+    public synchronized LocalEntry add(byte[] content, String name, String extension) {
         SchematicModel model = SchematicReader.read(content);
         String sha256 = sha256(content);
         Optional<LocalEntry> existing = find(sha256);
         if (existing.isPresent()) {
             return existing.get();
         }
-        String fileName = source.getFileName().toString();
-        int dot = fileName.lastIndexOf('.');
-        String name = dot > 0 ? fileName.substring(0, dot) : fileName;
-        String extension = dot > 0 ? fileName.substring(dot + 1).toLowerCase(Locale.ROOT) : "bin";
         LocalEntry entry = new LocalEntry(sha256, name, extension, model.format().wireName(), model.width(), model.height(), model.length(),
                 model.blockTotal(), OffsetDateTime.now(clock));
         try {

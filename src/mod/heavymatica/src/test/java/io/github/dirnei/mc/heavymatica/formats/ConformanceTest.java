@@ -21,6 +21,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 class ConformanceTest {
 
     private static final Path CONFORMANCE = locate();
+
+    static Path conformance() {
+        return CONFORMANCE;
+    }
     private static final ObjectMapper JSON = new ObjectMapper();
 
     static Stream<String> fixtures() throws IOException {

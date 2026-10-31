@@ -26,6 +26,7 @@ final class DetailsPanel extends AbstractWidget {
 
     private static final int ROW = 10;
     static final int PLACE_WIDTH = 60;
+    static final int EXPORT_WIDTH = 60;
     private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final IntConsumer onVersion;
@@ -60,8 +61,8 @@ final class DetailsPanel extends AbstractWidget {
         }
         int x = getX() + 6;
         int y = getY() + 6;
-        // The Place button sits at the right of the name row.
-        graphics.text(font, CardGrid.ellipsize(font, entry.name(), width - 12 - PLACE_WIDTH - 4), x, y, 0xFFFFFFFF, false);
+        // The Export and Place buttons sit at the right of the name row.
+        graphics.text(font, CardGrid.ellipsize(font, entry.name(), width - 12 - PLACE_WIDTH - EXPORT_WIDTH - 8), x, y, 0xFFFFFFFF, false);
         y += 12;
         if (status != null) {
             graphics.text(font, status, x, y, 0xFFC0C0C0, false);

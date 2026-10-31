@@ -7,8 +7,10 @@ import io.github.dirnei.mc.heavymatica.cloud.model.Account;
 import io.github.dirnei.mc.heavymatica.cloud.model.OrganizeRequest;
 import io.github.dirnei.mc.heavymatica.cloud.model.SchematicDetails;
 import io.github.dirnei.mc.heavymatica.cloud.model.Version;
+import io.github.dirnei.mc.heavymatica.formats.SchematicFormat;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.formats.SchematicReader;
+import io.github.dirnei.mc.heavymatica.library.Exporter;
 import io.github.dirnei.mc.heavymatica.library.Library;
 import io.github.dirnei.mc.heavymatica.library.LibraryEntry;
 import io.github.dirnei.mc.heavymatica.library.LibraryItem;
@@ -58,6 +60,8 @@ public class LibraryScreen extends Screen {
     private @Nullable Button renameButton;
     private @Nullable Button deleteButton;
     private @Nullable Button placeButton;
+    private @Nullable Button exportButton;
+    private boolean exporting;
     private boolean placing;
     private final List<Runnable> subscriptions = new ArrayList<>();
 
@@ -121,6 +125,9 @@ public class LibraryScreen extends Screen {
         // Place sits on the details panel: drawn after it, and asked for clicks before it.
         placeButton = addRenderableWidget(Button.builder(Component.translatable("heavymatica.library.place"), button -> place())
                 .bounds(SIDEBAR + MARGIN * 2 + contentWidth - DetailsPanel.PLACE_WIDTH - 2, detailsTop + 2, DetailsPanel.PLACE_WIDTH, 20).build());
+        exportButton = addRenderableWidget(Button.builder(Component.translatable("heavymatica.library.export"), button -> export())
+                .bounds(SIDEBAR + MARGIN * 2 + contentWidth - DetailsPanel.PLACE_WIDTH - DetailsPanel.EXPORT_WIDTH - 6, detailsTop + 2,
+                        DetailsPanel.EXPORT_WIDTH, 20).build());
         addWidget(details);
 
         cloudActions.clear();
@@ -351,6 +358,83 @@ public class LibraryScreen extends Screen {
                 && !library.cached(sha256);
         placeButton.active = sha256 != null && !offlineUncached && !placing;
         placeButton.setTooltip(offlineUncached ? Tooltip.create(Component.translatable("heavymatica.library.needs_connection")) : null);
+        if (exportButton != null) {
+            exportButton.visible = selected != null;
+            exportButton.active = sha256 != null && !offlineUncached && !exporting;
+            exportButton.setTooltip(offlineUncached ? Tooltip.create(Component.translatable("heavymatica.library.needs_connection")) : null);
+        }
+    }
+
+    /** The chosen version's file: from the local library, or from the cache, downloading it first. */
+    private CompletableFuture<Path> chosenFile(LibraryEntry entry, int version, String sha256) {
+        if (entry.cloud()) {
+            return library.file(entry.id(), version, sha256);
+        }
+        LocalLibrary locals = library.local();
+        return locals.find(sha256).map(locals::file).map(CompletableFuture::completedFuture)
+                .orElseGet(() -> CompletableFuture.failedFuture(new IllegalStateException("The local entry is gone")));
+    }
+
+    /** The extension of the chosen version's file: the local entry's own, or the one its format's tools use. */
+    private String chosenExtension(LibraryEntry entry, String sha256) {
+        if (!entry.cloud()) {
+            return library.local().find(sha256).map(LocalLibrary.LocalEntry::extension).orElse("bin");
+        }
+        String format = selectedDetails == null ? entry.format() : selectedDetails.getVersions().stream()
+                .filter(candidate -> candidate.getNumber() == selectedVersion).map(candidate -> candidate.getFormat().getValue())
+                .findFirst().orElse(entry.format());
+        return SchematicFormat.ofWireName(format).map(SchematicFormat::extension).orElse("bin");
+    }
+
+    /** Writes the chosen version's file into {@code schematics/}, asking first when a file of that name exists. */
+    private void export() {
+        LibraryEntry entry = selected;
+        String sha256 = chosenSha256();
+        if (entry == null || sha256 == null || exporting) {
+            return;
+        }
+        String extension = chosenExtension(entry, sha256);
+        Exporter exporter = Exporter.schematicsFolder(minecraft.gameDirectory.toPath());
+        exporting = true;
+        updatePlaceButton();
+        showMessage(Component.translatable("heavymatica.library.loading"));
+        chosenFile(entry, selectedVersion, sha256).whenComplete((file, failure) -> minecraft.execute(() -> {
+            if (failure != null) {
+                exporting = false;
+                Heavymatica.LOGGER.warn("Exporting {} failed", entry.name(), failure);
+                showMessage(Component.translatable("heavymatica.library.action_failed"), true);
+                updatePlaceButton();
+                return;
+            }
+            if (!exporter.exists(entry.name(), extension)) {
+                writeExport(exporter, file, entry.name(), extension, Exporter.Conflict.OVERWRITE);
+                return;
+            }
+            showMessage(null);
+            minecraft.setScreen(new ExportConflictScreen(this, exporter.target(entry.name(), extension).getFileName().toString(), conflict -> writeExport(exporter, file, entry.name(), extension, conflict), () -> {
+                exporting = false;
+                updatePlaceButton();
+            }));
+        }));
+    }
+
+    private void writeExport(Exporter exporter, Path file, String name, String extension, Exporter.Conflict conflict) {
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                return exporter.export(file, name, extension, conflict);
+            } catch (java.io.IOException e) {
+                throw new java.io.UncheckedIOException(e);
+            }
+        }, Util.ioPool()).whenComplete((written, failure) -> minecraft.execute(() -> {
+            exporting = false;
+            if (failure != null) {
+                Heavymatica.LOGGER.warn("Writing the export of {} failed", name, failure);
+                showMessage(Component.translatable("heavymatica.library.export.failed"), true);
+            } else {
+                showMessage(Component.translatable("heavymatica.library.export.done", "schematics/" + written.getFileName()));
+            }
+            updatePlaceButton();
+        }));
     }
 
     /** Loads the chosen version (cache or download), reads it off the game thread, then closes and starts placing. */
@@ -361,17 +445,8 @@ public class LibraryScreen extends Screen {
             return;
         }
         int version = selectedVersion;
-        CompletableFuture<Path> file;
-        PlacementSource source;
-        if (entry.cloud()) {
-            file = library.file(entry.id(), version, sha256);
-            source = new PlacementSource.Cloud(entry.id(), version, sha256);
-        } else {
-            LocalLibrary locals = library.local();
-            file = locals.find(sha256).map(locals::file).map(CompletableFuture::completedFuture)
-                    .orElseGet(() -> CompletableFuture.failedFuture(new IllegalStateException("The local entry is gone")));
-            source = new PlacementSource.Local(sha256);
-        }
+        CompletableFuture<Path> file = chosenFile(entry, version, sha256);
+        PlacementSource source = entry.cloud() ? new PlacementSource.Cloud(entry.id(), version, sha256) : new PlacementSource.Local(sha256);
         placing = true;
         updatePlaceButton();
         showMessage(Component.translatable("heavymatica.library.loading"));

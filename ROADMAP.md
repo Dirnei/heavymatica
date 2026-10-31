@@ -112,6 +112,20 @@ change). `.blueprint` (Structurize) import was out of scope.
   - Later: picking from carried containers and chests, and targeting anchored or following placements.
 - Step 4 is done. **Next up: the web UIs (step 5), starting with `web-library`.**
 
+### Capture and export (done)
+
+- **Capture (change `schematic-capture`):** the wheel's Capture starts capture mode on the remote.
+  - Right-click sets corner 1, then corner 2; the corner just set is active. The arrows move the active corner
+    relative to the camera, numpad + / - up and down (Shift: 10), so the top needs no nerdpole. Shift + scroll (or an
+    unbound key, or the wheel) swaps the active corner; with both set, a right-click moves the active corner.
+  - Capture names the area (date and time prefilled) and saves it as a local `.litematic` entry: blocks as they are,
+    air as air, block entities as the client knows them (all of them in single player), no entities.
+  - Boxes past the format limits or reaching into unloaded chunks are refused; large captures run over several ticks
+    with progress in the overlay.
+- **Export:** the library writes a local entry or a cloud version unchanged into `.minecraft/schematics/`, asking
+  before it overwrites a file.
+- Later: ignoring air on a placement (a placement option next to material swaps), converting formats on export.
+
 ### 5. Web UIs
 
 Two separate web apps on the same cloud. They come before multiplayer sync and the machines addon: they only need the

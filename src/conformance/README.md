@@ -7,6 +7,7 @@ the two readers cannot drift apart. A fix to a reader starts with a new fixture.
 ```
 files/            sample files (generated, see below)
 files/real/       files exported by the real tools (Litematica, WorldEdit, structure blocks)
+files/written/    files written by Heavymatica's own writer
 expected/         one <path-under-files>.json per file
 generator/        generate.py, which writes files/ and expected/
 ```
@@ -68,3 +69,9 @@ reader, and its output is reproducible byte for byte. It rewrites `files/*` and 
 
 Put files exported by the real tools into `files/real/` and add a matching
 `expected/real/<name>.json`. These complement the generated files with whatever the tools actually write.
+
+## Written files
+
+`files/written/` holds files written by the mod's `LitematicaWriter`, so both readers are tested against the writer's
+real output. The mod's `WrittenFixtureTest` fails when the writer's output no longer matches the file; run it with
+`HEAVYMATICA_REGENERATE_WRITTEN=1` to rewrite the file. The expected JSON is written by hand, not by the writer.

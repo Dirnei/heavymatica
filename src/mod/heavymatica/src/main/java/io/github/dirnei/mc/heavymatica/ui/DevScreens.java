@@ -3,6 +3,12 @@ package io.github.dirnei.mc.heavymatica.ui;
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaClient;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
+import io.github.dirnei.mc.heavymatica.capture.CaptureBox;
+import io.github.dirnei.mc.heavymatica.capture.CaptureController;
+import io.github.dirnei.mc.heavymatica.capture.CaptureSession;
+import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
+import io.github.dirnei.mc.heavymatica.formats.SchematicReader;
+import io.github.dirnei.mc.heavymatica.library.LocalLibrary;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
 import io.github.dirnei.mc.heavymatica.placement.ComparisonState;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
@@ -14,6 +20,7 @@ import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
 import io.github.dirnei.mc.heavymatica.remote.PlacementOverlay;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenuScreen;
+import io.github.dirnei.mc.heavymatica.remote.RemoteInput;
 import io.github.dirnei.mc.heavymatica.remote.RemoteKeys;
 import io.github.dirnei.mc.heavymatica.remote.Remotes;
 import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting;
@@ -354,8 +361,95 @@ public final class DevScreens {
             case "logPlayer" -> Heavymatica.LOGGER.info("Dev player: at {}, yaw {}, pitch {}, input {} {}", minecraft.player.position(), minecraft.player.getYRot(),
                     minecraft.player.getXRot(), minecraft.player.input.getClass().getSimpleName(), minecraft.player.input.keyPresses);
             case "logSpecialGeometry" -> logSpecialGeometry();
+            case "capture" -> {
+                CaptureController capture = HeavymaticaClient.capture();
+                switch (argument) {
+                    case "start" -> capture.start();
+                    case "capture" -> capture.capture();
+                    case "swap" -> capture.swap();
+                    case "reset" -> capture.reset();
+                    case "cancel" -> capture.cancel();
+                    default -> Heavymatica.LOGGER.warn("Unknown capture command {}", argument);
+                }
+            }
+            case "shift" -> RemoteInput.holdShiftForDevelopment(Boolean.parseBoolean(argument));
+            case "gameScroll" -> gameScroll(minecraft, Double.parseDouble(argument));
+            case "logCapture" -> logCapture(minecraft);
+            case "logLocal" -> logLocal();
+            case "logEntries" -> HeavymaticaClient.library().entries().forEach(entry -> Heavymatica.LOGGER.info(
+                    "Dev entry: {} {} {} v{} thumbnail {} cached {}", entry.name(), entry.kind(), entry.format(), entry.version(), entry.hasThumbnail(),
+                    HeavymaticaClient.library().cached(entry.sha256())));
+            case "alignSelected" -> {
+                String[] parts = argument.split(",");
+                alignSelected(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
+            }
+            case "lockSelected" -> HeavymaticaClient.placements().controller().lock();
             case "quit" -> minecraft.stop();
             default -> Heavymatica.LOGGER.warn("Unknown dev screen step {}", step);
+        }
+    }
+
+    /** Scrolls through the mouse handler's own scroll callback, as the mouse wheel does. */
+    private static void gameScroll(Minecraft minecraft, double amount) {
+        try {
+            java.lang.reflect.Method onScroll = net.minecraft.client.MouseHandler.class.getDeclaredMethod("onScroll", long.class, double.class, double.class);
+            onScroll.setAccessible(true);
+            onScroll.invoke(minecraft.mouseHandler, minecraft.getWindow().handle(), 0.0, amount);
+        } catch (ReflectiveOperationException e) {
+            Heavymatica.LOGGER.error("Dev scroll failed", e);
+        }
+    }
+
+    private static void logCapture(Minecraft minecraft) {
+        CaptureController capture = HeavymaticaClient.capture();
+        CaptureSession session = capture.session();
+        Heavymatica.LOGGER.info("Dev capture: on {}, corners {}, first {}, second {}, second active {}, bounds {}, progress {}, hotbar slot {}", session.on(),
+                session.box().map(CaptureBox::corners).orElse(0), session.box().flatMap(CaptureBox::first).orElse(null),
+                session.box().flatMap(CaptureBox::second).orElse(null), session.box().map(CaptureBox::secondActive).orElse(false),
+                session.box().flatMap(CaptureBox::bounds).orElse(null), session.progress().orElse(null),
+                minecraft.player == null ? -1 : minecraft.player.getInventory().getSelectedSlot());
+    }
+
+    private static void logLocal() {
+        LocalLibrary local = HeavymaticaClient.library().local();
+        for (LocalLibrary.LocalEntry entry : local.entries()) {
+            Heavymatica.LOGGER.info("Dev local: {} {} {} x {} x {} blocks {} file {}", entry.name(), entry.format(), entry.width(), entry.height(), entry.length(),
+                    entry.blockTotal(), local.file(entry).getFileName());
+        }
+        local.entries().stream().max(java.util.Comparator.comparing(LocalLibrary.LocalEntry::importedAt)).ifPresent(entry -> {
+            SchematicModel model = SchematicReader.read(local.file(entry));
+            Heavymatica.LOGGER.info("Dev local newest {}: data version {}, palette {}", entry.name(), model.dataVersion(), model.palette());
+            model.blockEntities().forEach((pos, tag) -> Heavymatica.LOGGER.info("Dev local block entity at {}: {} keys {} items {} front text {}", pos,
+                    tag.string("id"), tag.entries().keySet(), tag.list("Items") == null ? 0 : tag.list("Items").items().size(), tag.get("front_text")));
+        });
+    }
+
+    /** Moves the selected placement until its box starts at the given corner. */
+    private static void alignSelected(int x, int y, int z) {
+        PlacementSession session = HeavymaticaClient.placements();
+        Placement placement = session.placements().selected().orElse(null);
+        if (placement == null) {
+            return;
+        }
+        PlacementTransform.Bounds bounds = PlacementTransform.bounds(placement);
+        // Yaw -90 faces east (+x), 0 faces south (+z).
+        for (int i = bounds.minX(); i < x; i++) {
+            session.controller().move(PlacementTransform.Relative.FORWARD, -90, false);
+        }
+        for (int i = bounds.minX(); i > x; i--) {
+            session.controller().move(PlacementTransform.Relative.BACK, -90, false);
+        }
+        for (int i = bounds.minZ(); i < z; i++) {
+            session.controller().move(PlacementTransform.Relative.FORWARD, 0, false);
+        }
+        for (int i = bounds.minZ(); i > z; i--) {
+            session.controller().move(PlacementTransform.Relative.BACK, 0, false);
+        }
+        for (int i = bounds.minY(); i < y; i++) {
+            session.controller().vertical(1, false);
+        }
+        for (int i = bounds.minY(); i > y; i--) {
+            session.controller().vertical(-1, false);
         }
     }
 

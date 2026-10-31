@@ -4,6 +4,8 @@ import com.mojang.blaze3d.platform.InputConstants;
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaClient;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
+import io.github.dirnei.mc.heavymatica.capture.CaptureBox;
+import io.github.dirnei.mc.heavymatica.capture.CaptureSession;
 import io.github.dirnei.mc.heavymatica.placement.BlockEquivalents;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
 import io.github.dirnei.mc.heavymatica.placement.ComparisonState;
@@ -63,6 +65,7 @@ public final class PlacementOverlay {
     public static final int MISTAKE_CYAN = 0xFF40E8F8;
     private static final int MISTAKE_MAGENTA = 0xFFFF60FF;
     public static final int FINISHING_YELLOW = 0xFFFFF040;
+    private static final int CAPTURE = 0xFF80FF80;
     private static final int SHORTAGE_LINES = 3;
 
     /** One overlay line: an optional key name in its own colour, then text. */
@@ -124,6 +127,10 @@ public final class PlacementOverlay {
 
     static List<Line> lines(Minecraft minecraft, PlacementSession session) {
         List<Line> lines = new ArrayList<>();
+        if (session.capture().on()) {
+            captureLines(minecraft, session.capture(), lines);
+            return lines;
+        }
         Optional<Placement> selected = session.placements().selected();
         if (selected.isEmpty()) {
             lines.add(Line.text(Component.translatable("heavymatica.overlay.none"), TEXT));
@@ -217,6 +224,45 @@ public final class PlacementOverlay {
         boundHint(lines, RemoteKeys.REMOVE, placement.following() ? "heavymatica.overlay.hint.cancel" : "heavymatica.overlay.hint.remove");
         boundHint(lines, RemoteKeys.MATERIALS, "heavymatica.overlay.hint.materials");
         return lines;
+    }
+
+    private static void captureLines(Minecraft minecraft, CaptureSession capture, List<Line> lines) {
+        CaptureBox box = capture.box().orElseThrow();
+        lines.add(Line.text(Component.translatable("heavymatica.overlay.capture"), CAPTURE));
+        Optional<CaptureBox.Bounds> bounds = box.bounds();
+        if (bounds.isPresent()) {
+            CaptureBox.Bounds size = bounds.get();
+            lines.add(Line.text(Component.translatable(size.withinLimits() ? "heavymatica.overlay.capture.size" : "heavymatica.overlay.capture.too_large",
+                    size.width(), size.height(), size.length()), size.withinLimits() ? TEXT : WARNING));
+        }
+        box.active().ifPresent(corner -> lines.add(Line.text(Component.translatable(box.secondActive()
+                ? "heavymatica.overlay.capture.corner2" : "heavymatica.overlay.capture.corner1", corner.x(), corner.y(), corner.z()), MUTED)));
+        Optional<CaptureSession.Progress> progress = capture.progress();
+        if (progress.isPresent()) {
+            lines.add(Line.text(progress.get().saving() ? Component.translatable("heavymatica.overlay.capture.saving")
+                    : Component.translatable("heavymatica.overlay.capture.reading", (int) Math.floor(progress.get().read() * 100)), TEXT));
+            return;
+        }
+        if (HeavymaticaConfig.overlayCompact()) {
+            return;
+        }
+        lines.add(SEPARATOR);
+        lines.add(hint(minecraft.options.keyUse, box.corners() == 0 ? "heavymatica.overlay.hint.corner1"
+                : box.corners() == 1 ? "heavymatica.overlay.hint.corner2" : "heavymatica.overlay.hint.move_corner_click"));
+        if (box.corners() > 0) {
+            boolean arrows = RemoteKeys.MOVE_FORWARD.isDefault() && RemoteKeys.MOVE_BACK.isDefault() && RemoteKeys.MOVE_LEFT.isDefault()
+                    && RemoteKeys.MOVE_RIGHT.isDefault();
+            lines.add(new Line(arrows ? Component.translatable("heavymatica.overlay.key.arrows")
+                    : keys(RemoteKeys.MOVE_FORWARD, RemoteKeys.MOVE_BACK, RemoteKeys.MOVE_LEFT, RemoteKeys.MOVE_RIGHT),
+                    Component.translatable("heavymatica.overlay.hint.move_corner"), TEXT));
+            lines.add(new Line(keys(RemoteKeys.MOVE_UP, RemoteKeys.MOVE_DOWN), Component.translatable("heavymatica.overlay.hint.corner_up_down"), TEXT));
+        }
+        if (box.corners() == 2) {
+            lines.add(new Line(RemoteKeys.SWAP_CORNER.isUnbound() ? Component.translatable("heavymatica.overlay.key.shift_scroll",
+                    minecraft.options.keyShift.getTranslatedKeyMessage()) : name(RemoteKeys.SWAP_CORNER),
+                    Component.translatable("heavymatica.overlay.hint.swap_corner"), TEXT));
+        }
+        lines.add(hint(RemoteKeys.WHEEL, "heavymatica.overlay.hint.capture_menu"));
     }
 
     private static Component layersText(Placement placement) {

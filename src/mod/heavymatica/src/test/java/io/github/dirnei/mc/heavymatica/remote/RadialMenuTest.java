@@ -42,9 +42,10 @@ class RadialMenuTest {
 
     @Test
     void bringBackComesFirstInEveryStateAfterAFinish() {
-        assertEquals(List.of(Entry.BRING_BACK, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY),
+        assertEquals(List.of(Entry.BRING_BACK, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
                 entries(new RadialMenu(Mode.HOLD, Selection.NONE, OPACITY, true)));
-        assertEquals(List.of(Entry.BRING_BACK, Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY),
+        assertEquals(List.of(Entry.BRING_BACK, Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY,
+                        Entry.START_CAPTURE),
                 entries(new RadialMenu(Mode.HOLD, LOCKED, OPACITY, true)));
     }
 
@@ -56,10 +57,11 @@ class RadialMenuTest {
 
     @Test
     void segmentsFollowTheState() {
-        assertEquals(List.of(Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY), entries(menu(Mode.HOLD, Selection.NONE)));
+        assertEquals(List.of(Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE), entries(menu(Mode.HOLD, Selection.NONE)));
         assertEquals(List.of(Entry.CANCEL, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY), entries(menu(Mode.HOLD, FOLLOWING)));
-        assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY), entries(menu(Mode.HOLD, ANCHORED)));
-        assertEquals(List.of(Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY),
+        assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
+                entries(menu(Mode.HOLD, ANCHORED)));
+        assertEquals(List.of(Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
                 entries(menu(Mode.HOLD, LOCKED)));
     }
 
@@ -246,5 +248,48 @@ class RadialMenuTest {
     void labels() {
         assertEquals(new Label("heavymatica.wheel.none", ""), menu(Mode.HOLD, Selection.NONE).label());
         assertEquals(new Label("heavymatica.wheel.title", "Castle Gate"), menu(Mode.HOLD, ANCHORED).label());
+    }
+
+    private static RadialMenu capturing(Mode mode, int corners) {
+        return new RadialMenu(mode, ANCHORED, OPACITY, true, new RadialMenu.Capture(true, corners));
+    }
+
+    @Test
+    void captureStartsCaptureModeWithoutAFollowingPlacement() {
+        RadialMenu menu = menu(Mode.TOGGLE, ANCHORED);
+        assertEquals(run(Command.START_CAPTURE), menu.click(index(menu, Entry.START_CAPTURE)));
+        assertEquals(-1, index(menu(Mode.HOLD, FOLLOWING), Entry.START_CAPTURE));
+    }
+
+    @Test
+    void captureWheelShowsOnlyTheCaptureSegments() {
+        RadialMenu none = capturing(Mode.HOLD, 0);
+        assertEquals(List.of(Entry.CAPTURE, Entry.SWAP_CORNER, Entry.RESET_CORNERS, Entry.CANCEL_CAPTURE), entries(none));
+        assertEquals(List.of(false, false, false, true), none.segments().stream().map(Segment::enabled).toList());
+        assertEquals(List.of(false, false, true, true), capturing(Mode.HOLD, 1).segments().stream().map(Segment::enabled).toList());
+        assertEquals(List.of(true, true, true, true), capturing(Mode.HOLD, 2).segments().stream().map(Segment::enabled).toList());
+    }
+
+    @Test
+    void greyedOutCaptureSegmentsDoNothing() {
+        RadialMenu toggle = capturing(Mode.TOGGLE, 0);
+        assertEquals(Outcome.STAY, toggle.click(index(toggle, Entry.CAPTURE)));
+        assertEquals(Outcome.STAY, toggle.click(index(toggle, Entry.SWAP_CORNER)));
+        assertEquals(Outcome.STAY, toggle.click(index(toggle, Entry.RESET_CORNERS)));
+    }
+
+    @Test
+    void captureSegmentsRun() {
+        RadialMenu menu = capturing(Mode.TOGGLE, 2);
+        assertEquals(run(Command.CAPTURE), menu.click(index(menu, Entry.CAPTURE)));
+        assertEquals(run(Command.SWAP_CORNER), menu.click(index(menu, Entry.SWAP_CORNER)));
+        assertEquals(run(Command.RESET_CORNERS), menu.click(index(menu, Entry.RESET_CORNERS)));
+        assertEquals(run(Command.CANCEL_CAPTURE), menu.click(index(menu, Entry.CANCEL_CAPTURE)));
+        assertEquals(run(Command.CANCEL_CAPTURE), capturing(Mode.HOLD, 0).release(3));
+    }
+
+    @Test
+    void captureWheelHasItsOwnLabel() {
+        assertEquals(new Label("heavymatica.wheel.capture", ""), capturing(Mode.HOLD, 1).label());
     }
 }

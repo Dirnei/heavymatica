@@ -1,0 +1,29 @@
+{
+  "note": "Written by Heavymatica's Litematica writer: one region, stairs, air, a modded block and a chest with an item.",
+  "format": "litematica",
+  "size": [
+    3,
+    2,
+    4
+  ],
+  "dataVersion": 4671,
+  "paletteDigest": "d731304724510383f985ebdb6b9539300408712556753701bd54d3d1e5cf5245",
+  "blockTotal": 14,
+  "blockCounts": {
+    "minecraft:chest": 1,
+    "minecraft:oak_stairs": 1,
+    "minecraft:stone": 11,
+    "servus_foundation:utility_duct": 1
+  },
+  "blockEntities": [
+    {
+      "pos": [
+        1,
+        0,
+        1
+      ],
+      "id": "minecraft:chest"
+    }
+  ],
+  "skippedEntities": 0
+}

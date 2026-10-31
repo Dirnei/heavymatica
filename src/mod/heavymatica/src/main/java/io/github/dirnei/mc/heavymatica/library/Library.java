@@ -196,6 +196,13 @@ public final class Library {
         return account.client().call(apis -> apis.schematics().deleteVersion(schematicId, version)).thenCompose(ignored -> refresh());
     }
 
+    /** Adds a file's content as a local-only entry; rejected content changes nothing. */
+    public LocalLibrary.LocalEntry addLocal(byte[] content, String name, String extension) {
+        LocalLibrary.LocalEntry entry = local.add(content, name, extension);
+        changed();
+        return entry;
+    }
+
     /** Renames a local-only entry; works signed out. */
     public void renameLocal(String sha256, String name) {
         local.rename(sha256, name);

@@ -1,6 +1,7 @@
 package io.github.dirnei.mc.heavymatica.remote;
 
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
+import io.github.dirnei.mc.heavymatica.capture.CaptureController;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementController;
 import io.github.dirnei.mc.heavymatica.placement.PlacementController.Target;
@@ -38,17 +39,21 @@ public final class RemoteInput {
     private final PlacementSession session;
     private final Runnable openLibrary;
     private final Runnable openMaterials;
+    private final CaptureController capture;
     private final Map<KeyMapping, Integer> heldTicks = new HashMap<>();
     private boolean useHandled;
+    private static boolean shiftHeldForDevelopment;
 
-    public RemoteInput(PlacementSession session, Runnable openLibrary, Runnable openMaterials) {
+    public RemoteInput(PlacementSession session, Runnable openLibrary, Runnable openMaterials, CaptureController capture) {
         this.session = session;
         this.openLibrary = openLibrary;
         this.openMaterials = openMaterials;
+        this.capture = capture;
     }
 
     public void register() {
         NeoForge.EVENT_BUS.addListener(this::interaction);
+        NeoForge.EVENT_BUS.addListener(this::scroll);
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Pre event) -> claimSharedKeys());
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> tick());
     }
@@ -91,6 +96,10 @@ public final class RemoteInput {
             return;
         }
         useHandled = true;
+        if (capture.session().on()) {
+            capture.click();
+            return;
+        }
         LocalPlayer player = minecraft.player;
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getViewVector(1.0F);
@@ -124,8 +133,30 @@ public final class RemoteInput {
         }
     }
 
+    /** Development aid: scripts can't hold physical keys, so this makes Shift count as held. */
+    public static void holdShiftForDevelopment(boolean held) {
+        shiftHeldForDevelopment = held;
+    }
+
+    private static boolean shift(Minecraft minecraft) {
+        return minecraft.hasShiftDown() || shiftHeldForDevelopment;
+    }
+
+    /** Shift + scroll swaps the active corner in capture mode, instead of changing the hotbar slot. */
+    private void scroll(InputEvent.MouseScrollingEvent event) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!capture.session().on() || minecraft.player == null || minecraft.screen != null || !Remotes.held() || !shift(minecraft)) {
+            return;
+        }
+        event.setCanceled(true);
+        if (event.getScrollDeltaY() != 0) {
+            capture.swap();
+        }
+    }
+
     private void tick() {
         Minecraft minecraft = Minecraft.getInstance();
+        capture.tick();
         if (!minecraft.options.keyUse.isDown()) {
             useHandled = false;
         }
@@ -137,6 +168,13 @@ public final class RemoteInput {
             });
             heldTicks.clear();
             return;
+        }
+        if (capture.session().on()) {
+            captureKeys(minecraft);
+            return;
+        }
+        while (RemoteKeys.SWAP_CORNER.consumeClick()) {
+            // Only capture mode has corners.
         }
         PlacementController controller = session.controller();
         controller.follow(crosshairTarget(), dimension());
@@ -189,6 +227,35 @@ public final class RemoteInput {
         }
     }
 
+    /** In capture mode the arrows and numpad + / - move the active corner; the other placement keys do nothing. */
+    private void captureKeys(Minecraft minecraft) {
+        boolean wheel = false;
+        while (RemoteKeys.WHEEL.consumeClick()) {
+            wheel = true;
+        }
+        if (wheel) {
+            openWheel(minecraft.player, session.placements().selected().orElse(null));
+            return;
+        }
+        boolean shift = shift(minecraft);
+        double yaw = minecraft.player.getYRot();
+        repeating(RemoteKeys.MOVE_FORWARD, () -> capture.move(Relative.FORWARD, yaw, shift));
+        repeating(RemoteKeys.MOVE_BACK, () -> capture.move(Relative.BACK, yaw, shift));
+        repeating(RemoteKeys.MOVE_LEFT, () -> capture.move(Relative.LEFT, yaw, shift));
+        repeating(RemoteKeys.MOVE_RIGHT, () -> capture.move(Relative.RIGHT, yaw, shift));
+        repeating(RemoteKeys.MOVE_UP, () -> capture.vertical(1, shift));
+        repeating(RemoteKeys.MOVE_DOWN, () -> capture.vertical(-1, shift));
+        while (RemoteKeys.SWAP_CORNER.consumeClick()) {
+            capture.swap();
+        }
+        for (KeyMapping ignored : new KeyMapping[] {RemoteKeys.ROTATE, RemoteKeys.MIRROR, RemoteKeys.REMOVE, RemoteKeys.LOCK, RemoteKeys.IN_HAND,
+                RemoteKeys.MATERIALS, RemoteKeys.CYCLE_LAYERS}) {
+            while (ignored.consumeClick()) {
+                // Drop presses; no placement changes while capturing.
+            }
+        }
+    }
+
     /**
      * On a locked placement up / down and numpad + / - work on its layers; left / right, rotate, mirror and remove do
      * nothing.
@@ -218,8 +285,11 @@ public final class RemoteInput {
                     case ANCHORED -> RadialMenu.State.ANCHORED;
                     case LOCKED -> RadialMenu.State.LOCKED;
                 }, selected.name(), selected.layers().mode(), selected.inHand());
+        RadialMenu.Capture captureState = capture.session().box()
+                .map(box -> new RadialMenu.Capture(true, capture.session().capturing() ? 0 : box.corners())).orElse(RadialMenu.Capture.OFF);
         Minecraft.getInstance().setScreen(new RadialMenuScreen(new RadialMenu(HeavymaticaConfig.wheelMode(), selection,
-                new RadialMenu.Opacity(HeavymaticaConfig.ghostOpacitySteps(), HeavymaticaConfig.ghostOpacity()), session.canBringBack()), this::run, player.input.keyPresses));
+                new RadialMenu.Opacity(HeavymaticaConfig.ghostOpacitySteps(), HeavymaticaConfig.ghostOpacity()), session.canBringBack(), captureState),
+                this::run, player.input.keyPresses));
     }
 
     /** Runs a wheel command; the wheel has closed already. */
@@ -237,6 +307,11 @@ public final class RemoteInput {
             case LAYERS_OFF, LAYERS_FROM_TO, LAYERS_FOLLOW -> session.placements().selected()
                     .ifPresent(placement -> controller.setLayerMode(command.layerMode(), PlacementSession.feetLayer(placement)));
             case SET_OPACITY -> HeavymaticaConfig.setGhostOpacity(run.value());
+            case START_CAPTURE -> capture.start();
+            case CAPTURE -> capture.capture();
+            case SWAP_CORNER -> capture.swap();
+            case RESET_CORNERS -> capture.reset();
+            case CANCEL_CAPTURE -> capture.cancel();
         }
     }
 

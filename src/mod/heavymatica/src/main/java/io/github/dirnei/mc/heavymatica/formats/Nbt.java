@@ -1,20 +1,25 @@
 package io.github.dirnei.mc.heavymatica.formats;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipException;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Big-endian (Java edition) NBT, only the shapes schematic readers need. Independent of Minecraft: its limits must
+ * Big-endian (Java edition) NBT, read and written. Independent of Minecraft: its limits must
  * match the cloud's reader exactly, and the formats run without the game.
  */
 public final class Nbt {
@@ -34,7 +39,8 @@ public final class Nbt {
     public record Number(long value, int type) implements Tag {
     }
 
-    public record Floating(double value) implements Tag {
+    /** @param type {@code FLOAT} or {@code DOUBLE} */
+    public record Floating(double value, int type) implements Tag {
     }
 
     public record Text(String value) implements Tag {
@@ -99,6 +105,108 @@ public final class Nbt {
         }
     }
 
+    /** Writes a gzip-compressed root compound with an empty name. The same tag always gives the same bytes. */
+    public static void writeRoot(Compound root, OutputStream output) throws IOException {
+        GZIPOutputStream gzip = new GZIPOutputStream(output, 64 * 1024);
+        writeUncompressed(root, gzip);
+        gzip.finish();
+    }
+
+    public static byte[] writeRoot(Compound root) {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try {
+            writeRoot(root, bytes);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return bytes.toByteArray();
+    }
+
+    /** Writes a root compound with an empty name, without compression. */
+    public static void writeUncompressed(Compound root, OutputStream output) throws IOException {
+        DataOutputStream data = new DataOutputStream(new BufferedOutputStream(output, 64 * 1024));
+        data.writeByte(COMPOUND);
+        writeString(data, "");
+        writePayload(data, root);
+        data.flush();
+    }
+
+    /** The NBT type ID of a tag. */
+    public static int typeOf(Tag tag) {
+        return switch (tag) {
+            case Number number -> number.type();
+            case Floating floating -> floating.type();
+            case Text ignored -> STRING;
+            case ByteArray ignored -> BYTE_ARRAY;
+            case IntArray ignored -> INT_ARRAY;
+            case LongArray ignored -> LONG_ARRAY;
+            case ListTag ignored -> LIST;
+            case Compound ignored -> COMPOUND;
+        };
+    }
+
+    private static void writePayload(DataOutputStream data, Tag tag) throws IOException {
+        switch (tag) {
+            case Number number -> {
+                switch (number.type()) {
+                    case BYTE -> data.writeByte((int) number.value());
+                    case SHORT -> data.writeShort((int) number.value());
+                    case INT -> data.writeInt((int) number.value());
+                    case LONG -> data.writeLong(number.value());
+                    default -> throw new IllegalArgumentException("Not a number type: " + number.type());
+                }
+            }
+            case Floating floating -> {
+                if (floating.type() == FLOAT) {
+                    data.writeFloat((float) floating.value());
+                } else {
+                    data.writeDouble(floating.value());
+                }
+            }
+            case Text text -> writeString(data, text.value());
+            case ByteArray array -> {
+                data.writeInt(array.value().length);
+                data.write(array.value());
+            }
+            case IntArray array -> {
+                data.writeInt(array.value().length);
+                for (int value : array.value()) {
+                    data.writeInt(value);
+                }
+            }
+            case LongArray array -> {
+                data.writeInt(array.value().length);
+                for (long value : array.value()) {
+                    data.writeLong(value);
+                }
+            }
+            case ListTag list -> {
+                data.writeByte(list.items().isEmpty() ? list.itemType() : typeOf(list.items().getFirst()));
+                data.writeInt(list.items().size());
+                for (Tag item : list.items()) {
+                    writePayload(data, item);
+                }
+            }
+            case Compound compound -> {
+                for (Map.Entry<String, Tag> entry : compound.entries().entrySet()) {
+                    data.writeByte(typeOf(entry.getValue()));
+                    writeString(data, entry.getKey());
+                    writePayload(data, entry.getValue());
+                }
+                data.writeByte(END);
+            }
+        }
+    }
+
+    private static void writeString(DataOutputStream data, String value) throws IOException {
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length > 0xFFFF) {
+            throw new IllegalArgumentException("A string is longer than NBT allows.");
+        }
+        data.writeShort(bytes.length);
+        data.write(bytes);
+    }
+
     private static Tag readPayload(DataInputStream data, int type, int depth) throws IOException {
         if (depth > MAX_DEPTH) {
             throw SchematicRejectedException.malformed("NBT is nested deeper than " + MAX_DEPTH + " levels.");
@@ -108,8 +216,8 @@ public final class Nbt {
             case SHORT -> new Number(data.readShort(), type);
             case INT -> new Number(data.readInt(), type);
             case LONG -> new Number(data.readLong(), type);
-            case FLOAT -> new Floating(data.readFloat());
-            case DOUBLE -> new Floating(data.readDouble());
+            case FLOAT -> new Floating(data.readFloat(), type);
+            case DOUBLE -> new Floating(data.readDouble(), type);
             case BYTE_ARRAY -> new ByteArray(readBytes(data, length(data, 1)));
             case STRING -> new Text(readString(data));
             case LIST -> readList(data, depth);

@@ -60,7 +60,7 @@ public final class PlacementTransform {
         LEFT,
         RIGHT;
 
-        Facing resolve(Facing facing) {
+        public Facing resolve(Facing facing) {
             return switch (this) {
                 case FORWARD -> facing;
                 case BACK -> facing.opposite();

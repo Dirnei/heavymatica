@@ -1,6 +1,7 @@
 package io.github.dirnei.mc.heavymatica.placement;
 
 import io.github.dirnei.mc.heavymatica.Heavymatica;
+import io.github.dirnei.mc.heavymatica.capture.CaptureSession;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.formats.SchematicReader;
 import io.github.dirnei.mc.heavymatica.library.Library;
@@ -48,6 +49,7 @@ public final class PlacementSession {
     private final Comparisons comparisons = new Comparisons();
     private final Materials materials = new Materials();
     private final Finishes finishes = new Finishes();
+    private final CaptureSession capture = new CaptureSession();
     private final List<Consumer<Placement>> finishListeners = new CopyOnWriteArrayList<>();
     private final GhostRenderer renderer;
     private final Map<String, SchematicModel> models = new HashMap<>();
@@ -79,6 +81,10 @@ public final class PlacementSession {
 
     public PlacementController controller() {
         return controller;
+    }
+
+    public CaptureSession capture() {
+        return capture;
     }
 
     /** Subscribes to finished placements, which are already removed when the listener runs. */
@@ -192,6 +198,7 @@ public final class PlacementSession {
             return;
         }
         inWorld = false;
+        capture.end();
         store.close();
         placements.replaceAll(List.of());
         models.clear();
@@ -203,6 +210,8 @@ public final class PlacementSession {
     }
 
     private void tick() {
+        Minecraft minecraft = Minecraft.getInstance();
+        capture.tick(minecraft.level == null ? "" : minecraft.level.dimension().identifier().toString());
         store.tick(System.currentTimeMillis());
         meshes.sweep(placements.all(), this::model);
         comparisons.tick(placements.all(), this::model);

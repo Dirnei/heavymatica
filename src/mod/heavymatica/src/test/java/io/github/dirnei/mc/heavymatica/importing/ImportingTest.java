@@ -88,6 +88,28 @@ class ImportingTest {
     }
 
     @Test
+    void content_is_added_under_the_given_name() throws Exception {
+        byte[] content = Files.readAllBytes(copy("house.litematica-v7.litematic", directory.resolve("source.litematic")));
+
+        LocalLibrary.LocalEntry entry = local.add(content, "Starter Hut", "litematic");
+
+        assertEquals("Starter Hut", entry.name());
+        assertEquals("litematica", entry.format());
+        assertArrayEquals(content, Files.readAllBytes(local.file(entry)));
+        assertEquals(List.of(entry), local.entries());
+    }
+
+    @Test
+    void rejected_content_leaves_the_library_unchanged() throws Exception {
+        byte[] content = Files.readAllBytes(copy("size-mismatch.litematic", directory.resolve("bad.litematic")));
+
+        assertThrows(io.github.dirnei.mc.heavymatica.formats.SchematicRejectedException.class, () -> local.add(content, "Bad", "litematic"));
+
+        assertEquals(List.of(), local.entries());
+        assertTrue(!Files.exists(directory.resolve("local")) || Files.list(directory.resolve("local")).findAny().isEmpty());
+    }
+
+    @Test
     void a_local_entry_keeps_working_after_its_source_is_deleted() throws Exception {
         Path source = copy("house.nbt", directory.resolve("house.nbt"));
         LocalLibrary.LocalEntry entry = importer().importAll(List.of(source)).getFirst().entry();

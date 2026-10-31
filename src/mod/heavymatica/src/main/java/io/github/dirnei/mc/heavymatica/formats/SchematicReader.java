@@ -81,7 +81,7 @@ public final class SchematicReader {
     }
 
     /** A block entity in canonical form: its data with the block entity ID under {@code id}. */
-    static Nbt.Compound blockEntity(String id, Map<String, Nbt.Tag> data) {
+    public static Nbt.Compound blockEntity(String id, Map<String, Nbt.Tag> data) {
         LinkedHashMap<String, Nbt.Tag> entries = new LinkedHashMap<>();
         entries.put("id", new Nbt.Text(id));
         data.forEach((name, tag) -> {

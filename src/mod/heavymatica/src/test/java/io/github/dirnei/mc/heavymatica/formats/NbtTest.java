@@ -19,31 +19,7 @@ class NbtTest {
 
     @Test
     void reads_every_tag_type() throws IOException {
-        byte[] bytes = root(out -> {
-            tag(out, Nbt.BYTE, "byte").writeByte(0xFE);
-            tag(out, Nbt.SHORT, "short").writeShort(-2);
-            tag(out, Nbt.INT, "int").writeInt(123_456);
-            tag(out, Nbt.LONG, "long").writeLong(-9_000_000_000L);
-            tag(out, Nbt.FLOAT, "float").writeFloat(1.5f);
-            tag(out, Nbt.DOUBLE, "double").writeDouble(-2.25);
-            tag(out, Nbt.BYTE_ARRAY, "bytes").writeInt(3);
-            out.write(new byte[] {1, 2, 3});
-            tag(out, Nbt.STRING, "string").writeUTF("minecraft:stone");
-            tag(out, Nbt.LIST, "list").writeByte(Nbt.INT);
-            out.writeInt(2);
-            out.writeInt(7);
-            out.writeInt(8);
-            tag(out, Nbt.LIST, "empty").writeByte(Nbt.END);
-            out.writeInt(0);
-            tag(out, Nbt.COMPOUND, "nested");
-            tag(out, Nbt.INT, "x").writeInt(5);
-            out.writeByte(0);
-            tag(out, Nbt.INT_ARRAY, "ints").writeInt(2);
-            out.writeInt(-1);
-            out.writeInt(1);
-            tag(out, Nbt.LONG_ARRAY, "longs").writeInt(1);
-            out.writeLong(Long.MIN_VALUE);
-        });
+        byte[] bytes = everyTagType();
 
         Nbt.Compound root = Nbt.readRoot(new ByteArrayInputStream(bytes));
 
@@ -60,6 +36,29 @@ class NbtTest {
         assertEquals(5, root.compound("nested").integer("x"));
         assertArrayEquals(new int[] {-1, 1}, ((Nbt.IntArray) root.get("ints")).value());
         assertArrayEquals(new long[] {Long.MIN_VALUE}, ((Nbt.LongArray) root.get("longs")).value());
+    }
+
+    @Test
+    void writes_every_tag_type_back_as_read() throws IOException {
+        byte[] original = everyTagType();
+        Nbt.Compound root = Nbt.readRoot(new ByteArrayInputStream(original));
+
+        ByteArrayOutputStream written = new ByteArrayOutputStream();
+        Nbt.writeUncompressed(root, written);
+
+        assertArrayEquals(original, written.toByteArray());
+    }
+
+    @Test
+    void compressed_round_trip_is_deterministic() throws IOException {
+        Nbt.Compound root = Nbt.readRoot(new ByteArrayInputStream(everyTagType()));
+
+        byte[] first = Nbt.writeRoot(root);
+        byte[] second = Nbt.writeRoot(Nbt.readRoot(new java.util.zip.GZIPInputStream(new ByteArrayInputStream(first))));
+
+        assertArrayEquals(first, second);
+        assertEquals(Nbt.FLOAT, ((Nbt.Floating) root.get("float")).type());
+        assertEquals(Nbt.DOUBLE, ((Nbt.Floating) root.get("double")).type());
     }
 
     @Test
@@ -128,6 +127,34 @@ class NbtTest {
 
     private interface Body {
         void write(DataOutputStream out) throws IOException;
+    }
+
+    private static byte[] everyTagType() throws IOException {
+        return root(out -> {
+            tag(out, Nbt.BYTE, "byte").writeByte(0xFE);
+            tag(out, Nbt.SHORT, "short").writeShort(-2);
+            tag(out, Nbt.INT, "int").writeInt(123_456);
+            tag(out, Nbt.LONG, "long").writeLong(-9_000_000_000L);
+            tag(out, Nbt.FLOAT, "float").writeFloat(1.5f);
+            tag(out, Nbt.DOUBLE, "double").writeDouble(-2.25);
+            tag(out, Nbt.BYTE_ARRAY, "bytes").writeInt(3);
+            out.write(new byte[] {1, 2, 3});
+            tag(out, Nbt.STRING, "string").writeUTF("minecraft:stone");
+            tag(out, Nbt.LIST, "list").writeByte(Nbt.INT);
+            out.writeInt(2);
+            out.writeInt(7);
+            out.writeInt(8);
+            tag(out, Nbt.LIST, "empty").writeByte(Nbt.END);
+            out.writeInt(0);
+            tag(out, Nbt.COMPOUND, "nested");
+            tag(out, Nbt.INT, "x").writeInt(5);
+            out.writeByte(0);
+            tag(out, Nbt.INT_ARRAY, "ints").writeInt(2);
+            out.writeInt(-1);
+            out.writeInt(1);
+            tag(out, Nbt.LONG_ARRAY, "longs").writeInt(1);
+            out.writeLong(Long.MIN_VALUE);
+        });
     }
 
     private static byte[] root(Body body) throws IOException {
