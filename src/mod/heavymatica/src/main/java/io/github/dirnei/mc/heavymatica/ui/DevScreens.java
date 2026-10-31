@@ -77,6 +77,8 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code logPlacements}: log the placements, the selection and the ghost mesh count</li>
  *     <li>{@code selectPlacement=<name>}: select the first placement with that name</li>
  *     <li>{@code logComparison}: log the selected placement's comparison: progress, totals, slowest scan tick</li>
+ *     <li>{@code logFinish}: log the placement count, the selected placement and whether a finished one can be brought back</li>
+ *     <li>{@code bringBack}: bring the latest finished placement back</li>
  *     <li>{@code logCell=<x>,<y>,<z>}: log the selected placement's comparison state at a world position</li>
  *     <li>{@code logMaterials}: log the selected placement's material list, counting the player's items again, the numbers
  *     and finishing counts per planned block, and the rows of an open materials screen</li>
@@ -209,6 +211,13 @@ public final class DevScreens {
             case "up" -> KeyMapping.set(mapping(minecraft, argument).getKey(), false);
             case "logPlacements" -> logPlacements();
             case "logComparison" -> logComparison();
+            case "logFinish" -> logFinish();
+            case "bringBack" -> {
+                PlacementSession session = HeavymaticaClient.placements();
+                if (session != null) {
+                    session.bringBack();
+                }
+            }
             case "logMaterials" -> logMaterials(minecraft);
             case "logOverlay" -> {
                 PlacementSession session = HeavymaticaClient.placements();
@@ -417,6 +426,15 @@ public final class DevScreens {
             }
         }
         Heavymatica.LOGGER.info("Dev inventory: selected {}, hotbar{}, main{}", inventory.getSelectedSlot(), hotbar, main);
+    }
+
+    private static void logFinish() {
+        PlacementSession session = HeavymaticaClient.placements();
+        if (session == null) {
+            return;
+        }
+        Heavymatica.LOGGER.info("Dev finish: {} placements, selected {}, can bring back {}", session.placements().all().size(),
+                session.placements().selected().map(placement -> placement.name() + " " + placement.state()).orElse("none"), session.canBringBack());
     }
 
     private static void logComparison() {

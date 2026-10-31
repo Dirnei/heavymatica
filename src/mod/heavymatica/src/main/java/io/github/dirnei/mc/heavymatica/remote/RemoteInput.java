@@ -219,7 +219,7 @@ public final class RemoteInput {
                     case LOCKED -> RadialMenu.State.LOCKED;
                 }, selected.name(), selected.layers().mode(), selected.inHand());
         Minecraft.getInstance().setScreen(new RadialMenuScreen(new RadialMenu(HeavymaticaConfig.wheelMode(), selection,
-                new RadialMenu.Opacity(HeavymaticaConfig.ghostOpacitySteps(), HeavymaticaConfig.ghostOpacity())), this::run, player.input.keyPresses));
+                new RadialMenu.Opacity(HeavymaticaConfig.ghostOpacitySteps(), HeavymaticaConfig.ghostOpacity()), session.canBringBack()), this::run, player.input.keyPresses));
     }
 
     /** Runs a wheel command; the wheel has closed already. */
@@ -227,6 +227,7 @@ public final class RemoteInput {
         RadialMenu.Command command = run.command();
         PlacementController controller = session.controller();
         switch (command) {
+            case BRING_BACK -> session.bringBack();
             case OPEN_LIBRARY -> openLibrary.run();
             case OPEN_MATERIALS -> openMaterials.run();
             case CANCEL, REMOVE -> controller.removeNow();

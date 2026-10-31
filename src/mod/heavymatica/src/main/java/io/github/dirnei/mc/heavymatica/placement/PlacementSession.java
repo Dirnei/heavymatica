@@ -13,7 +13,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.player.LocalPlayer;
@@ -45,6 +47,8 @@ public final class PlacementSession {
     private final GhostMeshes meshes = new GhostMeshes();
     private final Comparisons comparisons = new Comparisons();
     private final Materials materials = new Materials();
+    private final Finishes finishes = new Finishes();
+    private final List<Consumer<Placement>> finishListeners = new CopyOnWriteArrayList<>();
     private final GhostRenderer renderer;
     private final Map<String, SchematicModel> models = new HashMap<>();
     private final Set<String> loading = new HashSet<>();
@@ -75,6 +79,21 @@ public final class PlacementSession {
 
     public PlacementController controller() {
         return controller;
+    }
+
+    /** Subscribes to finished placements, which are already removed when the listener runs. */
+    public void onFinish(Consumer<Placement> listener) {
+        finishListeners.add(listener);
+    }
+
+    /** True while the latest finished placement can still be brought back. */
+    public boolean canBringBack() {
+        return finishes.canBringBack(System.currentTimeMillis());
+    }
+
+    /** Puts the latest finished placement back, locked and selected, while it still can be. */
+    public void bringBack() {
+        finishes.bringBack(System.currentTimeMillis()).ifPresent(placements::add);
     }
 
     /** The placement's schematic once loaded; null while loading or unavailable. */
@@ -180,13 +199,32 @@ public final class PlacementSession {
         unavailable.clear();
         meshes.close();
         comparisons.close();
+        finishes.clear();
     }
 
     private void tick() {
         store.tick(System.currentTimeMillis());
         meshes.sweep(placements.all(), this::model);
         comparisons.tick(placements.all(), this::model);
+        finishCompleted();
         materials.tick();
+    }
+
+    private void finishCompleted() {
+        for (Placement placement : placements.all()) {
+            WorldComparison comparison = comparisons.get(placement);
+            if (comparison == null) {
+                continue;
+            }
+            ComparisonState state = comparison.state();
+            int top = state.sizeY() - 1;
+            if (finishes.check(placement.id(), state.matching(0, top), state.counted(0, top), state.total(CellState.UNKNOWN) == 0)) {
+                finishes.finish(placement, System.currentTimeMillis());
+                placements.remove(placement.id());
+                Heavymatica.LOGGER.info("Placement {} finished", placement.name());
+                finishListeners.forEach(listener -> listener.accept(placement));
+            }
+        }
     }
 
     static String worldKey(Minecraft minecraft) {

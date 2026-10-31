@@ -41,6 +41,20 @@ class RadialMenuTest {
     }
 
     @Test
+    void bringBackComesFirstInEveryStateAfterAFinish() {
+        assertEquals(List.of(Entry.BRING_BACK, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY),
+                entries(new RadialMenu(Mode.HOLD, Selection.NONE, OPACITY, true)));
+        assertEquals(List.of(Entry.BRING_BACK, Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY),
+                entries(new RadialMenu(Mode.HOLD, LOCKED, OPACITY, true)));
+    }
+
+    @Test
+    void pickingBringBackRunsIt() {
+        RadialMenu menu = new RadialMenu(Mode.TOGGLE, Selection.NONE, OPACITY, true);
+        assertEquals(run(Command.BRING_BACK), menu.click(index(menu, Entry.BRING_BACK)));
+    }
+
+    @Test
     void segmentsFollowTheState() {
         assertEquals(List.of(Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY), entries(menu(Mode.HOLD, Selection.NONE)));
         assertEquals(List.of(Entry.CANCEL, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY), entries(menu(Mode.HOLD, FOLLOWING)));

@@ -18,6 +18,7 @@ import io.github.dirnei.mc.heavymatica.placement.PlacementController;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
 import io.github.dirnei.mc.heavymatica.placement.PlacementStore;
+import io.github.dirnei.mc.heavymatica.remote.FinishFeedback;
 import io.github.dirnei.mc.heavymatica.remote.PlacementOverlay;
 import io.github.dirnei.mc.heavymatica.remote.RemoteInput;
 import io.github.dirnei.mc.heavymatica.remote.RemoteKeys;
@@ -172,6 +173,7 @@ public final class HeavymaticaClient {
             holder[0] = library;
             placements = new PlacementSession(new PlacementStore(data.resolve("placements"), json), library, Remotes::held);
             placements.register();
+            placements.onFinish(FinishFeedback::finished);
             targeting = new GhostTargeting(placements);
             targeting.register();
             new GhostPick(placements, targeting).register();

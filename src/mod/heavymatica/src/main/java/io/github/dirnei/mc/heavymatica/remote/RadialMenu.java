@@ -2,6 +2,7 @@ package io.github.dirnei.mc.heavymatica.remote;
 
 import io.github.dirnei.mc.heavymatica.placement.Layers;
 import io.github.dirnei.mc.heavymatica.placement.OpacitySteps;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -41,6 +42,7 @@ public final class RadialMenu {
     }
 
     public enum Entry {
+        BRING_BACK,
         LIBRARY,
         CANCEL,
         LOCK,
@@ -70,6 +72,7 @@ public final class RadialMenu {
     }
 
     public enum Command {
+        BRING_BACK,
         OPEN_LIBRARY,
         CANCEL,
         LOCK,
@@ -120,12 +123,19 @@ public final class RadialMenu {
     private final Mode mode;
     private final Selection selection;
     private final Opacity opacity;
+    private final boolean bringBack;
     private Page page = Page.MAIN;
 
     public RadialMenu(Mode mode, Selection selection, Opacity opacity) {
+        this(mode, selection, opacity, false);
+    }
+
+    /** @param bringBack whether a finished placement can be brought back as the wheel opened */
+    public RadialMenu(Mode mode, Selection selection, Opacity opacity, boolean bringBack) {
         this.mode = mode;
         this.selection = selection;
         this.opacity = opacity;
+        this.bringBack = bringBack;
     }
 
     public Mode mode() {
@@ -138,14 +148,14 @@ public final class RadialMenu {
 
     public List<Segment> segments() {
         return switch (page) {
-            case MAIN -> switch (selection.state()) {
+            case MAIN -> withBringBack(switch (selection.state()) {
                 case NONE -> List.of(new Segment(Entry.MATERIALS, false, false), segment(Entry.OPACITY), segment(Entry.LIBRARY));
                 case FOLLOWING -> List.of(segment(Entry.CANCEL), segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY));
                 case ANCHORED -> List.of(segment(Entry.LOCK), segment(Entry.REMOVE), segment(Entry.MATERIALS), segment(Entry.OPACITY),
                         segment(Entry.LIBRARY));
                 case LOCKED -> List.of(segment(Entry.UNLOCK), new Segment(Entry.IN_HAND, true, selection.inHand()), segment(Entry.LAYERS),
                         segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY));
-            };
+            });
             case OPACITY -> opacity.steps().stream()
                     .map(step -> new Segment(Entry.OPACITY_STEP, true, OpacitySteps.matches(step, opacity.current()), step))
                     .toList();
@@ -153,6 +163,16 @@ public final class RadialMenu {
                     layer(Entry.LAYERS_FOLLOW, Layers.Mode.FOLLOW));
             case CONFIRM_REMOVE, CONFIRM_UNLOCK -> List.of(segment(Entry.YES), segment(Entry.NO));
         };
+    }
+
+    private List<Segment> withBringBack(List<Segment> main) {
+        if (!bringBack) {
+            return main;
+        }
+        List<Segment> segments = new ArrayList<>(main.size() + 1);
+        segments.add(segment(Entry.BRING_BACK));
+        segments.addAll(main);
+        return List.copyOf(segments);
     }
 
     public Label label() {
@@ -196,6 +216,7 @@ public final class RadialMenu {
 
     private Outcome pick(Segment segment) {
         return switch (segment.entry()) {
+            case BRING_BACK -> run(Command.BRING_BACK);
             case LIBRARY -> run(Command.OPEN_LIBRARY);
             case CANCEL -> run(Command.CANCEL);
             case LOCK -> run(Command.LOCK);

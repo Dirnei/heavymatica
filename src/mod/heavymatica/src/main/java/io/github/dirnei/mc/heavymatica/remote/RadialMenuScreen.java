@@ -242,7 +242,7 @@ public final class RadialMenuScreen extends Screen {
         if (hovered) {
             return switch (segment.entry()) {
                 case REMOVE, CANCEL, NO -> DANGER;
-                case YES -> CONFIRM;
+                case YES, BRING_BACK -> CONFIRM;
                 default -> HOVERED;
             };
         }
@@ -256,6 +256,7 @@ public final class RadialMenuScreen extends Screen {
 
     private static Item icon(Entry entry) {
         return switch (entry) {
+            case BRING_BACK -> Items.CLOCK;
             case LIBRARY -> Items.BOOK;
             case CANCEL, REMOVE -> Items.BARRIER;
             case LOCK -> Items.IRON_BARS;
