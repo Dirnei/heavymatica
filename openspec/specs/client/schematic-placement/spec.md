@@ -133,7 +133,7 @@ The mirror key SHALL cycle the selected placement's mirror through none, left-ri
 - **THEN** its mirror is front-back
 
 ### Requirement: Removing needs a second press
-An anchored placement SHALL only be removed after a confirmation: on the wheel, Remove asks Yes / Cancel; a bound remove key SHALL remove it only when pressed a second time within 3 seconds, and after the first press the overlay SHALL say to press again to remove. A FOLLOWING placement SHALL be removed at once (the wheel's Cancel, or the first press of the remove key), since it was never anchored. A LOCKED placement SHALL NOT be removed; it has to be unlocked first.
+An anchored placement SHALL only be removed after a confirmation: on the wheel, Remove asks Yes / Cancel; a bound remove key SHALL remove it only when pressed a second time within 3 seconds, and after the first press the overlay SHALL say to press again to remove. A FOLLOWING placement SHALL be removed at once (the wheel's Cancel, or the first press of the remove key), since it was never anchored. A LOCKED placement SHALL be removed only by finishing; the player has to unlock it first.
 
 #### Scenario: Remove anchored placement
 - **WHEN** the player has bound the remove key to Delete and presses Delete twice within 3 seconds with an anchored placement selected
@@ -150,6 +150,10 @@ An anchored placement SHALL only be removed after a confirmation: on the wheel, 
 #### Scenario: Remove from the wheel
 - **WHEN** the player picks Remove on the wheel with an anchored placement selected and then Yes
 - **THEN** the placement is gone and no placement is selected
+
+#### Scenario: Finished locked placement
+- **WHEN** a locked placement reaches 100% progress
+- **THEN** it is removed without being unlocked
 
 ### Requirement: Following placements need the remote
 A FOLLOWING placement SHALL be shown and follow the crosshair only while a remote is in the main hand. If no remote is held when a placement is started from the library, the client SHALL tell the player to hold a remote, naming the configured item.
@@ -213,3 +217,52 @@ While a remote is held and the selected placement is LOCKED, it SHALL only be un
 #### Scenario: Unlock cancelled on the wheel
 - **WHEN** the player picks Unlock on the wheel with a locked placement selected and then Cancel
 - **THEN** the placement is still LOCKED
+
+### Requirement: Block-entity blocks in ghosts
+The ghost SHALL show blocks that the game draws with a block-entity renderer (chests, beds, shulker boxes, signs, banners, heads, decorated pots, bells, conduits, copper golem statues and the like) with their own model and texture, facing and split as their block state says. Without block-entity data a ghost SHALL show the block's default look.
+
+#### Scenario: Bed
+- **WHEN** a placement contains a red bed whose head faces north
+- **THEN** the ghost shows a red bed with its head and foot in those two positions, facing north
+
+#### Scenario: Double chest
+- **WHEN** a placement contains a double chest
+- **THEN** the ghost shows one double chest across both positions, with the chest texture
+
+#### Scenario: Sign without its text
+- **WHEN** a placement contains an oak wall sign whose block-entity data holds text
+- **THEN** the ghost shows a blank oak wall sign on the wall it hangs on
+
+#### Scenario: Rotated placement
+- **WHEN** a placement containing a north-facing chest is rotated 90 degrees clockwise
+- **THEN** the ghost shows the chest facing east
+
+#### Scenario: Layer view
+- **WHEN** a locked placement shows only the layer that contains a bed
+- **THEN** the ghost shows the bed in that layer and nothing of the layers hidden by the layer setting
+
+### Requirement: Fluids in ghosts
+The ghost SHALL show water and lava, including the fluid inside waterlogged blocks, as translucent fluid surfaces. Tinted blocks and fluids SHALL use plains colours, since a schematic has no biome.
+
+#### Scenario: Water source
+- **WHEN** a placement contains a pool of water
+- **THEN** the ghost shows the pool as blue water
+
+#### Scenario: Waterlogged stairs
+- **WHEN** a placement contains waterlogged stairs
+- **THEN** the ghost shows the stairs and the water in them
+
+#### Scenario: Grass and leaves
+- **WHEN** a placement contains grass blocks and oak leaves
+- **THEN** the grass shows plains grass green and the leaves plains foliage green
+
+### Requirement: Blocks without geometry stay visible
+A block that is not air and yields neither model, block-entity nor fluid geometry SHALL be shown as its outline shape in its map colour. Blocks that are invisible in the world (barriers, light blocks, structure voids) SHALL stay hidden.
+
+#### Scenario: Modded block without a display model
+- **WHEN** a placement contains a block from a mod that draws it only with its own block-entity renderer and gives it no display model
+- **THEN** the ghost shows that block's outline shape in its map colour
+
+#### Scenario: Barrier
+- **WHEN** a placement contains a barrier
+- **THEN** the ghost shows nothing at its position

@@ -81,6 +81,18 @@ Library SHALL open the library. Cancel SHALL remove the following placement at o
 - **WHEN** no placement is selected and the player opens the wheel and clicks Materials
 - **THEN** no screen opens and the wheel stays open
 
+
+### Requirement: Bring back segment
+While a finished placement can be brought back, the wheel SHALL show Bring back first, in every state. Bring back SHALL bring the most recently finished placement back at once and close the wheel; when the time to bring it back runs out while the wheel is open, picking it SHALL do nothing.
+
+#### Scenario: Just finished
+- **WHEN** a placement finished 3 seconds ago, nothing is selected, and the player opens the wheel
+- **THEN** it shows Bring back, Materials greyed out and Library
+
+#### Scenario: Bring back from the wheel
+- **WHEN** a placement finished 5 seconds ago and the player picks Bring back
+- **THEN** the placement is back, LOCKED and selected, and the wheel is closed
+
 ### Requirement: Confirming remove and unlock
 Picking Remove or Unlock SHALL NOT act at once. The wheel SHALL instead show Yes and Cancel with a label naming the action and the placement, such as `Remove "Castle Gate"?`. Yes SHALL run the action. Cancel, Esc or the centre SHALL close the wheel and change nothing. In HOLD mode, releasing the wheel key on Remove or Unlock SHALL leave the wheel open on Yes and Cancel, and a click SHALL answer.
 
