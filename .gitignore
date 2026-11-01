@@ -25,6 +25,10 @@ artifacts/
 # Node (contract linting)
 node_modules/
 
+# Python (conformance generator)
+__pycache__/
+*.pyc
+
 # IDE
 .idea/
 *.iml
