@@ -15,6 +15,7 @@ import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
+import io.github.dirnei.mc.heavymatica.placement.UnknownBlocks;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
 import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting;
 import io.github.dirnei.mc.heavymatica.targeting.TargetHud;
@@ -161,6 +162,11 @@ public final class PlacementOverlay {
         int swaps = placement.swaps().size();
         if (swaps > 0) {
             lines.add(Line.text(Component.translatable(swaps == 1 ? "heavymatica.overlay.swaps.one" : "heavymatica.overlay.swaps", swaps), MUTED));
+        }
+        UnknownBlocks unknown = session.unknownBlocks(placement);
+        if (unknown.any()) {
+            lines.add(Line.text(Component.translatable(HeavymaticaConfig.ghostShowUnknownBlocks() ? "heavymatica.overlay.unknown" : "heavymatica.overlay.unknown.hidden",
+                    unknown.types(), unknown.total()), WARNING));
         }
         if (placement.locked()) {
             lines.add(Line.text(layersText(placement), TEXT));

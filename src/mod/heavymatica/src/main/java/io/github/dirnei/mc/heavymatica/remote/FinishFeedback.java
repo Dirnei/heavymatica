@@ -15,11 +15,15 @@ public final class FinishFeedback {
     private FinishFeedback() {
     }
 
-    public static void finished(Placement placement) {
+    /** @param cantCheck how many of its positions show a block the game does not know */
+    public static void finished(Placement placement, int cantCheck) {
         Minecraft minecraft = Minecraft.getInstance();
         minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.PLAYER_LEVELUP, 1.0f));
         Component title = Component.translatable("heavymatica.finish.title", placement.name());
         Component hint = Component.translatable("heavymatica.finish.hint", RemoteKeys.WHEEL.getTranslatedKeyMessage());
+        if (cantCheck > 0) {
+            hint = Component.translatable("heavymatica.finish.cant_check", cantCheck).append(" ").append(hint);
+        }
         minecraft.getToastManager().addToast(SystemToast.multiline(minecraft, TOAST, title, hint));
     }
 }

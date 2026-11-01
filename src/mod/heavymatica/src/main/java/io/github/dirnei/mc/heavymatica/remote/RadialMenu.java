@@ -23,10 +23,19 @@ public final class RadialMenu {
         LOCKED,
     }
 
-    /** The selected placement as the wheel opened. */
-    public record Selection(State state, String name, Layers.Mode layers, boolean inHand) {
+    /**
+     * The selected placement as the wheel opened.
+     *
+     * @param unknownBlocks whether it has blocks the game does not know
+     * @param unknownShown  whether unknown blocks are shown
+     */
+    public record Selection(State state, String name, Layers.Mode layers, boolean inHand, boolean unknownBlocks, boolean unknownShown) {
 
         public static final Selection NONE = new Selection(State.NONE, "", Layers.Mode.OFF, false);
+
+        public Selection(State state, String name, Layers.Mode layers, boolean inHand) {
+            this(state, name, layers, inHand, false, true);
+        }
     }
 
     /** Whether capture mode was on as the wheel opened, and how many corners were set. */
@@ -58,6 +67,7 @@ public final class RadialMenu {
         LAYERS,
         MATERIALS,
         OPACITY,
+        UNKNOWN_BLOCKS,
         START_CAPTURE,
         CAPTURE,
         SWAP_CORNER,
@@ -72,7 +82,8 @@ public final class RadialMenu {
     }
 
     /**
-     * @param current whether the entry is the current setting (layer mode, in-hand filter on, opacity step)
+     * @param current whether the entry is the current setting (layer mode, in-hand filter on, opacity step, unknown
+     *                blocks shown)
      * @param value   the opacity of an opacity step, 0 for other entries
      */
     public record Segment(Entry entry, boolean enabled, boolean current, double value) {
@@ -95,6 +106,7 @@ public final class RadialMenu {
         LAYERS_FOLLOW,
         OPEN_MATERIALS,
         SET_OPACITY,
+        TOGGLE_UNKNOWN_BLOCKS,
         START_CAPTURE,
         CAPTURE,
         SWAP_CORNER,
@@ -172,7 +184,7 @@ public final class RadialMenu {
         return switch (page) {
             case MAIN -> capture.on() ? List.of(new Segment(Entry.CAPTURE, capture.corners() == 2, false),
                     new Segment(Entry.SWAP_CORNER, capture.corners() == 2, false), new Segment(Entry.RESET_CORNERS, capture.corners() > 0, false),
-                    segment(Entry.CANCEL_CAPTURE)) : withBringBack(switch (selection.state()) {
+                    segment(Entry.CANCEL_CAPTURE)) : withBringBack(withUnknownBlocks(switch (selection.state()) {
                 case NONE -> List.of(new Segment(Entry.MATERIALS, false, false), segment(Entry.OPACITY), segment(Entry.LIBRARY),
                         segment(Entry.START_CAPTURE));
                 case FOLLOWING -> List.of(segment(Entry.CANCEL), segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY));
@@ -180,7 +192,7 @@ public final class RadialMenu {
                         segment(Entry.LIBRARY), segment(Entry.START_CAPTURE));
                 case LOCKED -> List.of(segment(Entry.UNLOCK), new Segment(Entry.IN_HAND, true, selection.inHand()), segment(Entry.LAYERS),
                         segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY), segment(Entry.START_CAPTURE));
-            });
+            }));
             case OPACITY -> opacity.steps().stream()
                     .map(step -> new Segment(Entry.OPACITY_STEP, true, OpacitySteps.matches(step, opacity.current()), step))
                     .toList();
@@ -188,6 +200,21 @@ public final class RadialMenu {
                     layer(Entry.LAYERS_FOLLOW, Layers.Mode.FOLLOW));
             case CONFIRM_REMOVE, CONFIRM_UNLOCK -> List.of(segment(Entry.YES), segment(Entry.NO));
         };
+    }
+
+    /** Adds the unknown blocks toggle after Opacity when the selected placement has unknown blocks. */
+    private List<Segment> withUnknownBlocks(List<Segment> main) {
+        if (selection.state() == State.NONE || !selection.unknownBlocks()) {
+            return main;
+        }
+        List<Segment> segments = new ArrayList<>(main.size() + 1);
+        for (Segment segment : main) {
+            segments.add(segment);
+            if (segment.entry() == Entry.OPACITY) {
+                segments.add(new Segment(Entry.UNKNOWN_BLOCKS, true, selection.unknownShown()));
+            }
+        }
+        return List.copyOf(segments);
     }
 
     private List<Segment> withBringBack(List<Segment> main) {
@@ -252,6 +279,7 @@ public final class RadialMenu {
             case LAYERS -> turnTo(Page.LAYERS);
             case MATERIALS -> run(Command.OPEN_MATERIALS);
             case OPACITY -> turnTo(Page.OPACITY);
+            case UNKNOWN_BLOCKS -> run(Command.TOGGLE_UNKNOWN_BLOCKS);
             case START_CAPTURE -> run(Command.START_CAPTURE);
             case CAPTURE -> run(Command.CAPTURE);
             case SWAP_CORNER -> run(Command.SWAP_CORNER);

@@ -3,6 +3,7 @@ package io.github.dirnei.mc.heavymatica.targeting;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.BlockEquivalents;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
+import io.github.dirnei.mc.heavymatica.placement.CellState.Expected;
 import io.github.dirnei.mc.heavymatica.placement.InHandFilter;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
@@ -41,9 +42,11 @@ public final class GhostTargeting {
      * @param plannedIndex the comparison's planned block index, or -1 when no item places the block
      * @param distance     how far along the line of sight the position starts
      * @param inReach      within the player's block interaction range, where pick block works
+     * @param unknownId    the block ID as shown when the game does not know the planned block (then {@code planned} is air)
      */
     public record GhostTarget(Placement placement, BlockPos pos, BlockState planned, CellState state, @Nullable BlockState found,
-                              BlockEquivalents.@Nullable Finish finish, int plannedIndex, double distance, boolean inReach) {
+                              BlockEquivalents.@Nullable Finish finish, int plannedIndex, double distance, boolean inReach,
+                              @Nullable String unknownId) {
 
         public boolean plannedWaterlogged() {
             return planned.hasProperty(BlockStateProperties.WATERLOGGED) && planned.getValue(BlockStateProperties.WATERLOGGED);
@@ -139,7 +142,8 @@ public final class GhostTargeting {
         BlockState world = level.getBlockState(at);
         return new GhostTarget(local.drawn().placement(), at, comparison.plannedAt(local.x(), local.y(), local.z()),
                 comparison.stateAt(local.x(), local.y(), local.z()), world.isAir() ? null : world, comparison.finishAt(local.x(), local.y(), local.z()),
-                comparison.plannedIndexAt(local.x(), local.y(), local.z()), hit.distance(), hit.distance() <= reach);
+                comparison.plannedIndexAt(local.x(), local.y(), local.z()), hit.distance(), hit.distance() <= reach,
+                comparison.unknownIdAt(local.x(), local.y(), local.z()));
     }
 
     /** The locked placements of the dimension drawn cell by cell in the last frame whose box the line of sight passes. */
@@ -168,8 +172,10 @@ public final class GhostTargeting {
             return false;
         }
         CellState state = comparison.stateAt(x, y, z);
-        boolean inHandShows = !local.drawn().placement().inHand() || !state.showsGhost()
-                || inHand.shows(comparison, comparison.plannedAt(x, y, z).getBlock());
-        return TargetRules.drawn(comparison.kindAt(x, y, z), state, local.drawn().layers().contains(y), inHandShows);
+        Expected.Kind kind = comparison.kindAt(x, y, z);
+        boolean filterOff = !local.drawn().placement().inHand();
+        boolean inHandShows = kind == Expected.Kind.CANT_CHECK ? filterOff
+                : filterOff || !state.showsGhost() || inHand.shows(comparison, comparison.plannedAt(x, y, z).getBlock());
+        return TargetRules.drawn(kind, state, local.drawn().layers().contains(y), inHandShows, HeavymaticaConfig.ghostShowUnknownBlocks());
     }
 }

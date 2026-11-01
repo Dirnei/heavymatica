@@ -1,0 +1,18 @@
+{
+  "note": "Minecraft 1.20.2 short grass under its old name minecraft:grass, kept as written.",
+  "format": "litematica",
+  "size": [
+    2,
+    1,
+    1
+  ],
+  "dataVersion": 3578,
+  "paletteDigest": "d2e8ac98103cc36ed2ac1122c3aae6f2006d1bb291a190d74ff6dc434fd2d457",
+  "blockTotal": 2,
+  "blockCounts": {
+    "minecraft:grass": 1,
+    "minecraft:grass_block": 1
+  },
+  "blockEntities": [],
+  "skippedEntities": 0
+}

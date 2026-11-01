@@ -182,7 +182,24 @@ class CellStateTest {
     void newStatesKeepTheStoredOrdinals() {
         assertEquals(9, CellState.INCOMPLETE.ordinal());
         assertEquals(10, CellState.TOO_MANY.ordinal());
-        assertEquals(11, CellState.values().length);
+        assertEquals(11, CellState.CANT_CHECK.ordinal());
+        assertEquals(12, CellState.values().length);
+    }
+
+    @Test
+    void unknownBlockCantBeCheckedWhateverTheWorldHolds() {
+        assertEquals(CellState.CANT_CHECK, CellState.classify(Expected.CANT_CHECK, Found.NOTHING));
+        assertEquals(CellState.CANT_CHECK, CellState.classify(Expected.CANT_CHECK, Found.block(DIRT, NONE, false)));
+        assertEquals(CellState.IGNORED, CellState.classify(Expected.IGNORE, Found.block(DIRT, NONE, false)));
+    }
+
+    @Test
+    void cantCheckShowsItsPlaceholderAndNeedsNothing() {
+        assertEquals(false, Expected.CANT_CHECK.counted());
+        assertEquals(true, CellState.CANT_CHECK.showsGhost());
+        assertEquals(false, CellState.CANT_CHECK.needsItem());
+        assertEquals(false, CellState.CANT_CHECK.mistake());
+        assertEquals(false, CellState.CANT_CHECK.boxed());
     }
 
     @Test

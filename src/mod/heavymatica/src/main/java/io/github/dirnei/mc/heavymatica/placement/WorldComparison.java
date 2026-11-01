@@ -2,6 +2,7 @@ package io.github.dirnei.mc.heavymatica.placement;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.RenderSystem;
+import io.github.dirnei.mc.heavymatica.formats.BlockStates;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.placement.CellState.Expected;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Bounds;
@@ -53,6 +54,7 @@ public final class WorldComparison implements AutoCloseable {
     private final MaterialCounts materials;
     private final ComparisonState state;
     private final MistakeBoxes boxes;
+    private final UnknownCounts unknown;
     private final int[] scratch = new int[2];
     private @Nullable GpuBuffer mask;
 
@@ -64,7 +66,7 @@ public final class WorldComparison implements AutoCloseable {
         this.demands = new Demand[model.palette().size()];
         this.plannedOf = new int[model.palette().size()];
         for (int i = 0; i < expected.length; i++) {
-            expected[i] = keys.expected(view.entry(i), view.placed(i));
+            expected[i] = keys.expected(view.entry(i), view.placed(i), view.unknown(i));
         }
         Map<Block, Integer> plannedIndex = indexPlanned(keys);
         Map<Block, Integer> blockIndex = new IdentityHashMap<>();
@@ -74,6 +76,7 @@ public final class WorldComparison implements AutoCloseable {
             demands[i] = expected[i].counted() ? demand(view.placed(i), plannedOf[i], blockIndex) : Demand.NONE;
         }
         this.materials = new MaterialCounts(view.sizeY(), planned.size(), blocks.size());
+        this.unknown = new UnknownCounts(view.sizeY());
         BitSet counted = new BitSet();
         int index = 0;
         for (int y = 0; y < view.sizeY(); y++) {
@@ -82,6 +85,8 @@ public final class WorldComparison implements AutoCloseable {
                     int entry = view.paletteIndex(x, y, z, scratch);
                     if (expected[entry].counted()) {
                         counted.set(index);
+                    } else if (expected[entry].kind() == Expected.Kind.CANT_CHECK) {
+                        unknown.add(y, BlockStates.id(view.entry(entry)));
                     }
                     materials.add(y, demands[entry]);
                 }
@@ -265,7 +270,18 @@ public final class WorldComparison implements AutoCloseable {
         return state.state(state.index(x, y, z));
     }
 
-    /** What kind of position a local position inside the placement is: ignored, air or a block. */
+    /** Block ID to the positions in layers {@code from} to {@code to} that show it while the game does not know it. */
+    Map<String, Integer> unknownBlocks(int from, int to) {
+        return unknown.sum(from, to);
+    }
+
+    /** The block ID as shown at a local position inside the placement when the game does not know it, otherwise null. */
+    public @Nullable String unknownIdAt(int x, int y, int z) {
+        int entry = view.paletteIndex(x, y, z, scratch);
+        return view.unknown(entry) ? BlockStates.id(view.entry(entry)) : null;
+    }
+
+    /** What kind of position a local position inside the placement is: ignored, air, a block or one that can't be checked. */
     public Expected.Kind kindAt(int x, int y, int z) {
         return expected[view.paletteIndex(x, y, z, scratch)].kind();
     }
@@ -330,7 +346,11 @@ public final class WorldComparison implements AutoCloseable {
                 for (int y = min[1]; y < maxY; y++) {
                     if (chunk == null) {
                         int entry = view.paletteIndex(x, y, z, scratch);
-                        set(x, y, z, entry, expected[entry].kind() == Expected.Kind.IGNORED ? CellState.IGNORED : CellState.UNKNOWN, 0);
+                        set(x, y, z, entry, switch (expected[entry].kind()) {
+                            case IGNORED -> CellState.IGNORED;
+                            case CANT_CHECK -> CellState.CANT_CHECK;
+                            default -> CellState.UNKNOWN;
+                        }, 0);
                     } else {
                         compare(x, y, z, chunk.getBlockState(pos.set(bounds.minX() + x, bounds.minY() + y, bounds.minZ() + z)), keys);
                     }

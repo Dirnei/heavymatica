@@ -37,6 +37,24 @@ class ComparisonStateTest {
     }
 
     @Test
+    void cantCheckDoesNotCount() {
+        // 1000 non-air positions, of which the last 40 show blocks the game does not know and are not counted.
+        BitSet counted = new BitSet();
+        counted.set(0, 960);
+        ComparisonState state = new ComparisonState(10, 10, 10, counted);
+        for (int index = 960; index < 1000; index++) {
+            state.set(index, CellState.CANT_CHECK);
+        }
+        for (int index = 0; index < 480; index++) {
+            state.set(index, CellState.MATCHING);
+        }
+        assertEquals(480, state.matching(0, 9));
+        assertEquals(960, state.counted(0, 9));
+        assertEquals(40, state.total(CellState.CANT_CHECK));
+        assertTrue((state.mask()[999 / 8] & (1 << (999 % 8))) != 0);
+    }
+
+    @Test
     void matchingAirDoesNotCount() {
         ComparisonState state = halfSolid();
         state.set(state.index(0, 7, 0), CellState.MATCHING);

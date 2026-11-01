@@ -10,6 +10,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import io.github.dirnei.mc.heavymatica.blocks.BlockGeometry;
 import io.github.dirnei.mc.heavymatica.blocks.ForwardingVertexConsumer;
+import io.github.dirnei.mc.heavymatica.blocks.PlaceholderGeometry;
 import io.github.dirnei.mc.heavymatica.blocks.SpecialGeometry;
 import io.github.dirnei.mc.heavymatica.blocks.TexturedOutput;
 import java.util.ArrayList;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.ToDoubleFunction;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -42,12 +44,17 @@ import org.jetbrains.annotations.Nullable;
  */
 final class GhostCells implements AutoCloseable {
 
-    /** One block type in one texture: its buffer and where each layer's quads start; {@code layerStart[height]} is the total. */
-    private record Cell(Block block, Identifier texture, GpuBuffer vertices, int[] layerStart) {
+    /**
+     * One block type in one texture: its buffer and where each layer's quads start; {@code layerStart[height]} is the
+     * total. The unknown blocks' placeholders are one cell with no block.
+     */
+    private record Cell(@Nullable Block block, Identifier texture, GpuBuffer vertices, int[] layerStart) {
     }
 
-    private record Key(Block block, Identifier texture) {
+    private record Key(@Nullable Block block, Identifier texture) {
     }
+
+    private static final Key PLACEHOLDERS = new Key(null, TextureAtlas.LOCATION_BLOCKS);
 
     private final List<Cell> cells;
 
@@ -56,14 +63,15 @@ final class GhostCells implements AutoCloseable {
     }
 
     /**
-     * Draws the layers in {@code layers}; {@code alpha} gives each block's opacity, 0 or less to skip it, and
-     * {@code mask} hides cells (see {@link ComparisonState#mask()}). Returns how many block buffers were drawn.
+     * Draws the layers in {@code layers}; {@code alpha} gives each block's opacity and {@code placeholderAlpha} the
+     * unknown blocks' placeholders', 0 or less to skip them, and {@code mask} hides cells (see
+     * {@link ComparisonState#mask()}). Returns how many block buffers were drawn.
      */
-    int draw(Matrix4fc modelView, Vector3f offset, Layers.Range layers, ToDoubleFunction<Block> alpha, GpuBuffer mask) {
+    int draw(Matrix4fc modelView, Vector3f offset, Layers.Range layers, ToDoubleFunction<Block> alpha, float placeholderAlpha, GpuBuffer mask) {
         int drawn = 0;
         try (GhostDraw draw = new GhostDraw(modelView, offset, mask)) {
             for (Cell cell : cells) {
-                float opacity = (float) alpha.applyAsDouble(cell.block());
+                float opacity = cell.block() == null ? placeholderAlpha : (float) alpha.applyAsDouble(cell.block());
                 if (opacity > 0.0F) {
                     draw.quads(cell.texture(), cell.vertices(), cell.layerStart()[layers.from()], cell.layerStart()[layers.to() + 1], opacity);
                     drawn++;
@@ -102,6 +110,7 @@ final class GhostCells implements AutoCloseable {
         CellView cellView = new CellView(view);
         BlockGeometry geometry = new BlockGeometry(SpecialGeometry.get());
         Map<Key, Builder> builders = new LinkedHashMap<>();
+        PlaceholderGeometry placeholder = null;
         try {
             BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
             for (int y = 0; y < view.sizeY(); y++) {
@@ -111,6 +120,17 @@ final class GhostCells implements AutoCloseable {
                 for (int z = 0; z < view.sizeZ(); z++) {
                     for (int x = 0; x < view.sizeX(); x++) {
                         pos.set(x, y, z);
+                        int cell = x + view.sizeX() * (z + view.sizeZ() * y);
+                        if (view.unknownAt(x, y, z)) {
+                            if (placeholder == null) {
+                                placeholder = new PlaceholderGeometry();
+                            }
+                            int cx = x, cy = y, cz = z;
+                            // Only placeholders beside each other in a layer cover each other, so a layer slice never shows holes.
+                            placeholder.emit(builders.computeIfAbsent(PLACEHOLDERS, key -> new Builder(key, view.sizeY())).at(cell), x, y, z,
+                                    face -> face.getAxis() != Direction.Axis.Y && view.unknownAt(cx + face.getStepX(), cy, cz + face.getStepZ()));
+                            continue;
+                        }
                         BlockState state = view.getBlockState(pos);
                         if (state.isAir()) {
                             continue;
@@ -120,7 +140,6 @@ final class GhostCells implements AutoCloseable {
                         if (hidden(cellView, pos)) {
                             continue;
                         }
-                        int cell = x + view.sizeX() * (z + view.sizeZ() * y);
                         TexturedOutput output = (texture, layer) -> builders
                                 .computeIfAbsent(new Key(block, texture), key -> new Builder(key, view.sizeY()))
                                 .at(cell);
@@ -217,7 +236,7 @@ final class GhostCells implements AutoCloseable {
     }
 
     /** One block's geometry in one texture; {@code mesh} is null when nothing of it is visible. */
-    record BuiltCell(Block block, Identifier texture, ByteBufferBuilder bytes, @Nullable MeshData mesh, int[] layerStart) {
+    record BuiltCell(@Nullable Block block, Identifier texture, ByteBufferBuilder bytes, @Nullable MeshData mesh, int[] layerStart) {
     }
 
     /** Geometry built off the render thread, waiting for upload. */

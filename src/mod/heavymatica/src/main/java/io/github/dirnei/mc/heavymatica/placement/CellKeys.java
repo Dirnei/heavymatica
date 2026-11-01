@@ -56,13 +56,17 @@ final class CellKeys {
     /**
      * The expected term for a schematic palette entry.
      *
-     * @param raw      the entry as stored in the schematic
+     * @param shown    the entry as shown: upgraded and swapped
      * @param resolved the entry resolved, mirrored and rotated as placed; air when the game does not know the block
+     * @param unknown  whether the game does not know the block
      */
-    Expected expected(String raw, BlockState resolved) {
-        String id = BlockStates.id(raw);
+    Expected expected(String shown, BlockState resolved, boolean unknown) {
+        String id = BlockStates.id(shown);
         if (id.equals(BlockStates.STRUCTURE_VOID)) {
             return Expected.IGNORE;
+        }
+        if (unknown) {
+            return Expected.CANT_CHECK;
         }
         if (resolved.isAir()) {
             return BlockStates.isAirLike(id) ? Expected.AIR : Expected.IGNORE;

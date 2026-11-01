@@ -22,11 +22,16 @@ class MaterialRowsTest {
     private static final String DIRT = "minecraft:dirt";
 
     private static final Set<String> KNOWN = Set.of("oak_stairs", "spruce_stairs", "oak_planks", "stone_bricks", "deepslate_bricks", "water", CONCRETE,
-            POWDER, GRASS, PATH, DIRT);
+            POWDER, GRASS, PATH, DIRT, "minecraft:short_grass", "iron_chain");
     private static final Map<String, Integer> CARRIED = Map.of("oak_planks", 512, "spruce_stairs", 64, "glass", 3);
 
     private static final List<BlockCount> COUNTS = List.of(new BlockCount("stone_bricks", 1400), new BlockCount("oak_planks", 900),
             new BlockCount("oak_stairs", 240));
+
+    /** Old schematics name short grass minecraft:grass. */
+    private static String current(String block) {
+        return block.equals("minecraft:grass") ? "minecraft:short_grass" : block;
+    }
 
     private static String itemOf(String block) {
         return block.equals("water") ? null : BlockEquivalents.of(block).placedWith();
@@ -42,7 +47,7 @@ class MaterialRowsTest {
 
     private static List<MaterialRows.Row<String>> rows(List<BlockCount> counts, Map<String, String> swaps, MaterialList<String, String> list,
             Map<String, Integer> carried) {
-        return MaterialRows.of(counts, swaps, KNOWN::contains, MaterialRowsTest::itemOf, Function.identity(), list,
+        return MaterialRows.of(counts, swaps, MaterialRowsTest::current, KNOWN::contains, MaterialRowsTest::itemOf, Function.identity(), list,
                 item -> carried.getOrDefault(item, 0));
     }
 
@@ -63,6 +68,25 @@ class MaterialRowsTest {
             assertEquals(0, row.finishing());
             assertNull(row.finish());
         });
+    }
+
+    @Test
+    void unknownBlocksAreListedAndMarkedAndCanBeSwapped() {
+        List<MaterialRows.Row<String>> rows = rows(List.of(new BlockCount("create:shaft", 40), new BlockCount("oak_planks", 5)), Map.of(), null);
+        assertEquals(List.of("create:shaft", "oak_planks"), blocks(rows));
+        assertEquals(false, rows.get(0).known());
+        assertEquals(40, rows.get(0).total());
+
+        List<MaterialRows.Row<String>> swapped = rows(List.of(new BlockCount("create:shaft", 40)), Map.of("create:shaft", "iron_chain"), null);
+        assertEquals("iron_chain", swapped.get(0).target());
+    }
+
+    @Test
+    void upgradedBlocksShowTheirCurrentNameAndKeepTheIdAsWritten() {
+        List<MaterialRows.Row<String>> rows = rows(List.of(new BlockCount("minecraft:grass", 3)), Map.of(), null);
+        assertEquals("minecraft:grass", rows.get(0).block());
+        assertEquals("minecraft:short_grass", rows.get(0).current());
+        assertEquals(true, rows.get(0).known());
     }
 
     @Test

@@ -284,7 +284,8 @@ public final class RemoteInput {
                     case FOLLOWING -> RadialMenu.State.FOLLOWING;
                     case ANCHORED -> RadialMenu.State.ANCHORED;
                     case LOCKED -> RadialMenu.State.LOCKED;
-                }, selected.name(), selected.layers().mode(), selected.inHand());
+                }, selected.name(), selected.layers().mode(), selected.inHand(), session.unknownBlocks(selected).any(),
+                        HeavymaticaConfig.ghostShowUnknownBlocks());
         RadialMenu.Capture captureState = capture.session().box()
                 .map(box -> new RadialMenu.Capture(true, capture.session().capturing() ? 0 : box.corners())).orElse(RadialMenu.Capture.OFF);
         Minecraft.getInstance().setScreen(new RadialMenuScreen(new RadialMenu(HeavymaticaConfig.wheelMode(), selection,
@@ -307,6 +308,7 @@ public final class RemoteInput {
             case LAYERS_OFF, LAYERS_FROM_TO, LAYERS_FOLLOW -> session.placements().selected()
                     .ifPresent(placement -> controller.setLayerMode(command.layerMode(), PlacementSession.feetLayer(placement)));
             case SET_OPACITY -> HeavymaticaConfig.setGhostOpacity(run.value());
+            case TOGGLE_UNKNOWN_BLOCKS -> HeavymaticaConfig.setGhostShowUnknownBlocks(!HeavymaticaConfig.ghostShowUnknownBlocks());
             case START_CAPTURE -> capture.start();
             case CAPTURE -> capture.capture();
             case SWAP_CORNER -> capture.swap();

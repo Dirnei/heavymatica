@@ -1,12 +1,16 @@
 package io.github.dirnei.mc.heavymatica.ui;
 
+import io.github.dirnei.mc.heavymatica.blocks.BlockResolver;
 import io.github.dirnei.mc.heavymatica.cloud.model.BlockCount;
 import io.github.dirnei.mc.heavymatica.cloud.model.SchematicDetails;
 import io.github.dirnei.mc.heavymatica.cloud.model.Version;
+import io.github.dirnei.mc.heavymatica.formats.BlockStates;
 import io.github.dirnei.mc.heavymatica.library.LibraryEntry;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.IntConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -25,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 final class DetailsPanel extends AbstractWidget {
 
     private static final int ROW = 10;
+    private static final int UNKNOWN = 0xFFFF7070;
     static final int PLACE_WIDTH = 60;
     static final int EXPORT_WIDTH = 60;
     private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -95,17 +100,34 @@ final class DetailsPanel extends AbstractWidget {
             graphics.text(font, shown.getDimensions().getWidth() + " x " + shown.getDimensions().getHeight() + " x " + shown.getDimensions().getLength()
                     + "  " + shown.getBlockTotal() + " blocks", bx, by, 0xFFFFD060, false);
             by += ROW + 2;
-            for (BlockCount count : shown.getBlockCounts().stream().sorted(Comparator.comparingLong(BlockCount::getCount).reversed()).toList()) {
+            DetailBlockCounts counts = blockCounts(shown);
+            if (counts.unknownTypes() > 0) {
+                graphics.text(font, Component.translatable("heavymatica.library.details.unknown", counts.unknownTypes()), bx, by, UNKNOWN, false);
+                by += ROW;
+            }
+            for (DetailBlockCounts.Row count : counts.rows()) {
                 if (by > getY() + height - ROW) {
                     break;
                 }
-                String name = count.getBlock().startsWith("minecraft:") ? count.getBlock().substring("minecraft:".length()) : count.getBlock();
-                graphics.text(font, CardGrid.ellipsize(font, count.getCount() + "  " + name, getX() + width - bx - 6), bx, by, 0xFFC0C0C0, false);
+                String name = count.block().startsWith("minecraft:") ? count.block().substring("minecraft:".length()) : count.block();
+                Component line = count.known() ? Component.literal(count.count() + "  " + name)
+                        : Component.translatable("heavymatica.library.details.unknown_row", count.count(), name);
+                graphics.text(font, CardGrid.ellipsize(font, line.getString(), getX() + width - bx - 6), bx, by, count.known() ? 0xFFC0C0C0 : UNKNOWN, false);
                 by += ROW;
             }
         } else {
             graphics.text(font, entry.dimensions() + "  " + entry.blockTotal() + " blocks", bx, by, 0xFFC0C0C0, false);
         }
+    }
+
+    /** The version's counts under the names the game uses today, upgraded from the version's data version. */
+    private static DetailBlockCounts blockCounts(Version version) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        for (BlockCount count : version.getBlockCounts()) {
+            counts.merge(count.getBlock(), count.getCount(), Long::sum);
+        }
+        return DetailBlockCounts.of(counts, block -> BlockStates.id(BlockResolver.resolution().upgraded(block, version.getDataVersion())),
+                block -> MaterialsScreen.block(block) != null);
     }
 
     private List<Version> versions() {

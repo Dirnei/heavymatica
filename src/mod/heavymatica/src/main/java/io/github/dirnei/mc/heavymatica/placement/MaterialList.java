@@ -57,11 +57,23 @@ public final class MaterialList<I, B> {
     private final List<Row<I>> rows;
     private final List<CantCarry<B>> cantCarry;
     private final Map<B, Planned<I>> planned;
+    private final Map<String, Integer> unknown;
 
-    private MaterialList(List<Row<I>> rows, List<CantCarry<B>> cantCarry, Map<B, Planned<I>> planned) {
+    private MaterialList(List<Row<I>> rows, List<CantCarry<B>> cantCarry, Map<B, Planned<I>> planned, Map<String, Integer> unknown) {
         this.rows = rows;
         this.cantCarry = cantCarry;
         this.planned = planned;
+        this.unknown = unknown;
+    }
+
+    /** The list with its unknown blocks part: block ID to how many positions show it, sorted by ID. */
+    public MaterialList<I, B> withUnknown(Map<String, Integer> unknownBlocks) {
+        return new MaterialList<>(rows, cantCarry, planned, unknownBlocks);
+    }
+
+    /** Blocks the game does not know, by ID as shown, with how many positions show them; they need no item. */
+    public Map<String, Integer> unknown() {
+        return unknown;
     }
 
     /**
@@ -92,7 +104,7 @@ public final class MaterialList<I, B> {
         Map<I, Integer> leftByItem = new HashMap<>();
         planned.forEach(entry -> leftByItem.put(items.get(entry.item()), shares.left()[entry.item()]));
         MaterialList<I, B> list = of(needed, cantCarry, item -> had.getOrDefault(item, 0) + leftByItem.getOrDefault(item, 0), itemOrder, blockOrder);
-        return new MaterialList<>(list.rows, list.cantCarry, Map.copyOf(byBlock));
+        return new MaterialList<>(list.rows, list.cantCarry, Map.copyOf(byBlock), Map.of());
     }
 
     /**
@@ -119,7 +131,7 @@ public final class MaterialList<I, B> {
             }
         });
         blocks.sort(Comparator.<CantCarry<B>>comparingInt(entry -> -entry.count()).thenComparing(CantCarry::block, blockOrder));
-        return new MaterialList<>(List.copyOf(rows), List.copyOf(blocks), Map.of());
+        return new MaterialList<>(List.copyOf(rows), List.copyOf(blocks), Map.of(), Map.of());
     }
 
     public List<Row<I>> rows() {

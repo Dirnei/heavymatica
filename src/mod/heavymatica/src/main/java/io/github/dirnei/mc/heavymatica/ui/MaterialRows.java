@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
+import java.util.function.UnaryOperator;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -20,12 +21,15 @@ import org.jetbrains.annotations.Nullable;
 final class MaterialRows {
 
     /**
+     * @param block     the block ID as written in the file, which swaps are saved under
+     * @param current   the block ID as the game names it today, after upgrading an old schematic
+     * @param known     whether the game knows {@code current}
      * @param numbers   the shown-as block's counts under its placing item; null without a material list or when no item
      *                  places the block
      * @param finishing how many positions of the shown-as block need {@code finish}
      */
-    record Row<I>(String block, long total, @Nullable String target, MaterialList.@Nullable Row<I> numbers, int finishing,
-            BlockEquivalents.@Nullable Finish finish) {
+    record Row<I>(String block, String current, boolean known, long total, @Nullable String target, MaterialList.@Nullable Row<I> numbers,
+            int finishing, BlockEquivalents.@Nullable Finish finish) {
 
         int shortage() {
             return numbers == null ? 0 : numbers.shortage();
@@ -40,18 +44,20 @@ final class MaterialRows {
     }
 
     /**
+     * @param current   the block ID as the game names it today for a block ID as written in the file
      * @param known     whether the game knows a block ID; an unknown target shows as the original block
      * @param itemOf    the item placing a block, or null when none does
      * @param plannedOf the list's block key for a block ID, or null when the game does not know it
      * @param list      the placement's material list, or null while it is not locked
      * @param had       how many of an item the player carries, for blocks the list was not built from
      */
-    static <I, B> List<Row<I>> of(List<BlockCount> counts, Map<String, String> swaps, Predicate<String> known, Function<String, I> itemOf,
-            Function<String, B> plannedOf, @Nullable MaterialList<I, B> list, ToIntFunction<I> had) {
+    static <I, B> List<Row<I>> of(List<BlockCount> counts, Map<String, String> swaps, UnaryOperator<String> current, Predicate<String> known,
+            Function<String, I> itemOf, Function<String, B> plannedOf, @Nullable MaterialList<I, B> list, ToIntFunction<I> had) {
         List<Row<I>> rows = new ArrayList<>(counts.size());
         for (BlockCount count : counts) {
             String target = swaps.get(count.block());
-            String shownAs = target != null && known.test(target) ? target : count.block();
+            String today = current.apply(count.block());
+            String shownAs = target != null && known.test(target) ? target : today;
             MaterialList.Row<I> numbers = null;
             int finishing = 0;
             BlockEquivalents.Finish finish = null;
@@ -69,7 +75,7 @@ final class MaterialRows {
                     }
                 }
             }
-            rows.add(new Row<>(count.block(), count.count(), target, numbers, finishing, finish));
+            rows.add(new Row<>(count.block(), today, known.test(today), count.count(), target, numbers, finishing, finish));
         }
         Comparator<Row<I>> byTotal = Comparator.<Row<I>>comparingLong(row -> -row.total()).thenComparing(Row::block);
         rows.sort(list == null ? byTotal

@@ -18,6 +18,11 @@ class TargetLinesTest {
     }
 
     @Test
+    void cantCheckIsMuted() {
+        assertEquals(new StateLine("heavymatica.target.cant_check", TargetLines.MUTED), TargetLines.state(CellState.CANT_CHECK, null, false));
+    }
+
+    @Test
     void wrongOrientationIsOrange() {
         assertEquals(new StateLine("heavymatica.target.wrong_orientation", TargetLines.ORANGE),
                 TargetLines.state(CellState.WRONG_ORIENTATION, null, false));

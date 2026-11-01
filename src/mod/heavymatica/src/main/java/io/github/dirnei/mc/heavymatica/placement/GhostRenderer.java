@@ -63,6 +63,7 @@ final class GhostRenderer {
         boolean holding = remoteHeld.getAsBoolean();
         int budget = HeavymaticaConfig.ghostBlockBudget();
         float opacity = HeavymaticaConfig.ghostOpacity();
+        float placeholderOpacity = HeavymaticaConfig.ghostShowUnknownBlocks() ? opacity : 0.0F;
         float lineWidth = minecraft.gameRenderer.getGameRenderState().windowRenderState.appropriateLineWidth;
         PoseStack pose = event.getPoseStack();
         MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
@@ -90,18 +91,21 @@ final class GhostRenderer {
                     Layers.Range layers = Layers.visible(placement, PlacementSession.feetLayer(placement));
                     ToDoubleFunction<Block> alpha = placement.inHand() ? filter.alpha(comparison) : block -> opacity;
                     GpuBuffer mask = comparison.mask();
-                    int full = cells.draw(event.getModelViewMatrix(), offset, layers, block -> alpha.applyAsDouble(block) >= opacity ? opacity : 0.0, mask);
+                    // The in-hand filter never matches a block the game does not know.
+                    float placeholders = placement.inHand() ? 0.0F : placeholderOpacity;
+                    int full = cells.draw(event.getModelViewMatrix(), offset, layers, block -> alpha.applyAsDouble(block) >= opacity ? opacity : 0.0,
+                            placeholders, mask);
                     int dimmed = cells.draw(event.getModelViewMatrix(), offset, layers, block -> {
                         double value = alpha.applyAsDouble(block);
                         return value < opacity ? value : 0.0;
-                    }, mask);
+                    }, 0.0F, mask);
                     comparison.boxes().update();
                     comparison.boxes().draw(event.getModelViewMatrix(), offset, layers.from(), layers.to());
                     throughCells.add(placement.id());
                     cellsDrawn.append(" ").append(placement.name()).append(" layers ").append(layers.from()).append('-').append(layers.to())
                             .append(": ").append(full).append(" full, ").append(dimmed).append(" dimmed");
                 } else {
-                    mesh.draw(event.getModelViewMatrix(), offset, opacity);
+                    mesh.draw(event.getModelViewMatrix(), offset, opacity, placeholderOpacity);
                 }
             } else {
                 outlinesOnly++;

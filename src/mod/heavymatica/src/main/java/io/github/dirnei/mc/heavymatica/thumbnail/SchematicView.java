@@ -1,6 +1,6 @@
 package io.github.dirnei.mc.heavymatica.thumbnail;
 
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import io.github.dirnei.mc.heavymatica.blocks.BlockResolver;
 import io.github.dirnei.mc.heavymatica.blocks.SchematicTints;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import java.util.Arrays;
@@ -8,9 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
-import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.ColorResolver;
 import net.minecraft.world.level.LightLayer;
@@ -22,8 +20,8 @@ import net.minecraft.world.level.material.FluidState;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * A schematic as a fully lit, block-only world for block model rendering. Blocks the game does not know (other
- * mods, removed blocks) read as air, so a thumbnail still renders everything else.
+ * A schematic as a fully lit, block-only world for block model rendering, with old blocks upgraded. Blocks the game
+ * does not know (other mods, newer versions) read as air, so a thumbnail still renders everything else.
  */
 public final class SchematicView implements BlockAndTintGetter {
 
@@ -33,15 +31,10 @@ public final class SchematicView implements BlockAndTintGetter {
     SchematicView(SchematicModel model) {
         this.model = model;
         Map<String, BlockState> resolved = new HashMap<>();
-        this.palette = model.palette().stream().map(state -> resolved.computeIfAbsent(state, SchematicView::resolve)).toArray(BlockState[]::new);
-    }
-
-    public static BlockState resolve(String state) {
-        try {
-            return BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK, state, false).blockState();
-        } catch (CommandSyntaxException e) {
-            return Blocks.AIR.defaultBlockState();
-        }
+        this.palette = model.palette().stream().map(state -> resolved.computeIfAbsent(state, raw -> {
+            BlockState known = BlockResolver.state(BlockResolver.resolve(raw, model.dataVersion(), Map.of()));
+            return known == null ? Blocks.AIR.defaultBlockState() : known;
+        })).toArray(BlockState[]::new);
     }
 
     SchematicModel model() {

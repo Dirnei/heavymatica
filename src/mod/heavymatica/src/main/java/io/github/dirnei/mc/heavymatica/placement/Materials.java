@@ -67,7 +67,8 @@ public final class Materials {
         for (int block = 0; block < totals.cantCarry().length; block++) {
             cantCarry.merge(comparison.cantCarryBlock(block), totals.cantCarry()[block], Integer::sum);
         }
-        list = MaterialList.shared(planned, comparison.items(), stock, cantCarry, ITEM_ORDER, BLOCK_ORDER);
+        list = MaterialList.shared(planned, comparison.items(), stock, cantCarry, ITEM_ORDER, BLOCK_ORDER)
+                .withUnknown(comparison.unknownBlocks(range.from(), range.to()));
         builtFor = comparison;
         builtRange = range;
         builtAt = ticks;

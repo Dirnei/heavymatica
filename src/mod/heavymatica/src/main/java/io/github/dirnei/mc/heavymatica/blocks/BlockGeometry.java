@@ -112,7 +112,7 @@ public final class BlockGeometry {
     }
 
     /** A face's corners in vanilla's winding order. */
-    private static float[] corners(Direction face, float ax, float ay, float az, float bx, float by, float bz) {
+    static float[] corners(Direction face, float ax, float ay, float az, float bx, float by, float bz) {
         return switch (face) {
             case DOWN -> new float[] {ax, ay, bz, ax, ay, az, bx, ay, az, bx, ay, bz};
             case UP -> new float[] {ax, by, az, ax, by, bz, bx, by, bz, bx, by, az};

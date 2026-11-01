@@ -39,6 +39,7 @@ public final class TargetLines {
             case WRONG_WATER -> new StateLine(plannedWaterlogged ? "heavymatica.target.needs_water" : "heavymatica.target.not_waterlogged", CYAN);
             case NEEDS_FINISHING -> new StateLine(finish == null ? "heavymatica.target.finish"
                     : "heavymatica.target.finish." + finish.name().toLowerCase(Locale.ROOT), YELLOW);
+            case CANT_CHECK -> new StateLine("heavymatica.target.cant_check", MUTED);
             case MATCHING, IGNORED, EXTRA -> null;
         };
     }

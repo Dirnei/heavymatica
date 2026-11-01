@@ -566,6 +566,19 @@ def build():
     add("modded.v3.schem", write_sponge_v3(modded, data_version=DATA_VERSION),
         expected_for(modded, "sponge", DATA_VERSION), "Blocks from other namespaces, kept with their properties.")
 
+    # Blocks from older versions are kept as written; only the game upgrades them.
+    grass = Model(2, 1, 1)
+    grass.blocks[(0, 0, 0)] = "minecraft:grass"
+    grass.blocks[(1, 0, 0)] = "minecraft:grass_block[snowy=false]"
+    add("legacy-grass.litematic", write_litematic([region_of(grass)], version=6, data_version=3578),
+        expected_for(grass, "litematica", 3578), "Minecraft 1.20.2 short grass under its old name minecraft:grass, kept as written.")
+    wall = Model(3, 1, 1)
+    wall.blocks[(0, 0, 0)] = "minecraft:cobblestone_wall[east=true,north=false,south=false,up=true,waterlogged=false,west=false]"
+    wall.blocks[(1, 0, 0)] = "minecraft:cobblestone_wall[east=true,north=false,south=false,up=false,waterlogged=false,west=true]"
+    wall.blocks[(2, 0, 0)] = "minecraft:cobblestone_wall[east=false,north=false,south=false,up=true,waterlogged=false,west=true]"
+    add("legacy-wall.litematic", write_litematic([region_of(wall)], version=5, data_version=2230),
+        expected_for(wall, "litematica", 2230), "Minecraft 1.15.2 walls with boolean sides, kept as written.")
+
     # Entities are skipped and counted.
     add("entities.nbt", write_structure(h, data_version=DATA_VERSION, entities=3),
         expected_for(h, "structure", DATA_VERSION, skipped_entities=3), "Three entities, left out of the model.")

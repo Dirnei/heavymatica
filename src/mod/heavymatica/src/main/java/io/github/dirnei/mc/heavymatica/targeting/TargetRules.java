@@ -17,12 +17,17 @@ public final class TargetRules {
     }
 
     /**
-     * True when the position is drawn: a ghost the in-hand filter shows (dimmed counts), or a mistake or finishing box,
-     * in a visible layer.
+     * True when the position is drawn: a ghost the in-hand filter shows (dimmed counts), a mistake or finishing box, or
+     * an unknown block's placeholder while those show, in a visible layer.
      *
-     * @param inHandShows true when the in-hand filter is off or shows the planned block at least dimmed
+     * @param inHandShows  true when the in-hand filter is off or shows the planned block at least dimmed; for an unknown
+     *                     block, true when the filter is off
+     * @param showsUnknown true while unknown blocks are shown
      */
-    public static boolean drawn(Kind planned, CellState state, boolean inLayers, boolean inHandShows) {
+    public static boolean drawn(Kind planned, CellState state, boolean inLayers, boolean inHandShows, boolean showsUnknown) {
+        if (inLayers && planned == Kind.CANT_CHECK) {
+            return showsUnknown && inHandShows;
+        }
         if (!inLayers || planned != Kind.BLOCK) {
             return false;
         }

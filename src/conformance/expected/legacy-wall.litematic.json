@@ -1,0 +1,17 @@
+{
+  "note": "Minecraft 1.15.2 walls with boolean sides, kept as written.",
+  "format": "litematica",
+  "size": [
+    3,
+    1,
+    1
+  ],
+  "dataVersion": 2230,
+  "paletteDigest": "3d9dd332f7da6cb437cc28879f7f7fe9f2dd00662686e7091c558018fd1787bb",
+  "blockTotal": 3,
+  "blockCounts": {
+    "minecraft:cobblestone_wall": 3
+  },
+  "blockEntities": [],
+  "skippedEntities": 0
+}

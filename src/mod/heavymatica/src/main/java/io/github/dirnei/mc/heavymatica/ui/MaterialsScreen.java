@@ -1,5 +1,7 @@
 package io.github.dirnei.mc.heavymatica.ui;
 
+import io.github.dirnei.mc.heavymatica.blocks.BlockResolver;
+import io.github.dirnei.mc.heavymatica.formats.BlockStates;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.placement.BlockEquivalents;
 import io.github.dirnei.mc.heavymatica.placement.MaterialList;
@@ -57,6 +59,7 @@ public final class MaterialsScreen extends Screen {
     private List<MaterialRows.Row<Item>> all = List.of();
     private List<MaterialRows.Row<Item>> rows = List.of();
     private List<MaterialList.CantCarry<Block>> cantCarry = List.of();
+    private List<Map.Entry<String, Integer>> unknown = List.of();
     private final ScrollBar scroll = new ScrollBar();
     private final List<Button> pickButtons = new ArrayList<>();
     private final List<Button> resetButtons = new ArrayList<>();
@@ -82,16 +85,22 @@ public final class MaterialsScreen extends Screen {
         }
         list = placement != null && placement.locked() ? session.materials(placement) : null;
         Map<String, String> swaps = placement == null ? Map.of() : placement.swaps();
-        all = MaterialRows.of(counts, swaps, blockId -> block(blockId) != null, MaterialsScreen::itemOf, MaterialsScreen::block, list, session::carried);
+        SchematicModel model = placement == null ? null : session.model(placement);
+        Integer dataVersion = model == null ? null : model.dataVersion();
+        all = MaterialRows.of(counts, swaps, blockId -> BlockStates.id(BlockResolver.resolution().upgraded(blockId, dataVersion)),
+                blockId -> block(blockId) != null, MaterialsScreen::itemOf, MaterialsScreen::block, list, session::carried);
         filter();
     }
 
     private void filter() {
         String query = query();
-        rows = all.stream().filter(row -> matches(query, row.block()) || row.target() != null && matches(query, row.target())).toList();
+        rows = all.stream()
+                .filter(row -> matches(query, row.current()) || matches(query, row.block()) || row.target() != null && matches(query, row.target()))
+                .toList();
         cantCarry = list == null ? List.of() : list.cantCarry().stream()
                 .filter(entry -> ScrollBars.matches(query, entry.block().getName().getString(), BuiltInRegistries.BLOCK.getKey(entry.block()).toString()))
                 .toList();
+        unknown = list == null ? List.of() : list.unknown().entrySet().stream().filter(entry -> ScrollBars.matches(query, entry.getKey(), entry.getKey())).toList();
     }
 
     private static boolean matches(String query, String blockId) {
@@ -106,6 +115,11 @@ public final class MaterialsScreen extends Screen {
     /** The listed rows for development checks, in screen order. */
     List<MaterialRows.Row<Item>> rowsForDevelopment() {
         return rows;
+    }
+
+    /** The listed unknown blocks with their positions in the visible layers, for development checks. */
+    List<Map.Entry<String, Integer>> unknownForDevelopment() {
+        return unknown;
     }
 
     /** The listed can't-carry blocks for development checks. */
@@ -170,20 +184,21 @@ public final class MaterialsScreen extends Screen {
         layoutRows();
     }
 
-    private void pick(String blockId) {
-        minecraft.setScreen(new BlockPickerScreen(this, blockId, target -> session.controller().swap(blockId, target)));
+    /** Picks for the block as it shows today, so an upgraded block suggests its own kind; the swap stays under the ID as written. */
+    private void pick(MaterialRows.Row<Item> row) {
+        minecraft.setScreen(new BlockPickerScreen(this, row.current(), target -> session.controller().swap(row.block(), target)));
     }
 
-    private void reset(String blockId) {
-        session.controller().resetSwap(blockId);
+    private void reset(MaterialRows.Row<Item> row) {
+        session.controller().resetSwap(row.block());
         refresh();
         layoutRows();
     }
 
-    private void onRow(int slot, Consumer<String> action) {
+    private void onRow(int slot, Consumer<MaterialRows.Row<Item>> action) {
         int index = firstRow() + slot;
         if (index < rows.size()) {
-            action.accept(rows.get(index).block());
+            action.accept(rows.get(index));
         }
     }
 
@@ -217,7 +232,11 @@ public final class MaterialsScreen extends Screen {
     }
 
     private int lineCount() {
-        return rows.size() + (cantCarry.isEmpty() ? 0 : cantCarry.size() + 1);
+        return rows.size() + cantCarryLines() + (unknown.isEmpty() ? 0 : unknown.size() + 1);
+    }
+
+    private int cantCarryLines() {
+        return cantCarry.isEmpty() ? 0 : cantCarry.size() + 1;
     }
 
     private int content() {
@@ -307,7 +326,12 @@ public final class MaterialsScreen extends Screen {
             int y = TOP + (i - firstRow) * ROW;
             if (i < rows.size()) {
                 MaterialRows.Row<Item> row = rows.get(i);
-                block(graphics, row.block(), left, y, blockWidth, TEXT);
+                if (row.known()) {
+                    block(graphics, row.current(), left, y, blockWidth, TEXT);
+                } else {
+                    graphics.text(font, fit(Component.translatable("heavymatica.materials.unknown", row.current()).getString(), blockWidth - 20), left + 20,
+                            y + 5, MISSING, false);
+                }
                 right(graphics, Component.literal(Long.toString(row.total())), totalX, y + 5, TEXT);
                 graphics.text(font, "→", totalX + 4, y + 5, MUTED, false);
                 target(graphics, row.target(), targetX, y, targetWidth);
@@ -321,12 +345,23 @@ public final class MaterialsScreen extends Screen {
                     right(graphics, Component.translatable("heavymatica.materials.finish." + row.finish().name().toLowerCase(Locale.ROOT), row.finishing()),
                             finishX, y + 5, FINISHING);
                 }
-            } else if (i == rows.size()) {
-                graphics.text(font, Component.translatable("heavymatica.materials.cant_carry"), left, y + 5, HEADER, false);
+            } else if (i < rows.size() + cantCarryLines()) {
+                if (i == rows.size()) {
+                    graphics.text(font, Component.translatable("heavymatica.materials.cant_carry"), left, y + 5, HEADER, false);
+                } else {
+                    MaterialList.CantCarry<Block> entry = cantCarry.get(i - rows.size() - 1);
+                    graphics.text(font, fit(entry.block().getName().getString(), columns - left - 20), left + 20, y + 5, MUTED, false);
+                    right(graphics, Component.literal(Integer.toString(entry.count())), neededX, y + 5, MUTED);
+                }
             } else {
-                MaterialList.CantCarry<Block> entry = cantCarry.get(i - rows.size() - 1);
-                graphics.text(font, fit(entry.block().getName().getString(), columns - left - 20), left + 20, y + 5, MUTED, false);
-                right(graphics, Component.literal(Integer.toString(entry.count())), neededX, y + 5, MUTED);
+                int line = i - rows.size() - cantCarryLines();
+                if (line == 0) {
+                    graphics.text(font, Component.translatable("heavymatica.materials.unknown_blocks"), left, y + 5, HEADER, false);
+                } else {
+                    Map.Entry<String, Integer> entry = unknown.get(line - 1);
+                    graphics.text(font, fit(entry.getKey(), columns - left - 20), left + 20, y + 5, MISSING, false);
+                    right(graphics, Component.literal(Integer.toString(entry.getValue())), neededX, y + 5, MUTED);
+                }
             }
         }
     }

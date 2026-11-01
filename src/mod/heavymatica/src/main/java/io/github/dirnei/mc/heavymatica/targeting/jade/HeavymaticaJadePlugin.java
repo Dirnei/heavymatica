@@ -44,7 +44,7 @@ public final class HeavymaticaJadePlugin implements IWailaPlugin {
     /** Jade keeps no accessor when a callback returns null, so the one it passed in is returned unchanged. */
     private static Accessor<?> replace(IWailaClientRegistration registration, HitResult hit, Accessor<?> accessor) {
         GhostTarget target = target();
-        if (target == null || !nearerThan(target, hit)) {
+        if (target == null || target.unknownId() != null || !nearerThan(target, hit)) {
             return accessor;
         }
         Vec3 centre = Vec3.atCenterOf(target.pos());

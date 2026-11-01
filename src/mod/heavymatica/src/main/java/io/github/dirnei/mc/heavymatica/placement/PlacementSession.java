@@ -16,7 +16,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
-import java.util.function.Consumer;
+import java.util.function.ObjIntConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.player.LocalPlayer;
@@ -50,9 +50,14 @@ public final class PlacementSession {
     private final Materials materials = new Materials();
     private final Finishes finishes = new Finishes();
     private final CaptureSession capture = new CaptureSession();
-    private final List<Consumer<Placement>> finishListeners = new CopyOnWriteArrayList<>();
+    private final List<ObjIntConsumer<Placement>> finishListeners = new CopyOnWriteArrayList<>();
     private final GhostRenderer renderer;
     private final Map<String, SchematicModel> models = new HashMap<>();
+
+    private record UnknownKey(String sha256, Map<String, String> swaps) {
+    }
+
+    private final Map<UnknownKey, UnknownBlocks> unknownBlocks = new HashMap<>();
     private final Set<String> loading = new HashSet<>();
     private final Set<String> unavailable = new HashSet<>();
     private boolean inWorld;
@@ -88,7 +93,7 @@ public final class PlacementSession {
     }
 
     /** Subscribes to finished placements, which are already removed when the listener runs. */
-    public void onFinish(Consumer<Placement> listener) {
+    public void onFinish(ObjIntConsumer<Placement> listener) {
         finishListeners.add(listener);
     }
 
@@ -105,6 +110,16 @@ public final class PlacementSession {
     /** The placement's schematic once loaded; null while loading or unavailable. */
     public @Nullable SchematicModel model(Placement placement) {
         return models.get(placement.source().sha256());
+    }
+
+    /** The placement's blocks the game does not know after its swaps; none while its schematic is not loaded. */
+    public UnknownBlocks unknownBlocks(Placement placement) {
+        SchematicModel model = model(placement);
+        if (model == null) {
+            return UnknownBlocks.NONE;
+        }
+        return unknownBlocks.computeIfAbsent(new UnknownKey(placement.source().sha256(), placement.swaps()),
+                key -> GhostView.unknownBlocks(model, key.swaps()));
     }
 
     /** The placement's comparison with the world; null unless it is locked, loaded and in the player's dimension. */
@@ -202,6 +217,7 @@ public final class PlacementSession {
         store.close();
         placements.replaceAll(List.of());
         models.clear();
+        unknownBlocks.clear();
         loading.clear();
         unavailable.clear();
         meshes.close();
@@ -231,7 +247,8 @@ public final class PlacementSession {
                 finishes.finish(placement, System.currentTimeMillis());
                 placements.remove(placement.id());
                 Heavymatica.LOGGER.info("Placement {} finished", placement.name());
-                finishListeners.forEach(listener -> listener.accept(placement));
+                int cantCheck = state.total(CellState.CANT_CHECK);
+                finishListeners.forEach(listener -> listener.accept(placement, cantCheck));
             }
         }
     }

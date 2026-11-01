@@ -11,6 +11,8 @@ import io.github.dirnei.mc.heavymatica.cloud.model.LinkCode;
 import io.github.dirnei.mc.heavymatica.capture.CaptureBox;
 import io.github.dirnei.mc.heavymatica.capture.CaptureController;
 import io.github.dirnei.mc.heavymatica.capture.CaptureSession;
+import io.github.dirnei.mc.heavymatica.blocks.BlockResolution;
+import io.github.dirnei.mc.heavymatica.blocks.BlockResolver;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.formats.SchematicReader;
 import io.github.dirnei.mc.heavymatica.library.LocalLibrary;
@@ -34,6 +36,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
@@ -124,6 +127,8 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code holdMovement=<key mapping>}, {@code releaseMovement=<key mapping>}: hold or let go of a movement key as the
  *     open wheel reads it (for example {@code key.forward})</li>
  *     <li>{@code logPlayer}: log the player's position, yaw and pitch</li>
+ *     <li>{@code swap=<block>,<target>}, {@code swap=<block>}: swap a block of the selected placement, or reset its swap</li>
+ *     <li>{@code logResolve=<file>}: log how every palette entry of a schematic file resolves: upgraded, known or unknown</li>
  *     <li>{@code quit}: stop the game</li>
  * </ul>
  */
@@ -278,6 +283,17 @@ public final class DevScreens {
                             .ifPresent(placement -> session.placements().select(placement.id()));
                 }
             }
+            case "swap" -> {
+                PlacementSession session = HeavymaticaClient.placements();
+                String[] pair = argument.split(",", 2);
+                if (session != null) {
+                    if (pair.length == 2) {
+                        session.controller().swap(pair[0], pair[1]);
+                    } else {
+                        session.controller().resetSwap(pair[0]);
+                    }
+                }
+            }
             case "logCell" -> {
                 String[] parts = argument.split(",");
                 logCell(new net.minecraft.core.BlockPos(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2])));
@@ -396,6 +412,7 @@ public final class DevScreens {
             case "logPlayer" -> Heavymatica.LOGGER.info("Dev player: at {}, yaw {}, pitch {}, input {} {}", minecraft.player.position(), minecraft.player.getYRot(),
                     minecraft.player.getXRot(), minecraft.player.input.getClass().getSimpleName(), minecraft.player.input.keyPresses);
             case "logSpecialGeometry" -> logSpecialGeometry();
+            case "logResolve" -> logResolve(Path.of(argument));
             case "capture" -> {
                 CaptureController capture = HeavymaticaClient.capture();
                 switch (argument) {
@@ -485,6 +502,15 @@ public final class DevScreens {
         }
         for (int i = bounds.minY(); i > y; i--) {
             session.controller().vertical(-1, false);
+        }
+    }
+
+    private static void logResolve(Path file) {
+        SchematicModel model = SchematicReader.read(file);
+        for (String raw : model.palette()) {
+            BlockResolution.Resolved resolved = BlockResolver.resolve(raw, model.dataVersion(), Map.of());
+            Heavymatica.LOGGER.info("Dev resolve {} (data version {}): {} -> {}{}", file.getFileName(), model.dataVersion(), raw, resolved.shown(),
+                    resolved.known() ? " as " + BlockResolver.state(resolved) : " (unknown)");
         }
     }
 
@@ -644,10 +670,10 @@ public final class DevScreens {
         if (list == null) {
             Heavymatica.LOGGER.info("Dev materials: none ({})", placement.state());
         } else {
-            Heavymatica.LOGGER.info("Dev materials: visible {}, rows {}, can't carry {}", Layers.visible(placement, PlacementSession.feetLayer(placement)),
+            Heavymatica.LOGGER.info("Dev materials: visible {}, rows {}, can't carry {}, unknown {}", Layers.visible(placement, PlacementSession.feetLayer(placement)),
                     list.rows().stream().map(row -> BuiltInRegistries.ITEM.getKey(row.item()) + " " + row.needed() + "/" + row.had() + "/" + row.shortage())
                             .toList(),
-                    list.cantCarry().stream().map(entry -> BuiltInRegistries.BLOCK.getKey(entry.block()) + " " + entry.count()).toList());
+                    list.cantCarry().stream().map(entry -> BuiltInRegistries.BLOCK.getKey(entry.block()) + " " + entry.count()).toList(), list.unknown());
             WorldComparison comparison = session.comparison(placement);
             if (comparison != null) {
                 Heavymatica.LOGGER.info("Dev materials planned (needed/given/short, left, finishing): {}", comparison.plannedBlocks().stream()
@@ -661,11 +687,13 @@ public final class DevScreens {
             }
         }
         if (minecraft.screen instanceof MaterialsScreen screen) {
-            Heavymatica.LOGGER.info("Dev materials screen rows: {}, can't carry {}", screen.rowsForDevelopment().stream()
-                    .map(row -> row.block() + " " + row.total() + (row.target() == null ? "" : " -> " + row.target())
+            Heavymatica.LOGGER.info("Dev materials screen rows: {}, can't carry {}, unknown {}", screen.rowsForDevelopment().stream()
+                    .map(row -> row.block() + (row.current().equals(row.block()) ? "" : " as " + row.current()) + (row.known() ? "" : " (unknown)")
+                            + " " + row.total() + (row.target() == null ? "" : " -> " + row.target())
                             + (row.numbers() == null ? "" : " " + row.numbers().needed() + "/" + row.numbers().had() + "/" + row.numbers().shortage())
                             + (row.finish() == null || row.finishing() == 0 ? "" : " finish " + row.finishing() + " " + row.finish()))
-                    .toList(), screen.cantCarryForDevelopment().stream().map(entry -> BuiltInRegistries.BLOCK.getKey(entry.block()) + " " + entry.count()).toList());
+                    .toList(), screen.cantCarryForDevelopment().stream().map(entry -> BuiltInRegistries.BLOCK.getKey(entry.block()) + " " + entry.count()).toList(),
+                    screen.unknownForDevelopment());
         }
     }
 

@@ -251,6 +251,9 @@ public final class RadialMenuScreen extends Screen {
 
     public static Component name(Segment segment) {
         String key = "heavymatica.wheel.entry." + segment.entry().name().toLowerCase(Locale.ROOT);
+        if (segment.entry() == Entry.UNKNOWN_BLOCKS) {
+            return Component.translatable(key + (segment.current() ? ".shown" : ".hidden"));
+        }
         return segment.entry() == Entry.OPACITY_STEP ? Component.translatable(key, OpacitySteps.percent(segment.value())) : Component.translatable(key);
     }
 
@@ -266,6 +269,7 @@ public final class RadialMenuScreen extends Screen {
             case MATERIALS -> Items.BRUSH;
             case OPACITY -> Items.TINTED_GLASS;
             case OPACITY_STEP -> Items.GLASS_PANE;
+            case UNKNOWN_BLOCKS -> Items.PURPLE_STAINED_GLASS;
             case START_CAPTURE, CAPTURE -> Items.STRUCTURE_BLOCK;
             case SWAP_CORNER -> Items.COMPASS;
             case RESET_CORNERS -> Items.BUCKET;

@@ -63,11 +63,12 @@ public final class TargetHud {
     private void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
         Minecraft minecraft = Minecraft.getInstance();
         PlacementSession session = sessions.get();
-        if (session == null || shownByJade || minecraft.options.hideGui || minecraft.screen != null || minecraft.player == null) {
+        if (session == null || minecraft.options.hideGui || minecraft.screen != null || minecraft.player == null) {
             return;
         }
         GhostTarget target = shownTarget(targeting.get());
-        if (target == null) {
+        // Jade can't show a block the game does not know, so the HUD names it even with Jade installed.
+        if (target == null || shownByJade && target.unknownId() == null) {
             return;
         }
         WorldComparison comparison = session.comparison(target.placement());
@@ -121,8 +122,8 @@ public final class TargetHud {
     /** The name, orientation, state, placement and reach lines for a target. */
     public static List<Line> lines(GhostTarget target, @Nullable UUID selected) {
         List<Line> lines = new ArrayList<>();
-        lines.add(new Line(target.planned().getBlock().getName(), TargetLines.TEXT));
-        String details = WorldComparison.details(target.planned());
+        lines.add(new Line(target.unknownId() != null ? Component.literal(target.unknownId()) : target.planned().getBlock().getName(), TargetLines.TEXT));
+        String details = target.unknownId() != null ? "" : WorldComparison.details(target.planned());
         if (!details.isEmpty()) {
             lines.add(new Line(Component.literal(details), TargetLines.MUTED));
         }

@@ -65,6 +65,36 @@ class RadialMenuTest {
                 entries(menu(Mode.HOLD, LOCKED)));
     }
 
+    private static Selection withUnknown(Selection selection, boolean shown) {
+        return new Selection(selection.state(), selection.name(), selection.layers(), selection.inHand(), true, shown);
+    }
+
+    @Test
+    void unknownBlocksComesAfterOpacityInEveryPlacementState() {
+        assertEquals(List.of(Entry.CANCEL, Entry.MATERIALS, Entry.OPACITY, Entry.UNKNOWN_BLOCKS, Entry.LIBRARY),
+                entries(menu(Mode.HOLD, withUnknown(FOLLOWING, true))));
+        assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.MATERIALS, Entry.OPACITY, Entry.UNKNOWN_BLOCKS, Entry.LIBRARY, Entry.START_CAPTURE),
+                entries(menu(Mode.HOLD, withUnknown(ANCHORED, true))));
+        assertEquals(List.of(Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIALS, Entry.OPACITY, Entry.UNKNOWN_BLOCKS, Entry.LIBRARY,
+                        Entry.START_CAPTURE),
+                entries(menu(Mode.HOLD, withUnknown(LOCKED, false))));
+    }
+
+    @Test
+    void noUnknownBlocksSegmentWithoutUnknownBlocksOrSelection() {
+        assertEquals(-1, index(menu(Mode.HOLD, ANCHORED), Entry.UNKNOWN_BLOCKS));
+        assertEquals(-1, index(menu(Mode.HOLD, Selection.NONE), Entry.UNKNOWN_BLOCKS));
+    }
+
+    @Test
+    void unknownBlocksSegmentMarksWhetherTheyShowAndPickingTogglesIt() {
+        RadialMenu shown = menu(Mode.TOGGLE, withUnknown(ANCHORED, true));
+        RadialMenu hidden = menu(Mode.TOGGLE, withUnknown(ANCHORED, false));
+        assertEquals(true, shown.segments().get(index(shown, Entry.UNKNOWN_BLOCKS)).current());
+        assertEquals(false, hidden.segments().get(index(hidden, Entry.UNKNOWN_BLOCKS)).current());
+        assertEquals(run(Command.TOGGLE_UNKNOWN_BLOCKS), shown.click(index(shown, Entry.UNKNOWN_BLOCKS)));
+    }
+
     @Test
     void materialsIsEnabledOnlyWithASelection() {
         for (Selection selection : List.of(FOLLOWING, ANCHORED, LOCKED)) {

@@ -110,6 +110,15 @@ change). `.blueprint` (Structurize) import was out of scope.
     sneak or the setting gives vanilla's pick.
   - The overlay's expected and found lines follow the ghost target.
   - Later: picking from carried containers and chests, and targeting anchored or following placements.
+- **Unknown and legacy blocks (change `unknown-and-legacy-blocks`):** blocks the game can't resolve no longer vanish.
+  - Schematics from older Minecraft versions are upgraded in the game with Minecraft's DataFixer when a ghost,
+    comparison, thumbnail or the library details are built. Files, uploads, exports and the cloud keep the names as
+    written, and swaps stay keyed by the block ID in the file.
+  - Known blocks with property values the game doesn't accept fall back to the block's defaults.
+  - Blocks the game doesn't know (missing mods, newer versions) show as the missing-texture cube, are "can't check" in
+    the comparison (not counted, but still finished with sound and toast), and are named in the overlay, the HUD, the
+    material list, the materials screen (where they can be swapped) and the library details.
+  - The wheel's Unknown blocks segment shows or hides the cubes for every placement (`ghost.showUnknownBlocks`).
 - Step 4 is done.
 
 ### Capture and export (done)

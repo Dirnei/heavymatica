@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import io.github.dirnei.mc.heavymatica.blocks.BlockGeometry;
+import io.github.dirnei.mc.heavymatica.blocks.PlaceholderGeometry;
 import io.github.dirnei.mc.heavymatica.blocks.SpecialGeometry;
 import io.github.dirnei.mc.heavymatica.blocks.TexturedOutput;
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -27,17 +29,30 @@ final class GhostMeshBuilder {
     private GhostMeshBuilder() {
     }
 
-    static GhostMesh.Built build(BlockAndTintGetter view, int sx, int sy, int sz) {
+    static GhostMesh.Built build(GhostView view, int sx, int sy, int sz) {
         Map<Identifier, BuiltBuffer> buffers = new LinkedHashMap<>();
+        BuiltBuffer placeholders = null;
         try {
             TexturedOutput output = (texture, layer) -> buffers.computeIfAbsent(texture, BuiltBuffer::new).buffer;
             BlockGeometry geometry = new BlockGeometry(SpecialGeometry.get());
+            PlaceholderGeometry placeholder = null;
             int blocks = 0;
             BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
             for (int y = 0; y < sy; y++) {
                 for (int z = 0; z < sz; z++) {
                     for (int x = 0; x < sx; x++) {
                         pos.set(x, y, z);
+                        if (view.unknownAt(x, y, z)) {
+                            if (placeholder == null) {
+                                placeholder = new PlaceholderGeometry();
+                                placeholders = new BuiltBuffer(TextureAtlas.LOCATION_BLOCKS);
+                            }
+                            int cx = x, cy = y, cz = z;
+                            if (placeholder.emit(placeholders.buffer, x, y, z, face -> view.placeholderFaceCovered(cx, cy, cz, face))) {
+                                blocks++;
+                            }
+                            continue;
+                        }
                         BlockState state = view.getBlockState(pos);
                         if (state.isAir() || hidden(view, pos, sx, sy, sz)) {
                             continue;
@@ -50,11 +65,14 @@ final class GhostMeshBuilder {
             }
             List<GhostMesh.BuiltTexture> textures = new ArrayList<>();
             for (BuiltBuffer buffer : buffers.values()) {
-                textures.add(new GhostMesh.BuiltTexture(buffer.texture, buffer.bytes, buffer.buffer.build()));
+                textures.add(buffer.built());
             }
-            return new GhostMesh.Built(textures, blocks);
+            return new GhostMesh.Built(textures, placeholders == null ? null : placeholders.built(), blocks);
         } catch (RuntimeException | Error e) {
             buffers.values().forEach(buffer -> buffer.bytes.close());
+            if (placeholders != null) {
+                placeholders.bytes.close();
+            }
             throw e;
         }
     }
@@ -80,6 +98,10 @@ final class GhostMeshBuilder {
 
         BuiltBuffer(Identifier texture) {
             this.texture = texture;
+        }
+
+        GhostMesh.BuiltTexture built() {
+            return new GhostMesh.BuiltTexture(texture, bytes, buffer.build());
         }
     }
 }

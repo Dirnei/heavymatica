@@ -21,10 +21,12 @@ public final class GhostMesh implements AutoCloseable {
     }
 
     private final List<Range> ranges;
+    private final @Nullable Range placeholders;
     private final int blocks;
 
-    private GhostMesh(List<Range> ranges, int blocks) {
+    private GhostMesh(List<Range> ranges, @Nullable Range placeholders, int blocks) {
         this.ranges = ranges;
+        this.placeholders = placeholders;
         this.blocks = blocks;
     }
 
@@ -34,14 +36,21 @@ public final class GhostMesh implements AutoCloseable {
         try (built) {
             List<Range> ranges = new ArrayList<>();
             for (BuiltTexture texture : built.textures()) {
-                if (texture.mesh() != null) {
-                    GpuBuffer buffer = RenderSystem.getDevice().createBuffer(() -> "Heavymatica ghost", GpuBuffer.USAGE_VERTEX,
-                            texture.mesh().vertexBuffer());
-                    ranges.add(new Range(texture.texture(), buffer, texture.mesh().drawState().indexCount() / 6));
+                Range range = range(texture);
+                if (range != null) {
+                    ranges.add(range);
                 }
             }
-            return new GhostMesh(ranges, built.blocks());
+            return new GhostMesh(ranges, built.placeholders() == null ? null : range(built.placeholders()), built.blocks());
         }
+    }
+
+    private static @Nullable Range range(BuiltTexture texture) {
+        if (texture.mesh() == null) {
+            return null;
+        }
+        GpuBuffer buffer = RenderSystem.getDevice().createBuffer(() -> "Heavymatica ghost", GpuBuffer.USAGE_VERTEX, texture.mesh().vertexBuffer());
+        return new Range(texture.texture(), buffer, texture.mesh().drawState().indexCount() / 6);
     }
 
     /** Visible blocks in this mesh, counted against the rendering budget. */
@@ -49,14 +58,21 @@ public final class GhostMesh implements AutoCloseable {
         return blocks;
     }
 
-    /** Draws at {@code offset} (placement minimum corner minus camera position). Render thread only. */
-    public void draw(Matrix4fc modelView, Vector3f offset, float alpha) {
-        if (ranges.isEmpty()) {
+    /**
+     * Draws at {@code offset} (placement minimum corner minus camera position), the unknown blocks' placeholders at
+     * {@code placeholderAlpha}, 0 or less to skip them. Render thread only.
+     */
+    public void draw(Matrix4fc modelView, Vector3f offset, float alpha, float placeholderAlpha) {
+        boolean drawPlaceholders = placeholders != null && placeholderAlpha > 0.0F;
+        if (ranges.isEmpty() && !drawPlaceholders) {
             return;
         }
         try (GhostDraw draw = new GhostDraw(modelView, offset)) {
             for (Range range : ranges) {
                 draw.quads(range.texture(), range.vertices(), 0, range.quads(), alpha);
+            }
+            if (drawPlaceholders) {
+                draw.quads(placeholders.texture(), placeholders.vertices(), 0, placeholders.quads(), placeholderAlpha);
             }
         }
     }
@@ -64,22 +80,32 @@ public final class GhostMesh implements AutoCloseable {
     @Override
     public void close() {
         ranges.forEach(range -> range.vertices().close());
+        if (placeholders != null) {
+            placeholders.vertices().close();
+        }
     }
 
     /** One texture's geometry built off the render thread; {@code mesh} is null when it has nothing. */
     record BuiltTexture(Identifier texture, ByteBufferBuilder bytes, @Nullable MeshData mesh) {
+
+        void close() {
+            if (mesh != null) {
+                mesh.close();
+            }
+            bytes.close();
+        }
     }
 
-    /** Geometry built off the render thread, waiting for upload. */
-    record Built(List<BuiltTexture> textures, int blocks) implements AutoCloseable {
+    /** Geometry built off the render thread, waiting for upload; {@code placeholders} is null without unknown blocks. */
+    record Built(List<BuiltTexture> textures, @Nullable BuiltTexture placeholders, int blocks) implements AutoCloseable {
 
         @Override
         public void close() {
             for (BuiltTexture texture : textures) {
-                if (texture.mesh() != null) {
-                    texture.mesh().close();
-                }
-                texture.bytes().close();
+                texture.close();
+            }
+            if (placeholders != null) {
+                placeholders.close();
             }
         }
     }

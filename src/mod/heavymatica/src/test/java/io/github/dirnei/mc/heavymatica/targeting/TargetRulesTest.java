@@ -23,30 +23,38 @@ class TargetRulesTest {
     @ParameterizedTest
     @EnumSource(value = CellState.class, names = {"MISSING", "UNKNOWN"})
     void ghostsAreDrawnInTheLayersWhenTheInHandFilterShowsThem(CellState state) {
-        assertTrue(TargetRules.drawn(Kind.BLOCK, state, true, true));
-        assertFalse(TargetRules.drawn(Kind.BLOCK, state, true, false));
-        assertFalse(TargetRules.drawn(Kind.BLOCK, state, false, true));
+        assertTrue(TargetRules.drawn(Kind.BLOCK, state, true, true, true));
+        assertFalse(TargetRules.drawn(Kind.BLOCK, state, true, false, true));
+        assertFalse(TargetRules.drawn(Kind.BLOCK, state, false, true, true));
     }
 
     @ParameterizedTest
     @EnumSource(value = CellState.class, names = {"WRONG_BLOCK", "WRONG_ORIENTATION", "WRONG_WATER", "NEEDS_FINISHING"})
     void boxesAreDrawnInTheLayersWhateverTheFilterSays(CellState state) {
-        assertTrue(TargetRules.drawn(Kind.BLOCK, state, true, true));
-        assertTrue(TargetRules.drawn(Kind.BLOCK, state, true, false));
-        assertFalse(TargetRules.drawn(Kind.BLOCK, state, false, true));
+        assertTrue(TargetRules.drawn(Kind.BLOCK, state, true, true, true));
+        assertTrue(TargetRules.drawn(Kind.BLOCK, state, true, false, true));
+        assertFalse(TargetRules.drawn(Kind.BLOCK, state, false, true, true));
     }
 
     @ParameterizedTest
     @EnumSource(value = CellState.class, names = {"MATCHING", "IGNORED", "EXTRA"})
     void otherStatesAreNeverDrawn(CellState state) {
-        assertFalse(TargetRules.drawn(Kind.BLOCK, state, true, true));
+        assertFalse(TargetRules.drawn(Kind.BLOCK, state, true, true, true));
     }
 
     @ParameterizedTest
     @EnumSource(CellState.class)
     void airAndIgnoredPositionsAreNeverDrawn(CellState state) {
-        assertFalse(TargetRules.drawn(Kind.AIR, state, true, true));
-        assertFalse(TargetRules.drawn(Kind.IGNORED, state, true, true));
+        assertFalse(TargetRules.drawn(Kind.AIR, state, true, true, true));
+        assertFalse(TargetRules.drawn(Kind.IGNORED, state, true, true, true));
+    }
+
+    @Test
+    void unknownBlocksAreDrawnWhileShownAndTheFilterIsOff() {
+        assertTrue(TargetRules.drawn(Kind.CANT_CHECK, CellState.CANT_CHECK, true, true, true));
+        assertFalse(TargetRules.drawn(Kind.CANT_CHECK, CellState.CANT_CHECK, true, true, false));
+        assertFalse(TargetRules.drawn(Kind.CANT_CHECK, CellState.CANT_CHECK, true, false, true));
+        assertFalse(TargetRules.drawn(Kind.CANT_CHECK, CellState.CANT_CHECK, false, true, true));
     }
 
     @Test

@@ -6,7 +6,7 @@ import java.util.Arrays;
 public enum CellState {
     /** Not compared yet, or in a chunk that is not loaded. */
     UNKNOWN,
-    /** Structure void or a block the game does not know. */
+    /** Structure void. */
     IGNORED,
     MATCHING,
     MISSING,
@@ -19,7 +19,9 @@ public enum CellState {
     /** The planned block in its orientation, with fewer candles, pickles, layers or slabs than planned. */
     INCOMPLETE,
     /** The planned block in its orientation, with more candles, pickles, layers or slabs than planned. */
-    TOO_MANY;
+    TOO_MANY,
+    /** A block the game does not know: nothing to compare with, shown as a placeholder. */
+    CANT_CHECK;
 
     private static final CellState[] VALUES = values();
 
@@ -27,9 +29,9 @@ public enum CellState {
         return VALUES[stored];
     }
 
-    /** True for the states that draw a ghost: missing, incomplete and not yet known. */
+    /** True for the states that draw a ghost: missing, incomplete, not yet known, and the placeholder of can't check. */
     public boolean showsGhost() {
-        return this == UNKNOWN || this == MISSING || this == INCOMPLETE;
+        return this == UNKNOWN || this == MISSING || this == INCOMPLETE || this == CANT_CHECK;
     }
 
     /**
@@ -68,12 +70,14 @@ public enum CellState {
             IGNORED,
             AIR,
             BLOCK,
+            CANT_CHECK,
         }
 
         private static final int[] NONE = {};
 
         public static final Expected IGNORE = new Expected(Kind.IGNORED, 0, 0, false, NONE, NONE, -1, 1, 0);
         public static final Expected AIR = new Expected(Kind.AIR, 0, 0, false, NONE, NONE, -1, 1, 0);
+        public static final Expected CANT_CHECK = new Expected(Kind.CANT_CHECK, 0, 0, false, NONE, NONE, -1, 1, 0);
 
         public static Expected block(int block, int orientation, boolean waterlogged) {
             return block(block, orientation, waterlogged, NONE, NONE, -1);
@@ -111,6 +115,7 @@ public enum CellState {
     public static CellState classify(Expected expected, Found found) {
         return switch (expected.kind()) {
             case IGNORED -> IGNORED;
+            case CANT_CHECK -> CANT_CHECK;
             case AIR -> found.air() ? MATCHING : EXTRA;
             case BLOCK -> {
                 if (found.air()) {

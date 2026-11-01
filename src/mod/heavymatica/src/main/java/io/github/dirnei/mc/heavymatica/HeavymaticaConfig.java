@@ -47,6 +47,10 @@ public final class HeavymaticaConfig {
                     "Values out of range and duplicates are dropped; with fewer than 2 or more than 8 left, the default steps are used.")
             .defineList("opacitySteps", OpacitySteps.DEFAULT, () -> 0.5, value -> value instanceof Number);
 
+    private static final ModConfigSpec.BooleanValue GHOST_SHOW_UNKNOWN_BLOCKS = BUILDER
+            .comment("Show blocks the game does not know (from mods that are not installed or newer versions) as missing-texture cubes.")
+            .define("showUnknownBlocks", true);
+
     private static final ModConfigSpec.IntValue GHOST_BLOCK_BUDGET = BUILDER
             .comment("Visible ghost blocks drawn at most, across all placements. Placements beyond it show as outlines only.")
             .defineInRange("blockBudget", 300_000, 1_000, 10_000_000);
@@ -132,6 +136,16 @@ public final class HeavymaticaConfig {
     public static void setGhostOpacity(double opacity) {
         GHOST_OPACITY.set(Math.clamp(opacity, OpacitySteps.MIN, OpacitySteps.MAX));
         GHOST_OPACITY.save();
+    }
+
+    public static boolean ghostShowUnknownBlocks() {
+        return GHOST_SHOW_UNKNOWN_BLOCKS.get();
+    }
+
+    /** Sets whether unknown blocks show and writes the config file. */
+    public static void setGhostShowUnknownBlocks(boolean show) {
+        GHOST_SHOW_UNKNOWN_BLOCKS.set(show);
+        GHOST_SHOW_UNKNOWN_BLOCKS.save();
     }
 
     public static List<Double> ghostOpacitySteps() {
