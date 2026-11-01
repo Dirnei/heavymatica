@@ -18,6 +18,11 @@ const websiteCodes = [
   'rate_limited',
   'invalid_request',
   'web_sign_in_unavailable',
+  'account_choice_required',
+  'link_code_invalid',
+  'link_code_not_applicable',
+  'identity_already_linked',
+  'too_many_identities',
   'unexpected',
 ];
 

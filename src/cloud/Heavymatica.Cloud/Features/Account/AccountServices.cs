@@ -9,6 +9,7 @@ internal static class AccountServices
     {
         var services = builder.Services;
         services.AddOptions<QuotaOptions>().BindConfiguration(QuotaOptions.Section);
+        services.AddOptions<AccountsOptions>().BindConfiguration(AccountsOptions.Section);
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<AccountAudit>();
         services.AddSingleton<Accounts>();

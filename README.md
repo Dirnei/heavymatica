@@ -58,6 +58,13 @@ everything else works.
    Environment variables `Parameters__github-client-id` and `Parameters__github-client-secret` work as well.
 5. Restart the AppHost and open http://localhost:4321.
 
+Linking sign-ins (link codes, and the first sign-in choice between creating an account and joining one) is on only
+while `Accounts:LinkBaseUrl` is set to the website origin that redeems the codes; link codes point at
+`<LinkBaseUrl>/link/?code=...`. The AppHost sets it to the dev server, `http://localhost:4321` (or
+`Heavymatica:WebsitePort`). Without it, link codes answer `linking_unavailable`, `/v1/me` reports
+`linkingAvailable: false`, an unknown Minecraft identity gets an account at once, and "Sign in with GitHub" without
+an account says there is none yet.
+
 Website commands run in `src/web/player`: `npm run dev`, `npm run build`, `npm run check` and `npm test`.
 
 ### Development aids
@@ -70,6 +77,7 @@ The dev client runs take a few environment variables, so screens can be checked 
 | `HEAVYMATICA_THUMBNAIL_SPIKE` | Renders the thumbnail of the named schematic file once the game has loaded and writes `<file>.png` next to it. |
 | `HEAVYMATICA_QUICKPLAY` | Joins this server on start, for example `localhost:25565`. |
 | `HEAVYMATICA_QUICKPLAY_WORLD` | Opens this singleplayer world on start, for example `Testworld`. |
+| `HEAVYMATICA_DEV_USER` | Plays as another offline player, `<name>[,<uuid>]`. A UUID the cloud has not seen signs in as an unknown Minecraft account. |
 
 Example: `HEAVYMATICA_DEV_SCREEN="signin;library;wait=60;screenshot=library;quit" ./gradlew :heavymatica:runClient`
 

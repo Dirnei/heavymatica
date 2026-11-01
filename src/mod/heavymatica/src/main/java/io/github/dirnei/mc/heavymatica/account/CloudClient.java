@@ -3,6 +3,7 @@ package io.github.dirnei.mc.heavymatica.account;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.dirnei.mc.heavymatica.cloud.api.AccountApi;
 import io.github.dirnei.mc.heavymatica.cloud.api.AuthApi;
+import io.github.dirnei.mc.heavymatica.cloud.api.LinksApi;
 import io.github.dirnei.mc.heavymatica.cloud.api.SchematicsApi;
 import io.github.dirnei.mc.heavymatica.cloud.client.ApiClient;
 import io.github.dirnei.mc.heavymatica.cloud.client.ApiException;
@@ -30,7 +31,7 @@ import java.util.function.Supplier;
  */
 public final class CloudClient {
 
-    public record Apis(AuthApi auth, AccountApi account, SchematicsApi schematics) {
+    public record Apis(AuthApi auth, AccountApi account, SchematicsApi schematics, LinksApi links) {
     }
 
     @FunctionalInterface
@@ -58,7 +59,7 @@ public final class CloudClient {
         ApiClient client = new ApiClient(builder, json, this.baseUri.toString());
         client.setReadTimeout(TIMEOUT);
         client.setRequestInterceptor(request -> tokens.accessToken().ifPresent(token -> request.setHeader("Authorization", "Bearer " + token)));
-        this.apis = new Apis(new AuthApi(client), new AccountApi(client), new SchematicsApi(client));
+        this.apis = new Apis(new AuthApi(client), new AccountApi(client), new SchematicsApi(client), new LinksApi(client));
     }
 
     public URI baseUri() {

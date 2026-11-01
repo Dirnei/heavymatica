@@ -104,7 +104,11 @@ internal static class GitHubSignIn
         return properties;
     }
 
-    private static async Task<IResult> CompleteAsync(HttpContext context, Accounts accounts, Sessions sessions, TimeProvider time)
+    /// <summary>The landing page's first sign-in choice, keeping where the player wanted to go.</summary>
+    public static string ChoicePath(string returnTo) => "/?choice=1&returnTo=" + Uri.EscapeDataString(SafeReturnTo(returnTo));
+
+    private static async Task<IResult> CompleteAsync(HttpContext context, Accounts accounts, Sessions sessions, TimeProvider time,
+        IOptions<AccountsOptions> accountsOptions, IOptions<IdentityOptions> identityOptions)
     {
         var cancellationToken = context.RequestAborted;
         var external = await context.AuthenticateAsync(WebSessions.ExternalScheme);
@@ -122,14 +126,55 @@ internal static class GitHubSignIn
         var signedIn = intent == Register
             ? (await accounts.CreateWithIdentityAsync(Providers.GitHub, userId, login, cancellationToken)).SignedIn
             : await accounts.SignInAsync(Providers.GitHub, userId, login, cancellationToken);
+        if (signedIn is null && accountsOptions.Value.LinkingAvailable)
+        {
+            await EndWebSessionAsync(context, sessions);
+            await context.SignInAsync(PendingSignIns.WebScheme, PendingSignIns.WebPrincipal(Providers.GitHub, userId, login),
+                PendingSignIns.WebProperties(time, identityOptions.Value));
+            return Results.Redirect(ChoicePath(returnTo));
+        }
+
         if (signedIn is null)
         {
             return Results.Redirect(ErrorPath("no_account"));
         }
 
-        var sessionId = await sessions.StartWebAsync(signedIn.Account.Id, signedIn.Identity.Id, cancellationToken);
-        await context.SignInAsync(WebSessions.Scheme, WebSessions.Principal(signedIn, sessionId), WebSessions.Properties(time));
+        await StartWebSessionAsync(context, sessions, time, signedIn);
         return Results.Redirect(returnTo);
+    }
+
+    /// <summary>Signs the browser in to the identity's account, replacing any pending sign-in.</summary>
+    public static async Task StartWebSessionAsync(HttpContext context, Sessions sessions, TimeProvider time, SignedInIdentity signedIn)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(sessions);
+        ArgumentNullException.ThrowIfNull(signedIn);
+        var sessionId = await sessions.StartWebAsync(signedIn.Account.Id, signedIn.Identity.Id, context.RequestAborted);
+        await context.SignInAsync(WebSessions.Scheme, WebSessions.Principal(signedIn, sessionId), WebSessions.Properties(time));
+        if (context.Request.Cookies.Keys.Any(name => name is PendingSignIns.DevelopmentCookieName or PendingSignIns.CookieName))
+        {
+            await context.SignOutAsync(PendingSignIns.WebScheme);
+        }
+    }
+
+    /// <summary>
+    /// Ends the browser's website session and removes its cookie, valid or not: the cookie handler never removes a
+    /// cookie it cannot read, and the session cookie takes precedence over a pending sign-in.
+    /// </summary>
+    private static async Task EndWebSessionAsync(HttpContext context, Sessions sessions)
+    {
+        if (!context.Request.Cookies.Keys.Any(name => name is WebSessions.DevelopmentCookieName or WebSessions.CookieName))
+        {
+            return;
+        }
+
+        var session = await context.AuthenticateAsync(WebSessions.Scheme);
+        if (session.Succeeded)
+        {
+            await sessions.EndAsync(session.Principal.SessionId(), context.RequestAborted);
+        }
+
+        await context.SignOutAsync(WebSessions.Scheme);
     }
 
     public static bool IsAvailable(IServiceProvider services) =>

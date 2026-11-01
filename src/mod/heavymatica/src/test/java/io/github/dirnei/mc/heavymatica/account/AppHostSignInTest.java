@@ -27,6 +27,9 @@ class AppHostSignInTest {
                 new DevSessionJoin(URI.create(cloud + "/dev/mojang")), new SessionStore(directory, ApiClient.createDefaultObjectMapper()), () -> { });
 
         account.signIn().get(30, TimeUnit.SECONDS);
+        if (account.status() == CloudAccount.Status.CHOOSING) {
+            account.createAccount().get(30, TimeUnit.SECONDS);
+        }
         Account me = account.refreshAccount().get(30, TimeUnit.SECONDS);
 
         assertEquals(CloudAccount.Status.SIGNED_IN, account.status());

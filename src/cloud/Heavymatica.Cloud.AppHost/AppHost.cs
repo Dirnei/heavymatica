@@ -44,6 +44,8 @@ cloud
     .WithEnvironment("Identity__MojangSessionUrl", ReferenceExpression.Create($"{cloud.GetEndpoint("http")}/dev/mojang"))
     .WithEnvironment("GitHub__ClientId", gitHubClientId)
     .WithEnvironment("GitHub__ClientSecret", gitHubClientSecret)
+    // Link codes point at the website's dev server; setting it turns on linking and pending sign-ins.
+    .WithEnvironment("Accounts__LinkBaseUrl", "http://localhost:" + websitePort)
     .WithHttpHealthCheck("/health");
 
 if (withWebsite)

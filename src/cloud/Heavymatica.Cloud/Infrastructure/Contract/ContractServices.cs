@@ -1,6 +1,7 @@
 using Heavymatica.Cloud.Contract;
 using Heavymatica.Cloud.Features.Account;
 using Heavymatica.Cloud.Features.Identity;
+using Heavymatica.Cloud.Features.Links;
 using Heavymatica.Cloud.Features.Schematics;
 using Heavymatica.Cloud.Features.Schematics.Folders;
 using Heavymatica.Cloud.Features.Schematics.Tags;
@@ -21,13 +22,16 @@ internal static class ContractServices
         services.AddScoped<IFoldersController, FoldersApi>();
         services.AddScoped<ITagsController, TagsApi>();
         services.AddScoped<IWebController, WebApi>();
+        services.AddScoped<ILinksController, LinksApi>();
         return services;
     }
 
     /// <summary>Maps the generated controllers and serves the contract exactly as written.</summary>
     public static WebApplication MapContract(this WebApplication app)
     {
-        app.MapControllers().Add(IdentityServices.ConfigureAuthEndpoint);
+        var controllers = app.MapControllers();
+        controllers.Add(IdentityServices.ConfigureAuthEndpoint);
+        controllers.Add(LinkServices.ConfigureLinksEndpoint);
         app.MapGet("/openapi/v1.yaml", () =>
         {
             var contract = typeof(ContractServices).Assembly.GetManifestResourceStream(ContractResource)

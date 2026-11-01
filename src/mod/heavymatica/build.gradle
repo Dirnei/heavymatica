@@ -67,6 +67,8 @@ dependencies {
     jarJar(implementation("com.fasterxml.jackson.core:jackson-core:${jackson_version}"))
     jarJar(implementation("com.fasterxml.jackson.core:jackson-annotations:${jackson_annotations_version}"))
     jarJar(implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"))
+    // Nayuki's QR encoder (MIT) for the link code screen.
+    jarJar(implementation("io.nayuki:qrcodegen:1.8.0"))
     // Source-retention annotations of the generated code.
     compileOnly 'jakarta.annotation:jakarta.annotation-api:3.0.0'
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'

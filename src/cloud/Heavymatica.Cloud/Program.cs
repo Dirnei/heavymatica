@@ -1,5 +1,6 @@
 using Heavymatica.Cloud.Features.Account;
 using Heavymatica.Cloud.Features.Identity;
+using Heavymatica.Cloud.Features.Links;
 using Heavymatica.Cloud.Features.Schematics;
 using Heavymatica.Cloud.Features.Web;
 using Heavymatica.Cloud.Infrastructure;
@@ -16,6 +17,7 @@ builder.AddAccounts();
 builder.AddIdentity();
 builder.AddSchematics();
 builder.AddWeb();
+builder.AddLinks();
 builder.Services.AddContract();
 
 var app = builder.Build();

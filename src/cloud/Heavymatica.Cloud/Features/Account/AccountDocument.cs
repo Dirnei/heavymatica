@@ -71,8 +71,20 @@ internal sealed class AccountIndexes : IMongoIndexes
                 new CreateIndexOptions { Name = "accountId" }),
         ], cancellationToken);
 
-        await AuditEntryDocument.In(database).Indexes.CreateOneAsync(new CreateIndexModel<AuditEntryDocument>(
-            Builders<AuditEntryDocument>.IndexKeys.Ascending(entry => entry.AccountId).Ascending(entry => entry.At),
-            new CreateIndexOptions { Name = "accountId_at" }), cancellationToken: cancellationToken);
+        var audit = Builders<AuditEntryDocument>.IndexKeys;
+        await AuditEntryDocument.In(database).Indexes.CreateManyAsync(
+        [
+            new CreateIndexModel<AuditEntryDocument>(
+                audit.Ascending(entry => entry.AccountId).Ascending(entry => entry.At),
+                new CreateIndexOptions { Name = "accountId_at" }),
+            new CreateIndexModel<AuditEntryDocument>(
+                audit.Ascending(entry => entry.Kind).Ascending(entry => entry.Actor.Provider).Ascending(entry => entry.Actor.IdentityId)
+                    .Ascending(entry => entry.Actor.Subject).Ascending(entry => entry.At),
+                new CreateIndexOptions { Name = "kind_actor_at" }),
+            // Entries without expireAt are never removed.
+            new CreateIndexModel<AuditEntryDocument>(
+                audit.Ascending(entry => entry.ExpireAt),
+                new CreateIndexOptions { Name = "expireAt_ttl", ExpireAfter = TimeSpan.Zero }),
+        ], cancellationToken);
     }
 }

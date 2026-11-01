@@ -15,6 +15,9 @@ internal sealed class AccessTokens
     public const string NameClaim = "name";
     public const string SessionClaim = "sid";
 
+    /// <summary>The provider subject of a pending sign-in, which has no identity document yet.</summary>
+    public const string PendingSubjectClaim = "isub";
+
     private readonly IdentityOptions options;
     private readonly TimeProvider time;
     private readonly SigningCredentials credentials;
@@ -62,6 +65,63 @@ internal sealed class AccessTokens
             SigningCredentials = credentials,
         });
         return (token, expires);
+    }
+
+    /// <summary>The claims of a pending sign-in, in a pending token and in the website's pending cookie.</summary>
+    public static IEnumerable<Claim> PendingClaims(string provider, string subject, string? name) =>
+    [
+        new Claim(ProviderClaim, provider),
+        new Claim(PendingSubjectClaim, subject),
+        new Claim(NameClaim, name ?? subject),
+    ];
+
+    public (string Token, DateTimeOffset ExpiresAt) IssuePending(string provider, string subject, string? name)
+    {
+        var now = time.GetUtcNow();
+        var expires = now + options.PendingLifetime;
+        var token = handler.CreateToken(new SecurityTokenDescriptor
+        {
+            Issuer = options.Issuer,
+            Audience = options.PendingAudience,
+            IssuedAt = now.UtcDateTime,
+            NotBefore = now.UtcDateTime,
+            Expires = expires.UtcDateTime,
+            Subject = new ClaimsIdentity(PendingClaims(provider, subject, name)),
+            SigningCredentials = credentials,
+        });
+        return (token, expires);
+    }
+
+    /// <summary>The audiences a token names, read without validating it; only for choosing the scheme that validates it.</summary>
+    public static bool NamesAudience(string token, string audience)
+    {
+        var reader = new JsonWebTokenHandler();
+        if (!reader.CanReadToken(token))
+        {
+            return false;
+        }
+        // CanReadToken only checks the shape; a payload that is not valid Base64url JSON throws when read.
+        try
+        {
+            return reader.ReadJsonWebToken(token).Audiences.Contains(audience, StringComparer.Ordinal);
+        }
+        catch (SecurityTokenMalformedException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    public static TokenValidationParameters PendingValidation(IdentityOptions options, SigningKey key)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        var validation = Validation(options, key);
+        validation.ValidAudience = options.PendingAudience;
+        validation.NameClaimType = NameClaim;
+        return validation;
     }
 
     public static TokenValidationParameters Validation(IdentityOptions options, SigningKey key) => new()

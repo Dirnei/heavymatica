@@ -1,5 +1,7 @@
+using System.Net;
 using Heavymatica.Cloud.Features.Identity;
 using Heavymatica.Cloud.Infrastructure;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -60,6 +62,30 @@ public class CloudFactory : WebApplicationFactory<ServiceAssembly>
 
     public IMongoDatabase Database => Services.GetRequiredService<IMongoDatabase>();
 
+    /// <summary>The client address every in-process request comes from, unless it names another in <see cref="ClientAddressHeader"/>.</summary>
+    public const string DefaultClientAddress = "203.0.113.10";
+
+    public const string ClientAddressHeader = "X-Test-Client-Address";
+
+    /// <summary>The test server leaves the remote address empty; the service records and limits by it.</summary>
+    private sealed class ClientAddressFilter : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((context, nextMiddleware) =>
+            {
+                if (context.Request.Headers.TryGetValue(ClientAddressHeader, out var address))
+                {
+                    context.Connection.RemoteIpAddress = IPAddress.Parse(address.ToString());
+                }
+
+                context.Connection.RemoteIpAddress ??= IPAddress.Parse(DefaultClientAddress);
+                return nextMiddleware(context);
+            });
+            next(app);
+        };
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -90,6 +116,7 @@ public class CloudFactory : WebApplicationFactory<ServiceAssembly>
                 services.AddHttpClient(MojangSessions.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => Server.CreateHandler());
             }
 
+            services.AddSingleton<IStartupFilter, ClientAddressFilter>();
             if (Clock is not null)
             {
                 services.AddSingleton<TimeProvider>(Clock);

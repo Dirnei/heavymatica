@@ -5,6 +5,7 @@ using AspNet.Security.OAuth.GitHub;
 using Heavymatica.Cloud.Features.Web;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Heavymatica.Cloud.Tests.Features.Web;
 
@@ -24,9 +25,10 @@ internal sealed class FakeGitHub : HttpMessageHandler
     public bool Failing { get; set; }
 
     /// <summary>A service with GitHub credentials whose OAuth handler talks to this fake.</summary>
-    public CloudFactory Cloud(CloudInfrastructure infrastructure, string? databaseName = null) =>
+    public CloudFactory Cloud(CloudInfrastructure infrastructure, string? databaseName = null, FakeTimeProvider? clock = null) =>
         new CloudFactory(infrastructure, databaseName ?? CloudFactory.NewDatabaseName())
         {
+            Clock = clock,
             TestServices = services => services.Configure<GitHubAuthenticationOptions>(GitHubSignIn.Scheme, options => options.BackchannelHttpHandler = this),
         }.With("GitHub:ClientId", "test-client-id").With("GitHub:ClientSecret", "test-client-secret");
 

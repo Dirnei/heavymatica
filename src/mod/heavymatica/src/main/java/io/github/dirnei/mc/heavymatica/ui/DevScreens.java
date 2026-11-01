@@ -3,6 +3,11 @@ package io.github.dirnei.mc.heavymatica.ui;
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaClient;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
+import io.github.dirnei.mc.heavymatica.account.CloudAccount;
+import io.github.dirnei.mc.heavymatica.account.DevLinkRedeemer;
+import io.github.dirnei.mc.heavymatica.account.DevSessionJoin;
+import io.github.dirnei.mc.heavymatica.cloud.model.Account;
+import io.github.dirnei.mc.heavymatica.cloud.model.LinkCode;
 import io.github.dirnei.mc.heavymatica.capture.CaptureBox;
 import io.github.dirnei.mc.heavymatica.capture.CaptureController;
 import io.github.dirnei.mc.heavymatica.capture.CaptureSession;
@@ -26,6 +31,7 @@ import io.github.dirnei.mc.heavymatica.remote.Remotes;
 import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting;
 import io.github.dirnei.mc.heavymatica.targeting.TargetHud;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -33,6 +39,7 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.stream.Stream;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -46,6 +53,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Util;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -59,7 +67,14 @@ import net.neoforged.neoforge.common.NeoForge;
  * without clicking. The {@code heavymatica.dev.screen} system property (set from {@code HEAVYMATICA_DEV_SCREEN} by the
  * dev runs) holds steps separated by {@code ;}:
  * <ul>
- *     <li>{@code signin}: sign in (use with {@code devSessionJoinUrl} in the client config)</li>
+ *     <li>{@code signin}: sign in (use with {@code devSessionJoinUrl} in the client config); opens the account choice when the
+ *     Minecraft account has no cloud account yet</li>
+ *     <li>{@code logAccount}: log the account status, account ID, linked sign-ins and whether linking is available</li>
+ *     <li>{@code linkCode}: open the link code screen over the open screen, for the account or, while choosing, for the
+ *     pending sign-in</li>
+ *     <li>{@code logLinkCode}: log the open link code screen's code, link address, status and redeemer</li>
+ *     <li>{@code devRedeem=<uuid>,<name>}: sign in a second identity through DevMojang and redeem the code of the open link
+ *     code screen with it, as a pending sign-in or as its account, standing in for the website</li>
  *     <li>{@code import=<dir>}: add every file in the directory as a local entry</li>
  *     <li>{@code library}: open the library</li>
  *     <li>{@code select}: select the first card</li>
@@ -67,7 +82,7 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code clickSidebar=<label>}, {@code clickCard=<index>}, {@code clickVersion=<index>}: click there; card indexes
  *     count the up and folder cards too</li>
  *     <li>{@code openFolder=<path>}: open a folder of the library explorer ({@code openFolder=} for the top level)</li>
- *     <li>{@code clickButton=<translation key>}: click the button with that label</li>
+ *     <li>{@code clickButton=<translation key>[@<n>]}: click the (n-th) button with that label</li>
  *     <li>{@code chooseAll}, {@code confirmImport}: tick every file in the import list and import them</li>
  *     <li>{@code drop=<dir>}: drop every file of the directory onto the screen</li>
  *     <li>{@code delay=<ms>}: hold every cloud answer back this long</li>
@@ -158,10 +173,27 @@ public final class DevScreens {
         String argument = step.contains("=") ? step.substring(step.indexOf('=') + 1) : "";
         switch (step.contains("=") ? step.substring(0, step.indexOf('=')) : step) {
             case "signin" -> HeavymaticaClient.account().signIn().whenComplete((ignored, failure) -> {
-                Heavymatica.LOGGER.info("Dev sign-in {}", failure == null ? "succeeded" : "failed: " + failure);
+                CloudAccount account = HeavymaticaClient.account();
+                Heavymatica.LOGGER.info("Dev sign-in {}, status {}", failure == null ? "succeeded" : "failed: " + failure, account.status());
+                if (account.status() == CloudAccount.Status.CHOOSING) {
+                    Screen parent = minecraft.screen != null ? minecraft.screen : HeavymaticaClient.libraryScreen();
+                    minecraft.setScreen(new AccountChoiceScreen(parent, account, () -> HeavymaticaClient.library().refresh()));
+                    return;
+                }
                 HeavymaticaClient.library().refresh();
-                HeavymaticaClient.account().refreshAccount().exceptionally(error -> null);
+                account.refreshAccount().exceptionally(error -> null);
             });
+            case "logAccount" -> logAccount();
+            case "linkCode" -> {
+                CloudAccount account = HeavymaticaClient.account();
+                Screen parent = minecraft.screen != null ? minecraft.screen : HeavymaticaClient.libraryScreen();
+                minecraft.setScreen(new LinkCodeScreen(parent, account, () -> {
+                    minecraft.setScreen(HeavymaticaClient.libraryScreen());
+                    HeavymaticaClient.library().refresh();
+                }));
+            }
+            case "logLinkCode" -> logLinkCode(minecraft);
+            case "devRedeem" -> devRedeem(minecraft, argument);
             case "import" -> importAll(Path.of(argument));
             case "library" -> minecraft.setScreen(HeavymaticaClient.libraryScreen());
             case "select" -> {
@@ -196,7 +228,10 @@ public final class DevScreens {
                     click(screen, screen.versionPointForDevelopment(Integer.parseInt(argument)));
                 }
             }
-            case "clickButton" -> clickButton(minecraft.screen, Component.translatable(argument).getString());
+            case "clickButton" -> {
+                String[] parts = argument.split("@", 2);
+                clickButton(minecraft.screen, Component.translatable(parts[0]).getString(), parts.length == 2 ? Integer.parseInt(parts[1]) : 1);
+            }
             case "waitWorld" -> {
                 if (minecraft.player == null) {
                     STEPS.addFirst(step);
@@ -474,6 +509,51 @@ public final class DevScreens {
         }
     }
 
+    private static void logAccount() {
+        CloudAccount account = HeavymaticaClient.account();
+        Account info = account.account().orElse(null);
+        Heavymatica.LOGGER.info("Dev account: status {}, name {}, account {}, identities {}, linking available {}, pending {}", account.status(),
+                account.name().orElse("-"), info == null ? "-" : info.getId(),
+                info == null || info.getIdentities() == null ? "-" : info.getIdentities().stream()
+                        .map(identity -> identity.getProvider() + ":" + identity.getName() + (Boolean.TRUE.equals(identity.getCurrent()) ? " (current)" : "") + " " + identity.getId())
+                        .toList(),
+                info == null ? "-" : info.getLinkingAvailable(),
+                account.pending().map(pending -> pending.getIdentity().getProvider() + ":" + pending.getIdentity().getName() + ", join available "
+                        + pending.getJoinAvailable() + ", until " + pending.getExpiresAt()).orElse("none"));
+    }
+
+    private static void logLinkCode(Minecraft minecraft) {
+        if (!(minecraft.screen instanceof LinkCodeScreen screen)) {
+            Heavymatica.LOGGER.info("Dev link code: no link code screen");
+            return;
+        }
+        LinkCode issued = screen.issuedForDevelopment().orElse(null);
+        LinkCode current = screen.currentForDevelopment().orElse(null);
+        Heavymatica.LOGGER.info("Dev link code: code {}, url {}, status {}, expires {}, confirm by {}, redeemer {}", issued == null ? "-" : issued.getCode(),
+                issued == null ? "-" : issued.getLinkUrl(), current == null ? "-" : current.getStatus(), current == null ? "-" : current.getExpiresAt(),
+                current == null ? "-" : current.getConfirmBy(),
+                current == null || current.getRedeemer() == null ? "-" : LinkCodeScreen.component(LinkCodeText.party(current.getRedeemer())).getString());
+    }
+
+    private static void devRedeem(Minecraft minecraft, String argument) {
+        String[] parts = argument.split(",", 2);
+        String code = minecraft.screen instanceof LinkCodeScreen screen ? screen.issuedForDevelopment().map(LinkCode::getCode).orElse(null) : null;
+        if (code == null || parts.length < 2) {
+            Heavymatica.LOGGER.warn("Dev redeem: needs an open link code screen with a code and <uuid>,<name>");
+            return;
+        }
+        URI devMojang = HeavymaticaConfig.devSessionJoinUrl().orElse(null);
+        if (devMojang == null) {
+            Heavymatica.LOGGER.warn("Dev redeem: set devSessionJoinUrl in the client config");
+            return;
+        }
+        new DevLinkRedeemer(HeavymaticaConfig.cloudUrl(), new DevSessionJoin(devMojang), minecraft::execute, Util.backgroundExecutor())
+                .redeem(UUID.fromString(parts[0].trim()), parts[1].trim(), code)
+                .whenComplete((redeemed, failure) -> Heavymatica.LOGGER.info("Dev redeem {}", failure == null
+                        ? "as " + redeemed.principal() + ": status " + redeemed.code().getStatus()
+                        : "failed: " + failure));
+    }
+
     private static KeyMapping mapping(Minecraft minecraft, String name) {
         return Arrays.stream(minecraft.options.keyMappings).filter(mapping -> mapping.getName().equals(name)).findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("No key mapping " + name));
@@ -661,13 +741,14 @@ public final class DevScreens {
         screen.mouseReleased(event);
     }
 
-    private static void clickButton(@Nullable Screen screen, String label) {
+    private static void clickButton(@Nullable Screen screen, String label, int nth) {
         if (screen == null) {
             return;
         }
         screen.children().stream()
                 .filter(child -> child instanceof AbstractWidget widget && widget.getMessage().getString().equals(label))
                 .map(child -> (AbstractWidget) child)
+                .skip(nth - 1L)
                 .findFirst()
                 .ifPresentOrElse(widget -> click(screen, new double[] {widget.getX() + widget.getWidth() / 2.0, widget.getY() + widget.getHeight() / 2.0}),
                         () -> Heavymatica.LOGGER.warn("No button {} on {}", label, screen.getClass().getSimpleName()));

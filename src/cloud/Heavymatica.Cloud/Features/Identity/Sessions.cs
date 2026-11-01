@@ -120,6 +120,11 @@ internal sealed class Sessions(IMongoDatabase database, TimeProvider time)
         sessions.UpdateOneAsync(candidate => candidate.Id == sessionId, Builders<SessionDocument>.Update.Set(candidate => candidate.Revoked, true),
             cancellationToken: cancellationToken);
 
+    /// <summary>Ends every game and website session the identity signed in with.</summary>
+    public Task EndAllForIdentityAsync(string identityId, CancellationToken cancellationToken) =>
+        sessions.UpdateManyAsync(candidate => candidate.IdentityId == identityId, Builders<SessionDocument>.Update.Set(candidate => candidate.Revoked, true),
+            cancellationToken: cancellationToken);
+
     private static string NewId() => Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
 
     private static string NewToken(string sessionId) =>

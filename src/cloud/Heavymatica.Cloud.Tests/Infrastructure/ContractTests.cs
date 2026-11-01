@@ -36,7 +36,7 @@ public sealed class ContractTests(CloudInfrastructure infrastructure) : IDisposa
             .Where(type => type.Namespace == "Heavymatica.Cloud.Contract" && typeof(ControllerBase).IsAssignableFrom(type))
             .ToList();
 
-        Assert.Equal(["AccountController", "AuthController", "FoldersController", "SchematicsController", "TagsController", "WebController"], controllers.Select(type => type.Name).Order());
+        Assert.Equal(["AccountController", "AuthController", "FoldersController", "LinksController", "SchematicsController", "TagsController", "WebController"], controllers.Select(type => type.Name).Order());
         foreach (var controller in controllers)
         {
             var parameter = Assert.Single(Assert.Single(controller.GetConstructors()).GetParameters());

@@ -79,6 +79,9 @@ internal sealed class IdentityIndexes : IMongoIndexes
             new CreateIndexModel<SessionDocument>(
                 Builders<SessionDocument>.IndexKeys.Ascending(session => session.AccountId),
                 new CreateIndexOptions { Name = "accountId" }),
+            new CreateIndexModel<SessionDocument>(
+                Builders<SessionDocument>.IndexKeys.Ascending(session => session.IdentityId),
+                new CreateIndexOptions { Name = "identityId" }),
         ], cancellationToken);
     }
 }

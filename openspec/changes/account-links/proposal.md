@@ -5,9 +5,9 @@
 `web-library` gives players a website with GitHub sign-in and splits accounts from identities, but a GitHub account
 and a Minecraft account stay separate, each with its own library. Players want the game and the website to show the
 same library, and to keep alts on one account. That needs a safe way to join identities to an account, started from
-the game, where the Minecraft identity is proven. `account-links` is change 2 of 3 in step 5 of `ROADMAP.md`.
+the game, where the Minecraft identity is proven. `account-links` is change 4 of 5 in step 5 of `ROADMAP.md`.
 
-**Builds on `web-library`**, which must be archived first: this change modifies the `cloud/accounts`,
+**Builds on `web-library`** (archived): this change modifies the `cloud/accounts`,
 `cloud/identity`, `cloud/schematic-storage` and `web/player-ui` requirements that `web-library` adds or rewrites.
 
 ## What Changes

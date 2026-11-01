@@ -31,9 +31,12 @@ internal static class IdentityServices
         services.AddMongoIndexes<IdentityIndexes>();
 
         services.AddMongoDataProtection();
-        services.AddAuthentication(WebSessions.PlayerScheme)
+        // The default scheme takes any principal, so middleware before authorization (the request check, rate limits)
+        // sees pending sign-ins too; endpoints still authenticate with their own policy's schemes.
+        services.AddAuthentication(PendingSignIns.AnyScheme)
             .AddJwtBearer()
-            .AddWebSessions(builder.Environment);
+            .AddWebSessions(builder.Environment)
+            .AddPendingSignIns(builder.Environment);
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .Configure<IOptions<IdentityOptions>, SigningKey>((jwt, identity, key) =>
             {
@@ -60,10 +63,41 @@ internal static class IdentityServices
                 };
             });
 
+        services.AddOptions<JwtBearerOptions>(PendingSignIns.BearerScheme)
+            .Configure<IOptions<IdentityOptions>, SigningKey>((jwt, identity, key) =>
+            {
+                jwt.MapInboundClaims = false;
+                jwt.TokenValidationParameters = AccessTokens.PendingValidation(identity.Value, key);
+                jwt.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = context =>
+                    {
+                        if (context.Principal?.Kind() != PrincipalKind.Pending)
+                        {
+                            context.Fail("The pending token names no identity.");
+                        }
+
+                        return Task.CompletedTask;
+                    },
+                    OnChallenge = async context =>
+                    {
+                        context.HandleResponse();
+                        await Problems.WriteAsync(context.Response, StatusCodes.Status401Unauthorized, ProblemCode.Unauthenticated,
+                            "A valid access token or pending sign-in is required.");
+                    },
+                };
+            });
+
         // Every endpoint needs a signed-in player, through an access token or a website session, unless it opts out
-        // (sign-in, health, the contract).
+        // (sign-in, health, the contract) or names one of the policies that also admit pending sign-ins.
         services.AddAuthorizationBuilder()
-            .SetFallbackPolicy(new AuthorizationPolicyBuilder(WebSessions.PlayerScheme).RequireAuthenticatedUser().Build());
+            .SetFallbackPolicy(new AuthorizationPolicyBuilder(WebSessions.PlayerScheme).RequireAuthenticatedUser().Build())
+            .AddPolicy(PendingSignIns.AnyPolicy, policy => policy.AddAuthenticationSchemes(PendingSignIns.AnyScheme).RequireAuthenticatedUser()
+                .RequireAssertion(context => context.User.Kind() != PrincipalKind.None))
+            .AddPolicy(PendingSignIns.GamePolicy, policy => policy.AddAuthenticationSchemes(PendingSignIns.BearerScheme).RequireAuthenticatedUser()
+                .RequireAssertion(context => context.User.Kind() == PrincipalKind.Pending))
+            .AddPolicy(PendingSignIns.WebPolicy, policy => policy.AddAuthenticationSchemes(PendingSignIns.WebScheme).RequireAuthenticatedUser()
+                .RequireAssertion(context => context.User.Kind() == PrincipalKind.Pending));
 
         services.AddRateLimiter(limiter =>
         {
@@ -82,24 +116,46 @@ internal static class IdentityServices
     }
 
     /// <summary>
-    /// Endpoint conventions for the generated controllers: the Auth operations and the start of a website sign-in need
-    /// no sign-in, and the handshake and the website sign-in start carry the sign-in rate limit.
+    /// Endpoint conventions for the generated controllers: the handshake and the start of a website sign-in need no
+    /// sign-in and carry the sign-in rate limit, refresh and sign-out need none either, and the calls that finish a
+    /// pending sign-in take only a pending one.
     /// </summary>
     public static void ConfigureAuthEndpoint(EndpointBuilder endpoint)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
         var action = endpoint.Metadata.OfType<Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor>().FirstOrDefault();
         var controller = action?.ControllerTypeInfo.AsType();
-        var webSignIn = controller == typeof(WebController) && action!.ActionName == nameof(WebController.StartGitHubSignIn);
-        if (controller != typeof(AuthController) && !webSignIn)
+        if (controller == typeof(AuthController))
+        {
+            if (action!.ActionName == nameof(AuthController.CompleteSignIn))
+            {
+                endpoint.Metadata.Add(new AuthorizeAttribute(PendingSignIns.GamePolicy));
+                return;
+            }
+
+            endpoint.Metadata.Add(new AllowAnonymousAttribute());
+            if (action.ActionName is nameof(AuthController.CreateChallenge) or nameof(AuthController.Verify) or nameof(AuthController.SignIn))
+            {
+                endpoint.Metadata.Add(new Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute(SignInRateLimit));
+            }
+
+            return;
+        }
+
+        if (controller != typeof(WebController))
         {
             return;
         }
 
-        endpoint.Metadata.Add(new AllowAnonymousAttribute());
-        if (webSignIn || action!.ActionName is nameof(AuthController.CreateChallenge) or nameof(AuthController.Verify))
+        switch (action!.ActionName)
         {
-            endpoint.Metadata.Add(new Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute(SignInRateLimit));
+            case nameof(WebController.StartGitHubSignIn):
+                endpoint.Metadata.Add(new AllowAnonymousAttribute());
+                endpoint.Metadata.Add(new Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute(SignInRateLimit));
+                break;
+            case nameof(WebController.GetWebPending) or nameof(WebController.CreateWebAccount) or nameof(WebController.CompleteWebSignIn):
+                endpoint.Metadata.Add(new AuthorizeAttribute(PendingSignIns.WebPolicy));
+                break;
         }
     }
 

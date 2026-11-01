@@ -10,6 +10,7 @@ export type UploadResult = components['schemas']['UploadResult'];
 export type FolderEntry = components['schemas']['FolderEntry'];
 export type FolderList = components['schemas']['FolderList'];
 export type TagList = components['schemas']['TagList'];
+export type WebPending = components['schemas']['WebPending'];
 
 /** Requests that change data are refused without this header when they come with the session cookie. */
 export const requestMarker = { name: 'X-Heavymatica-Request', value: '1' } as const;
@@ -28,11 +29,14 @@ export function goToLanding(): void {
   window.location.assign(landingUrl(window.location.pathname + window.location.search, sessionConfirmed));
 }
 
-const session: Middleware = {
+const marker: Middleware = {
   onRequest({ request }) {
     request.headers.set(requestMarker.name, requestMarker.value);
     return request;
   },
+};
+
+const session: Middleware = {
   onResponse({ response }) {
     if (response.status === 401) {
       goToLanding();
@@ -42,4 +46,8 @@ const session: Middleware = {
 };
 
 export const api = createClient<paths>({ baseUrl: '' });
-api.use(session);
+api.use(marker, session);
+
+/** For pages open to pending and signed-out visitors, which handle a 401 themselves instead of leaving the page. */
+export const signInApi = createClient<paths>({ baseUrl: '' });
+signInApi.use(marker);

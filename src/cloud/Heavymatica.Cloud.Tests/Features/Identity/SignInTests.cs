@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Heavymatica.Cloud.Contract;
 using Heavymatica.Cloud.Features.Account;
+using Heavymatica.Cloud.Tests.Features.Links;
 using Microsoft.Extensions.Time.Testing;
 using MongoDB.Driver;
 
@@ -184,6 +185,114 @@ public sealed class SignInTests(CloudInfrastructure infrastructure) : IDisposabl
         Assert.Equal(profile, me.Uuid);
         Assert.Equal("Viewer", me.Name);
     }
+
+    [Fact]
+    public async Task The_sign_in_call_signs_a_known_identity_in_without_questions()
+    {
+        var factory = Factory().On();
+        using var client = factory.CreateClient();
+        var profile = Guid.NewGuid();
+        var first = await SignIn.AsAsync(client, profile, "Known");
+
+        var result = await Linking.SignInAsync(client, profile, "Known");
+
+        Assert.Null(result.Pending);
+        Assert.Equal(first.Account.Id, result.Session!.Account.Id);
+        Assert.False(string.IsNullOrEmpty(result.Session.RefreshToken));
+    }
+
+    [Fact]
+    public async Task An_unknown_identity_gets_an_account_at_once_while_linking_is_off()
+    {
+        var factory = Factory();
+        using var client = factory.CreateClient();
+        var profile = Guid.NewGuid();
+
+        var result = await Linking.SignInAsync(client, profile, "Direct");
+
+        Assert.Null(result.Pending);
+        Assert.Equal(profile, result.Session!.Account.Uuid);
+        Assert.Equal(1, await AccountDocument.In(factory.Database).CountDocumentsAsync(_ => true, cancellationToken: Cancel));
+    }
+
+    [Fact]
+    public async Task An_unknown_identity_gets_a_pending_sign_in_and_no_account_while_linking_is_on()
+    {
+        var factory = Factory().On();
+        using var client = factory.CreateClient();
+
+        var result = await Linking.SignInAsync(client, Guid.NewGuid(), "Pending");
+
+        Assert.Null(result.Session);
+        Assert.False(string.IsNullOrEmpty(result.Pending!.PendingToken));
+        Assert.Equal(("minecraft", "Pending"), (result.Pending.Identity.Provider, result.Pending.Identity.Name));
+        Assert.True(result.Pending.JoinAvailable);
+        Assert.Equal(clock.GetUtcNow().AddMinutes(10), result.Pending.ExpiresAt, TimeSpan.FromSeconds(1));
+        Assert.Equal(0, await AccountDocument.In(factory.Database).CountDocumentsAsync(_ => true, cancellationToken: Cancel));
+        Assert.Equal(0, await IdentityDocument.In(factory.Database).CountDocumentsAsync(_ => true, cancellationToken: Cancel));
+    }
+
+    [Fact]
+    public async Task A_pending_sign_in_creates_an_empty_account_and_gets_a_session()
+    {
+        var factory = Factory().On();
+        using var client = factory.CreateClient();
+        var profile = Guid.NewGuid();
+        var pending = await Linking.PendingAsync(client, profile, "Creator");
+
+        using var response = await Linking.CompleteSignInAsync(client, Caller.Bearer(pending.PendingToken), createAccount: true);
+        var session = await response.ReadAsync<Session>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal((profile, "Creator", 0L), (session.Account.Uuid, session.Account.Name, session.Account.UsedBytes));
+        var identity = await IdentityDocument.In(factory.Database).Find(_ => true).SingleAsync(Cancel);
+        Assert.Equal((session.Account.Id, profile.ToString("D")), (identity.AccountId, identity.Subject));
+        Assert.Empty((await new Schematics.Library(client.Authorize(session.AccessToken)).ListAsync()).Items);
+    }
+
+    [Fact]
+    public async Task A_replayed_create_returns_the_same_account()
+    {
+        var factory = Factory().On();
+        using var client = factory.CreateClient();
+        var pending = await Linking.PendingAsync(client, Guid.NewGuid(), "Replayer");
+
+        using var first = await Linking.CompleteSignInAsync(client, Caller.Bearer(pending.PendingToken), createAccount: true);
+        using var replay = await Linking.CompleteSignInAsync(client, Caller.Bearer(pending.PendingToken), createAccount: true);
+
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        Assert.Equal((await first.ReadAsync<Session>()).Account.Id, (await replay.ReadAsync<Session>()).Account.Id);
+        Assert.Equal(1, await AccountDocument.In(factory.Database).CountDocumentsAsync(_ => true, cancellationToken: Cancel));
+    }
+
+    [Fact]
+    public async Task Completing_without_creating_before_a_join_asks_for_the_choice()
+    {
+        var factory = Factory().On();
+        using var client = factory.CreateClient();
+        var pending = await Linking.PendingAsync(client, Guid.NewGuid(), "Undecided");
+
+        using var response = await Linking.CompleteSignInAsync(client, Caller.Bearer(pending.PendingToken), createAccount: false);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(ProblemCode.Account_choice_required, (await response.ProblemAsync()).Code);
+        Assert.Equal(0, await AccountDocument.In(factory.Database).CountDocumentsAsync(_ => true, cancellationToken: Cancel));
+    }
+
+    [Fact]
+    public async Task An_older_mod_signing_in_through_verify_still_gets_an_account_while_linking_is_on()
+    {
+        var factory = Factory().On();
+        using var client = factory.CreateClient();
+        var profile = Guid.NewGuid();
+
+        var session = await SignIn.AsAsync(client, profile, "OldMod");
+
+        Assert.Equal(profile, session.Account.Uuid);
+        Assert.Equal(1, await AccountDocument.In(factory.Database).CountDocumentsAsync(_ => true, cancellationToken: Cancel));
+    }
+
+    private static CancellationToken Cancel => TestContext.Current.CancellationToken;
 
     private CloudFactory Factory()
     {

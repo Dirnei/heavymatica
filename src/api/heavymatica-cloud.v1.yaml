@@ -25,6 +25,8 @@ tags:
     description: The tags on the caller's schematics.
   - name: Web
     description: Sign-in and sign-out of the website session.
+  - name: Links
+    description: Link codes that join an identity to an account.
 security:
   - bearerAuth: []
   - cookieAuth: []
@@ -53,10 +55,12 @@ paths:
     post:
       tags: [Auth]
       operationId: verify
-      summary: Complete a sign-in
+      summary: Complete a sign-in (deprecated)
       description: |
         Call after the client has joined the challenge's server ID through Mojang's session service.
         The service asks Mojang whether the named player joined and signs in the UUID Mojang reports.
+        A UUID that is not linked to any account gets a new account. Use signIn instead.
+      deprecated: true
       security: []
       requestBody:
         required: true
@@ -78,6 +82,71 @@ paths:
         '429':
           $ref: '#/components/responses/Problem'
         '503':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/auth/sign-in:
+    post:
+      tags: [Auth]
+      operationId: signIn
+      summary: Complete a sign-in, or start a pending one
+      description: |
+        Call after the client has joined the challenge's server ID through Mojang's session service.
+        A UUID linked to an account signs in to it. For a UUID that is not linked to any account the result is a
+        pending sign-in while linking is available, so the player can create an account or join one; otherwise a
+        new account is created.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+      responses:
+        '200':
+          description: Signed in, or pending.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignInResult'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/auth/pending/session:
+    post:
+      tags: [Auth]
+      operationId: completeSignIn
+      summary: Finish a pending sign-in
+      description: |
+        With createAccount, creates an account holding the pending identity, or reaches it when it already exists.
+        Without it, signs in to the account the identity joined through a confirmed link code.
+      security:
+        - pendingAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteSignInRequest'
+      responses:
+        '200':
+          description: Signed in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
           $ref: '#/components/responses/Problem'
         default:
           $ref: '#/components/responses/Problem'
@@ -131,15 +200,198 @@ paths:
       tags: [Account]
       operationId: getMe
       summary: The signed-in account
-      description: Returns the account, the identity in use, the storage usage and the quota.
+      description: |
+        Returns the account, the identity in use, every linked identity, the storage usage, the quota and whether
+        linking is available.
       responses:
         '200':
-          description: Account, identity name, storage usage and quota.
+          description: Account, identities, storage usage and quota.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Account'
         '401':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/me/identities/{identityId}:
+    parameters:
+      - name: identityId
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+    delete:
+      tags: [Account]
+      operationId: unlinkIdentity
+      summary: Unlink an identity from the account
+      description: |
+        Ends every session of the identity, in the game and on the website. Its next sign-in is that of an unknown
+        identity. The last identity of an account cannot be unlinked.
+      responses:
+        '204':
+          description: Unlinked.
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/link-codes:
+    post:
+      tags: [Links]
+      operationId: createLinkCode
+      summary: Issue a link code
+      description: |
+        Issues a code that is redeemable for 5 minutes, and cancels the caller's previous open code. A code of an
+        account is redeemed by a pending sign-in, a code of a pending sign-in by an account. Nothing is linked until
+        the issuer confirms.
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+        - pendingAuth: []
+        - pendingCookieAuth: []
+      responses:
+        '201':
+          description: Code issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkCode'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/link-codes/redeem:
+    post:
+      tags: [Links]
+      operationId: redeemLinkCode
+      summary: Redeem a link code
+      description: |
+        Unknown, expired, cancelled and used codes are all rejected as link_code_invalid. The code then waits for the
+        issuer's confirmation.
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+        - pendingAuth: []
+        - pendingCookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RedeemRequest'
+      responses:
+        '200':
+          description: Redeemed; waiting for the issuer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkCode'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/link-codes/{codeId}:
+    parameters:
+      - $ref: '#/components/parameters/CodeId'
+    get:
+      tags: [Links]
+      operationId: getLinkCode
+      summary: A link code's status
+      description: Visible to its issuer and its redeemer only; anyone else gets not found.
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+        - pendingAuth: []
+        - pendingCookieAuth: []
+      responses:
+        '200':
+          description: The code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkCode'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+    delete:
+      tags: [Links]
+      operationId: cancelLinkCode
+      summary: Cancel or decline a link code
+      description: Cancels an open code, or declines a redeemed one. Only the issuer may.
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+        - pendingAuth: []
+        - pendingCookieAuth: []
+      responses:
+        '204':
+          description: Cancelled or declined.
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/link-codes/{codeId}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/CodeId'
+    post:
+      tags: [Links]
+      operationId: confirmLinkCode
+      summary: Confirm a redeemed link code
+      description: |
+        Links the identities within 5 minutes of the redemption. Only the issuing identity may confirm.
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+        - pendingAuth: []
+        - pendingCookieAuth: []
+      responses:
+        '200':
+          description: Linked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkCode'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
           $ref: '#/components/responses/Problem'
         default:
           $ref: '#/components/responses/Problem'
@@ -584,6 +836,76 @@ paths:
         default:
           $ref: '#/components/responses/Problem'
 
+  /v1/web/pending:
+    get:
+      tags: [Web]
+      operationId: getWebPending
+      summary: The website's pending sign-in
+      description: The GitHub identity that signed in without an account, for the first sign-in choice.
+      security:
+        - pendingCookieAuth: []
+      responses:
+        '200':
+          description: The pending sign-in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebPending'
+        '401':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/web/pending/account:
+    post:
+      tags: [Web]
+      operationId: createWebAccount
+      summary: Create an account for the pending sign-in
+      description: |
+        Creates an account holding the pending identity, or reaches it when it already exists, and replaces the
+        pending sign-in with a website session.
+      security:
+        - pendingCookieAuth: []
+      responses:
+        '200':
+          description: Signed in to the account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/web/pending/session:
+    post:
+      tags: [Web]
+      operationId: completeWebSignIn
+      summary: Finish the website's pending sign-in after a join
+      description: |
+        Replaces the pending sign-in with a website session of the account the identity joined through a confirmed
+        link code.
+      security:
+        - pendingCookieAuth: []
+      responses:
+        '200':
+          description: Signed in to the account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
   /v1/web/sign-out:
     post:
       tags: [Web]
@@ -614,8 +936,29 @@ components:
         The website session, set by the GitHub sign-in. HttpOnly; outside development the cookie is named
         __Host-heavymatica. Requests that change data also need the header X-Heavymatica-Request: 1 and must come
         from the service's own origin.
+    pendingAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: The pendingToken of a pending game sign-in. Valid for 10 minutes and never refreshed.
+    pendingCookieAuth:
+      type: apiKey
+      in: cookie
+      name: heavymatica-pending
+      description: |
+        The website's pending sign-in, set by a GitHub sign-in without an account. Valid for 10 minutes. HttpOnly;
+        outside development the cookie is named __Host-heavymatica-pending. The same request rules as cookieAuth
+        apply.
 
   parameters:
+    CodeId:
+      name: codeId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
     SchematicId:
       name: schematicId
       in: path
@@ -681,6 +1024,14 @@ components:
         - refresh_token_invalid
         - request_forbidden
         - web_sign_in_unavailable
+        - account_choice_required
+        # Links
+        - linking_unavailable
+        - link_code_invalid
+        - link_code_not_applicable
+        - identity_already_linked
+        - too_many_identities
+        - last_identity
         # Storage
         - not_found
         - over_quota
@@ -761,6 +1112,144 @@ components:
         quotaBytes:
           type: integer
           format: int64
+        identities:
+          type: array
+          description: Every identity linked to the account. Returned by getMe.
+          items:
+            $ref: '#/components/schemas/Identity'
+        linkingAvailable:
+          type: boolean
+          description: Whether link codes can be issued. Returned by getMe.
+
+    Identity:
+      type: object
+      required: [id, provider, current]
+      properties:
+        id:
+          type: string
+        provider:
+          type: string
+          description: minecraft or github.
+        name:
+          type: string
+          description: The Minecraft name or the GitHub login, when known.
+        current:
+          type: boolean
+          description: Whether this is the identity of the calling session.
+
+    SignInResult:
+      type: object
+      description: Exactly one of session and pending is set.
+      properties:
+        session:
+          $ref: '#/components/schemas/Session'
+        pending:
+          $ref: '#/components/schemas/PendingSignIn'
+
+    PendingIdentity:
+      type: object
+      required: [provider]
+      properties:
+        provider:
+          type: string
+        name:
+          type: string
+
+    PendingSignIn:
+      type: object
+      required: [pendingToken, expiresAt, identity, joinAvailable]
+      properties:
+        pendingToken:
+          type: string
+          description: Bearer token for the calls open to a pending sign-in. Keep it in memory only.
+        expiresAt:
+          type: string
+          format: date-time
+        identity:
+          $ref: '#/components/schemas/PendingIdentity'
+        joinAvailable:
+          type: boolean
+          description: Whether joining an existing account through a link code is possible.
+
+    CompleteSignInRequest:
+      type: object
+      required: [createAccount]
+      properties:
+        createAccount:
+          type: boolean
+          description: True creates an account; false completes a sign-in after a confirmed join.
+
+    WebPending:
+      type: object
+      required: [identity, expiresAt, joinAvailable]
+      properties:
+        identity:
+          $ref: '#/components/schemas/PendingIdentity'
+        expiresAt:
+          type: string
+          format: date-time
+        joinAvailable:
+          type: boolean
+
+    LinkCodeStatus:
+      type: string
+      enum: [open, redeemed, linked, declined, cancelled, expired]
+
+    LinkParty:
+      type: object
+      description: |
+        An identity (provider and name) or an account (its Minecraft names and its web sign-ins). Never an email.
+      properties:
+        provider:
+          type: string
+        name:
+          type: string
+        accountNames:
+          type: array
+          description: The Minecraft names of the account.
+          items:
+            type: string
+        accountProviders:
+          type: array
+          description: The web sign-ins of the account, as provider:login.
+          items:
+            type: string
+
+    LinkCode:
+      type: object
+      required: [id, status, expiresAt, issuer]
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+          description: The code as XXXX-XXXX. Returned to the issuer only, while the code is open.
+        linkUrl:
+          type: string
+          format: uri
+          description: The website address that redeems the code. Returned to the issuer only, while the code is open.
+        status:
+          $ref: '#/components/schemas/LinkCodeStatus'
+        expiresAt:
+          type: string
+          format: date-time
+        confirmBy:
+          type: string
+          format: date-time
+          description: Deadline for the issuer's confirmation, once redeemed.
+        issuer:
+          $ref: '#/components/schemas/LinkParty'
+        redeemer:
+          $ref: '#/components/schemas/LinkParty'
+
+    RedeemRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 20
 
     SchematicFormat:
       type: string

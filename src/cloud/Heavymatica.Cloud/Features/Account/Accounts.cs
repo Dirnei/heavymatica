@@ -22,6 +22,13 @@ internal enum AddIdentityOutcome
     TooManyIdentities,
 }
 
+internal enum RemoveIdentityOutcome
+{
+    Removed,
+    NotFound,
+    LastIdentity,
+}
+
 internal sealed class Accounts(IMongoDatabase database, AccountAudit audit, TimeProvider time, IOptions<QuotaOptions> quota)
 {
     public const int MaxIdentities = 10;
@@ -115,16 +122,38 @@ internal sealed class Accounts(IMongoDatabase database, AccountAudit audit, Time
         return AddIdentityOutcome.Added;
     }
 
-    public async Task<bool> RemoveIdentityAsync(string accountId, string identityId, AuditActor actor, CancellationToken cancellationToken)
+    public Task<List<IdentityDocument>> ListIdentitiesAsync(string accountId, CancellationToken cancellationToken) =>
+        identities.Find(identity => identity.AccountId == accountId).SortBy(identity => identity.LinkedAt).ToListAsync(cancellationToken);
+
+    /// <summary>Removes one of the account's identities, never its last one.</summary>
+    public async Task<RemoveIdentityOutcome> RemoveIdentityAsync(string accountId, string identityId, AuditActor actor, CancellationToken cancellationToken)
     {
-        var removed = await identities.DeleteOneAsync(identity => identity.Id == identityId && identity.AccountId == accountId, cancellationToken);
+        var identity = await identities.Find(candidate => candidate.Id == identityId && candidate.AccountId == accountId).FirstOrDefaultAsync(cancellationToken);
+        if (identity is null)
+        {
+            return RemoveIdentityOutcome.NotFound;
+        }
+
+        if (await identities.CountDocumentsAsync(candidate => candidate.AccountId == accountId, cancellationToken: cancellationToken) <= 1)
+        {
+            return RemoveIdentityOutcome.LastIdentity;
+        }
+
+        var removed = await identities.DeleteOneAsync(candidate => candidate.Id == identityId && candidate.AccountId == accountId, cancellationToken);
         if (removed.DeletedCount == 0)
         {
-            return false;
+            return RemoveIdentityOutcome.NotFound;
+        }
+
+        // Two concurrent unlinks can both pass the count; the one that empties the account puts its identity back.
+        if (await identities.CountDocumentsAsync(candidate => candidate.AccountId == accountId, cancellationToken: cancellationToken) == 0)
+        {
+            await identities.InsertOneAsync(identity, cancellationToken: cancellationToken);
+            return RemoveIdentityOutcome.LastIdentity;
         }
 
         await audit.RecordAsync(accountId, AuditKinds.IdentityRemoved, actor, cancellationToken, identityId);
-        return true;
+        return RemoveIdentityOutcome.Removed;
     }
 
     public static Contract.Account ToContract(AccountDocument account, IdentityDocument identity) => new()

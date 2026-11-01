@@ -70,6 +70,7 @@ public class LibraryScreen extends Screen {
     private CardGrid grid;
     private DetailsPanel details;
     private Button signInOut;
+    private Button accountButton;
     private String folder = "";
     private boolean all;
     private @Nullable String tag;
@@ -105,7 +106,10 @@ public class LibraryScreen extends Screen {
                 .bounds(MARGIN + 156, MARGIN - 1, 60, 20).build());
         signInOut = addRenderableWidget(Button.builder(Component.empty(), button -> toggleSignIn())
                 .bounds(MARGIN + 220, MARGIN - 1, 70, 20).build());
-        addExtraTopButtons(MARGIN + 294);
+        accountButton = addRenderableWidget(Button.builder(Component.translatable("heavymatica.account.button"),
+                        button -> minecraft.setScreen(new AccountScreen(this, account)))
+                .bounds(MARGIN + 294, MARGIN - 1, 60, 20).build());
+        addExtraTopButtons(MARGIN + 358);
 
         int top = MARGIN + 26;
         int contentWidth = width - SIDEBAR - MARGIN * 3;
@@ -221,6 +225,7 @@ public class LibraryScreen extends Screen {
             default -> "heavymatica.account.sign_in";
         }));
         signInOut.active = account.status() != CloudAccount.Status.SIGNING_IN;
+        accountButton.visible = account.signedIn();
         boolean local = selected != null && !selected.cloud();
         boolean canOrganize = account.signedIn() && library.cloudState() != Library.CloudState.OFFLINE && selected != null && selected.cloud();
         net.minecraft.client.gui.components.Tooltip signInNeeded = account.signedIn() ? null
@@ -473,6 +478,8 @@ public class LibraryScreen extends Screen {
         account.signIn().whenComplete((ignored, failure) -> minecraft.execute(() -> {
             if (failure != null) {
                 showMessage(Component.translatable(failureOf(failure).translationKey()), true);
+            } else if (account.status() == CloudAccount.Status.CHOOSING) {
+                minecraft.setScreen(new AccountChoiceScreen(this, account, this::refreshCloud));
             } else {
                 refreshCloud();
             }
@@ -590,6 +597,7 @@ public class LibraryScreen extends Screen {
             case SIGNED_IN -> current.map(info -> name + "  " + mebibytes(info.getUsedBytes()) + "/" + mebibytes(info.getQuotaBytes()) + " MiB").orElse(name);
             case EXPIRED -> Component.translatable("heavymatica.account.expired").getString();
             case SIGNING_IN -> Component.translatable("heavymatica.account.signing_in").getString();
+            case CHOOSING -> Component.translatable("heavymatica.account.choosing").getString();
             case SIGNED_OUT -> Component.translatable("heavymatica.account.signed_out").getString();
         };
         graphics.text(font, status, right - 12 - font.width(status), MARGIN + 5, 0xFFFFFFFF, false);

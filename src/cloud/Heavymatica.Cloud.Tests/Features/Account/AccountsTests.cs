@@ -109,7 +109,7 @@ public sealed class AccountsTests(CloudInfrastructure infrastructure) : IDisposa
         await Accounts.AddIdentityAsync(signedIn.Account.Id, Providers.Minecraft, Guid.NewGuid().ToString(), "Alt", signedIn.Actor, Cancel);
         var alt = await IdentityDocument.In(factory.Database).Find(identity => identity.Provider == Providers.Minecraft).SingleAsync(Cancel);
 
-        Assert.True(await Accounts.RemoveIdentityAsync(signedIn.Account.Id, alt.Id, signedIn.Actor, Cancel));
+        Assert.Equal(RemoveIdentityOutcome.Removed, await Accounts.RemoveIdentityAsync(signedIn.Account.Id, alt.Id, signedIn.Actor, Cancel));
 
         var kinds = await AuditEntryDocument.In(factory.Database).Find(entry => entry.AccountId == signedIn.Account.Id)
             .SortBy(entry => entry.Id).Project(entry => new { entry.Kind, entry.IdentityId }).ToListAsync(Cancel);

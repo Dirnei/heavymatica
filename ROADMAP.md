@@ -110,7 +110,7 @@ change). `.blueprint` (Structurize) import was out of scope.
     sneak or the setting gives vanilla's pick.
   - The overlay's expected and found lines follow the ghost target.
   - Later: picking from carried containers and chests, and targeting anchored or following placements.
-- Step 4 is done. **Next up: the web UIs (step 5), starting with `web-library`.**
+- Step 4 is done.
 
 ### Capture and export (done)
 
@@ -198,7 +198,7 @@ Changes, in order:
    renaming whole folders and editing tags.
 3. **`cloud-thumbnails` (next):** the cloud renders a thumbnail for every version uploaded without one (website uploads),
    and backfills older versions.
-4. **`account-links`:** connecting the game. The game library shows a link code with a QR code, entered on the
+4. **`account-links` (done):** connecting the game. The game library shows a link code with a QR code, entered on the
    website; the first-sign-in choice (create new or join existing); linking and unlinking more identities. After
    this, the game and the website show the same library.
 5. **`admin-web`:** the admin host and its listener, passkey admins with setup code and invitations, account lookup and

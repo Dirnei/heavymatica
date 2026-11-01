@@ -88,8 +88,8 @@ public final class Library {
 
     /** Shows the stored listing of the current account at once; call {@link #refresh()} to bring it up to date. */
     public void loadStored() {
-        cloud = account.status() == CloudAccount.Status.SIGNED_OUT ? List.of() : listing.load(player.get());
-        state = cloud.isEmpty() && account.status() == CloudAccount.Status.SIGNED_OUT ? CloudState.NONE : CloudState.OFFLINE;
+        cloud = noSession() ? List.of() : listing.load(player.get());
+        state = cloud.isEmpty() && noSession() ? CloudState.NONE : CloudState.OFFLINE;
         changed();
     }
 
@@ -109,11 +109,16 @@ public final class Library {
                 state = CloudState.CURRENT;
             } else {
                 cloud = listing.load(owner);
-                state = account.status() == CloudAccount.Status.SIGNED_OUT ? CloudState.NONE : CloudState.OFFLINE;
+                state = noSession() ? CloudState.NONE : CloudState.OFFLINE;
             }
             changed();
             return null;
         });
+    }
+
+    /** Signed out, or still choosing an account: no listing to show. Expired keeps the last one. */
+    private boolean noSession() {
+        return account.status() == CloudAccount.Status.SIGNED_OUT || account.status() == CloudAccount.Status.CHOOSING;
     }
 
     /** Deletes the stored listing; part of signing out. */

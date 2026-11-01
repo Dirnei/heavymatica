@@ -77,6 +77,15 @@ subprojects {
                 if (quickPlayWorld) {
                     programArguments.addAll('--quickPlaySingleplayer', quickPlayWorld)
                 }
+                // Development aid: play as another offline player, for example HEAVYMATICA_DEV_USER=Newbie,<uuid>.
+                def devUser = System.getenv('HEAVYMATICA_DEV_USER')
+                if (devUser) {
+                    def (name, uuid) = (devUser.split(',', 2) as List) + [null]
+                    programArguments.addAll('--username', name)
+                    if (uuid) {
+                        programArguments.addAll('--uuid', uuid)
+                    }
+                }
             }
             server {
                 server()
