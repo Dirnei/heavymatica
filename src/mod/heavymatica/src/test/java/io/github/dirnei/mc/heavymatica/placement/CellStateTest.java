@@ -157,7 +157,7 @@ class CellStateTest {
         assertEquals(false, CellState.NEEDS_FINISHING.mistake());
         assertEquals(true, CellState.NEEDS_FINISHING.boxed());
         for (CellState state : CellState.values()) {
-            assertEquals(state.mistake() || state == CellState.NEEDS_FINISHING, state.boxed(), state.name());
+            assertEquals(state.mistake() || state == CellState.NEEDS_FINISHING || state == CellState.INCOMPLETE, state.boxed(), state.name());
         }
         assertEquals(8, CellState.NEEDS_FINISHING.ordinal());
     }
@@ -186,11 +186,11 @@ class CellStateTest {
     }
 
     @Test
-    void incompleteShowsAGhostAndNeedsItems() {
+    void incompleteShowsAGhostAndAnOrangeBoxAndNeedsItems() {
         assertEquals(true, CellState.INCOMPLETE.showsGhost());
         assertEquals(true, CellState.INCOMPLETE.needsItem());
         assertEquals(false, CellState.INCOMPLETE.mistake());
-        assertEquals(false, CellState.INCOMPLETE.boxed());
+        assertEquals(true, CellState.INCOMPLETE.boxed());
     }
 
     @Test

@@ -302,7 +302,7 @@ public final class PlacementOverlay {
         BlockPos targeted = crosshairTarget(minecraft, placement);
         if (targeted != null && minecraft.level != null) {
             CellState target = comparison.stateAt(targeted);
-            if (target != null && (target.boxed() || target == CellState.INCOMPLETE)) {
+            if (target != null && target.boxed()) {
                 BlockState expected = comparison.expectedAt(targeted);
                 BlockState found = minecraft.level.getBlockState(targeted);
                 lines.add(Line.text(Component.translatable("heavymatica.overlay.expected", block(expected)), MUTED));

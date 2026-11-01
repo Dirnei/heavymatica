@@ -184,15 +184,16 @@ class ComparisonStateTest {
     }
 
     @Test
-    void incompleteShowsTheGhostAndIsNotDone() {
+    void incompleteShowsTheGhostAndABoxAndIsNotDone() {
         ComparisonState state = halfSolid();
         state.set(0, CellState.MATCHING);
         state.takeDirtyMask();
+        state.takeDirtyBoxSections();
         state.set(0, CellState.INCOMPLETE, 1);
         assertEquals(0, state.matching(0, 9));
         assertTrue((state.mask()[0] & 1) != 0);
         assertArrayEquals(new int[] {0, 1}, state.takeDirtyMask());
-        assertTrue(state.takeDirtyBoxSections().isEmpty());
+        assertFalse(state.takeDirtyBoxSections().isEmpty());
         assertEquals(1, state.total(CellState.INCOMPLETE));
     }
 

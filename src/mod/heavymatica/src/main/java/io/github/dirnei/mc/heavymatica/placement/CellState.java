@@ -45,9 +45,9 @@ public enum CellState {
         return this == WRONG_BLOCK || this == WRONG_ORIENTATION || this == TOO_MANY || this == WRONG_WATER || this == EXTRA;
     }
 
-    /** True for the states marked with a coloured box: the mistakes and needs finishing. */
+    /** True for the states marked with a coloured box: the mistakes, needs finishing and incomplete. */
     public boolean boxed() {
-        return mistake() || this == NEEDS_FINISHING;
+        return mistake() || this == NEEDS_FINISHING || this == INCOMPLETE;
     }
 
     /**
