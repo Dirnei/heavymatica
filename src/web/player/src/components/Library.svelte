@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import { api, type FolderList, type SchematicSummary, type TagList } from '../lib/api';
+  import { api, type FolderList, type SchematicSummary, type TagList, type UploadResult } from '../lib/api';
   import { childFolders, chunk, dragType, folderName, parentsOf, renamedPath } from '../lib/folders';
   import { formatBytes, formatDimensions, formatTime } from '../lib/format';
   import {
@@ -18,6 +18,7 @@
   import { codeOf, messageOf, problemMessage } from '../lib/problems';
   import { account, refreshAccount } from '../lib/session';
   import { fileBaseName, fitsUpload } from '../lib/files';
+  import { versionHasThumbnail, waitForThumbnail } from '../lib/thumbnails';
   import { newSchematicUrl, uploadFile, type QueuedUpload } from '../lib/upload';
   import UploadQueue from './UploadQueue.svelte';
   import ContextMenu from './ContextMenu.svelte';
@@ -55,6 +56,7 @@
   let generation = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let sidebarDialog = $state<HTMLDialogElement>();
+  const watching = new AbortController();
 
   const selected = new SvelteSet<string>();
   const browsing = $derived(isBrowsing(view, search));
@@ -274,12 +276,29 @@
       const outcome = await uploadFile(newSchematicUrl(upload.name, folder), file, (fraction) => (upload.progress = fraction));
       if (outcome.kind === 'stored') {
         upload.state = 'done';
+        watchThumbnail(outcome.result);
       } else {
         upload.state = 'failed';
         upload.message = outcome.kind === 'rejected' ? messageOf(outcome.problem) : 'The upload failed. Check your connection and try again.';
       }
     }
     await Promise.all([loadSidebar(), load(true), refreshAccount()]);
+  }
+
+  /** Shows the thumbnail the cloud renders for a fresh upload on its card, once it is there. */
+  function watchThumbnail(uploaded: UploadResult) {
+    if (uploaded.version.hasThumbnail) {
+      return;
+    }
+    const { schematicId } = uploaded;
+    const { number } = uploaded.version;
+    void waitForThumbnail(() => versionHasThumbnail(schematicId, number), { signal: watching.signal }).then((found) => {
+      if (found) {
+        items = items.map((item) =>
+          item.id === schematicId && item.latest.number === number ? { ...item, latest: { ...item.latest, hasThumbnail: true } } : item,
+        );
+      }
+    });
   }
 
   function hasFiles(event: DragEvent): boolean {
@@ -395,6 +414,7 @@
     return () => {
       window.removeEventListener('popstate', popped);
       clearTimeout(timer);
+      watching.abort();
     };
   });
 </script>

@@ -1,9 +1,11 @@
 using Heavymatica.Cloud.Contract;
 using Heavymatica.Cloud.Features.Account;
+using Heavymatica.Cloud.Features.Schematics.Thumbnails;
 using Heavymatica.Cloud.Formats;
 using Heavymatica.Cloud.Infrastructure.Contract;
 using Heavymatica.Cloud.Infrastructure.S3;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -14,12 +16,15 @@ namespace Heavymatica.Cloud.Features.Schematics.Upload;
 /// failure, the blob is stored before the version document, and the version only becomes visible once both exist.
 /// A failure leaves at most an orphan blob for the sweeper.
 /// </summary>
-internal sealed class UploadSchematic(UploadSpool spool, IMongoDatabase database, Quota quota, BlobStore blobs, TimeProvider time)
+internal sealed class UploadSchematic(UploadSpool spool, IMongoDatabase database, Quota quota, BlobStore blobs, TimeProvider time,
+    IOptions<ThumbnailOptions> thumbnails)
 {
     private readonly IMongoCollection<SchematicDocument> schematics = SchematicDocument.In(database);
     private readonly IMongoCollection<VersionDocument> versions = VersionDocument.In(database);
 
-    public async Task<ActionResult<UploadResult>> NewAsync(string owner, string? name, string? folder, Stream body, CancellationToken cancellationToken)
+    /// <param name="fromWebsite">A website upload is rendered at once; the game attaches its own thumbnail right after uploading.</param>
+    public async Task<ActionResult<UploadResult>> NewAsync(string owner, string? name, string? folder, Stream body, bool fromWebsite,
+        CancellationToken cancellationToken)
     {
         var trimmed = name?.Trim();
         if (string.IsNullOrEmpty(trimmed) || trimmed.Length > 100)
@@ -35,7 +40,7 @@ internal sealed class UploadSchematic(UploadSpool spool, IMongoDatabase database
         return await StoreAsync(owner, body, existing: null, async (upload, model, ct) =>
         {
             var schematicId = ObjectId.GenerateNewId().ToString();
-            var version = Version(owner, schematicId, 1, upload, model);
+            var version = Version(owner, schematicId, 1, upload, model, fromWebsite);
             await versions.InsertOneAsync(version, cancellationToken: ct);
             try
             {
@@ -61,7 +66,7 @@ internal sealed class UploadSchematic(UploadSpool spool, IMongoDatabase database
         }, cancellationToken);
     }
 
-    public async Task<ActionResult<UploadResult>> VersionAsync(string owner, string schematicId, Stream body, CancellationToken cancellationToken)
+    public async Task<ActionResult<UploadResult>> VersionAsync(string owner, string schematicId, Stream body, bool fromWebsite, CancellationToken cancellationToken)
     {
         var schematic = await schematics.Find(document => document.Id == schematicId && document.Owner == owner).FirstOrDefaultAsync(cancellationToken);
         if (schematic is null)
@@ -81,7 +86,7 @@ internal sealed class UploadSchematic(UploadSpool spool, IMongoDatabase database
                 throw new SchematicDeletedException();
             }
 
-            var version = Version(owner, schematicId, claimed.NextVersion, upload, model);
+            var version = Version(owner, schematicId, claimed.NextVersion, upload, model, fromWebsite);
             await versions.InsertOneAsync(version, cancellationToken: ct);
             await schematics.UpdateOneAsync(
                 Builders<SchematicDocument>.Filter.Eq(document => document.Id, schematicId)
@@ -156,9 +161,11 @@ internal sealed class UploadSchematic(UploadSpool spool, IMongoDatabase database
         }
     }
 
-    private VersionDocument Version(string owner, string schematicId, int number, SpooledUpload upload, SchematicModel model)
+    private VersionDocument Version(string owner, string schematicId, int number, SpooledUpload upload, SchematicModel model, bool fromWebsite)
     {
         var counts = model.BlockCounts();
+        // Millisecond precision, as MongoDB stores it, so the answer matches what later reads return.
+        var createdAt = DateTime.UnixEpoch.AddMilliseconds(time.GetUtcNow().ToUnixTimeMilliseconds());
         return new VersionDocument
         {
             Id = VersionDocument.KeyOf(schematicId, number),
@@ -175,8 +182,8 @@ internal sealed class UploadSchematic(UploadSpool spool, IMongoDatabase database
             BlockTotal = counts.Sum(count => count.Value),
             BlockCounts = counts.Select(count => new BlockCountDocument(count.Key, count.Value)).ToList(),
             SkippedEntities = model.SkippedEntities,
-            // Millisecond precision, as MongoDB stores it, so the answer matches what later reads return.
-            CreatedAt = DateTime.UnixEpoch.AddMilliseconds(time.GetUtcNow().ToUnixTimeMilliseconds()),
+            CreatedAt = createdAt,
+            ThumbnailDueAt = fromWebsite ? createdAt : createdAt + thumbnails.Value.GracePeriod,
         };
     }
 

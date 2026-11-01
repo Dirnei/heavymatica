@@ -25,6 +25,8 @@ internal sealed class SchematicsApi(
 {
     private string Owner => http.HttpContext!.User.AccountId();
 
+    private bool FromWebsite => http.HttpContext!.User.IsWebSession();
+
     public Task<ActionResult<SchematicPage>> ListSchematicsAsync(string? q, string? folder, bool includeSubfolders, bool unfiled, string? tag, string? cursor, int limit,
         CancellationToken cancellationToken = default) =>
         list.ListAsync(Owner, q, folder, includeSubfolders, unfiled, tag, cursor, limit, cancellationToken);
@@ -35,7 +37,7 @@ internal sealed class SchematicsApi(
     public Task<ActionResult<UploadResult>> UploadSchematicAsync(string name, string? folder, IFormFile body, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        return upload.NewAsync(Owner, name, folder, body.OpenReadStream(), cancellationToken);
+        return upload.NewAsync(Owner, name, folder, body.OpenReadStream(), FromWebsite, cancellationToken);
     }
 
     public Task<ActionResult<SchematicDetails>> GetSchematicAsync(string schematicId, CancellationToken cancellationToken = default) =>
@@ -50,7 +52,7 @@ internal sealed class SchematicsApi(
     public Task<ActionResult<UploadResult>> UploadVersionAsync(IFormFile body, string schematicId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        return upload.VersionAsync(Owner, schematicId, body.OpenReadStream(), cancellationToken);
+        return upload.VersionAsync(Owner, schematicId, body.OpenReadStream(), FromWebsite, cancellationToken);
     }
 
     public Task<IActionResult> DeleteVersionAsync(string schematicId, int versionNumber, CancellationToken cancellationToken = default) =>

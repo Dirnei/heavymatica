@@ -47,6 +47,7 @@ import java.util.stream.Stream;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import io.github.dirnei.mc.heavymatica.account.CloudClient;
+import io.github.dirnei.mc.heavymatica.thumbnail.BlockColorExport;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
@@ -102,6 +103,8 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code logPlacements}: log the placements, the selection and the ghost mesh count</li>
  *     <li>{@code selectPlacement=<name>}: select the first placement with that name</li>
  *     <li>{@code logComparison}: log the selected placement's comparison: progress, totals, slowest scan tick</li>
+ *     <li>{@code exportBlockColors=<path>}: write the cloud's block colour table (average top and side colours, alpha and
+ *     shape per block) to the file</li>
  *     <li>{@code logFinish}: log the placement count, the selected placement and whether a finished one can be brought back</li>
  *     <li>{@code bringBack}: bring the latest finished placement back</li>
  *     <li>{@code logCell=<x>,<y>,<z>}: log the selected placement's comparison state at a world position</li>
@@ -259,6 +262,13 @@ public final class DevScreens {
             case "logPlacements" -> logPlacements();
             case "logComparison" -> logComparison();
             case "logFinish" -> logFinish();
+            case "exportBlockColors" -> {
+                try {
+                    Heavymatica.LOGGER.info("Dev exported {} block colours to {}", BlockColorExport.export(Path.of(argument)), argument);
+                } catch (IOException e) {
+                    Heavymatica.LOGGER.error("Dev block colour export failed", e);
+                }
+            }
             case "bringBack" -> {
                 PlacementSession session = HeavymaticaClient.placements();
                 if (session != null) {

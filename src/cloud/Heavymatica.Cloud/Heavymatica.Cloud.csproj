@@ -32,6 +32,7 @@
   <ItemGroup>
     <!-- The contract is served as written. -->
     <EmbeddedResource Include="$(ContractFile)" LogicalName="heavymatica-cloud.v1.yaml" />
+    <EmbeddedResource Include="Features/Schematics/Thumbnails/block-colors.json" LogicalName="block-colors.json" />
   </ItemGroup>
 
   <!--

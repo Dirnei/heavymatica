@@ -28,7 +28,7 @@ internal sealed class ShowThumbnail(IMongoDatabase database, BlobStore blobs, Ti
         }
 
         var lifetime = options.Value.LinkLifetime;
-        var link = await blobs.LinkAsync(BlobStore.ThumbnailKey(owner, schematicId, number), time.GetUtcNow() + lifetime);
+        var link = await blobs.LinkAsync(version.ThumbnailKey(), time.GetUtcNow() + lifetime);
         var cacheSeconds = (int)Math.Max(0, (lifetime - CacheMargin).TotalSeconds);
         response.Headers.CacheControl = $"private, max-age={cacheSeconds}";
         return new RedirectResult(link);

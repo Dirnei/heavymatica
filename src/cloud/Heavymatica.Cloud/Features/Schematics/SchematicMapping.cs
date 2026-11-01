@@ -22,6 +22,7 @@ internal static class SchematicMapping
         BlockCounts = version.BlockCounts.Select(count => new BlockCount { Block = count.Block, Count = count.Count }).ToList(),
         SkippedEntities = version.SkippedEntities,
         HasThumbnail = version.HasThumbnail,
+        ThumbnailSource = !version.HasThumbnail ? null : version.HasRenderedThumbnail ? ThumbnailSource.Rendered : ThumbnailSource.Uploaded,
         CreatedAt = new DateTimeOffset(version.CreatedAt, TimeSpan.Zero),
     };
 

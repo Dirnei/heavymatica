@@ -102,6 +102,9 @@ public class CloudFactory : WebApplicationFactory<ServiceAssembly>
             builder.UseSetting(MojangUrlKey, "http://localhost" + DevMojang.BasePath);
         }
 
+        // Tests drive the thumbnail worker themselves; its timer would render behind their backs.
+        builder.UseSetting("Thumbnails:Enabled", "false");
+
         // Host settings are visible while the service registers its services; app configuration only afterwards.
         foreach (var (key, value) in settings)
         {

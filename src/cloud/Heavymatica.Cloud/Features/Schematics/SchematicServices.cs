@@ -36,9 +36,15 @@ internal static class SchematicServices
         services.AddSingleton<ShowThumbnail>();
         services.AddSingleton<ListTags>();
         services.AddSingleton<BlobSweeper>();
+        services.AddOptions<ThumbnailOptions>().BindConfiguration(ThumbnailOptions.Section);
+        services.AddSingleton<ThumbnailWorker>();
+        services.AddHostedService<RenderBackfill>();
 
         services.AddAkka("heavymatica", (akka, provider) => akka.WithActors((system, registry, resolver) =>
-            registry.Register<BlobSweeperActor>(system.ActorOf(resolver.Props<BlobSweeperActor>(), "blob-sweeper"))));
+        {
+            registry.Register<BlobSweeperActor>(system.ActorOf(resolver.Props<BlobSweeperActor>(), "blob-sweeper"));
+            registry.Register<ThumbnailWorkerActor>(system.ActorOf(resolver.Props<ThumbnailWorkerActor>(), "thumbnail-worker"));
+        }));
         return builder;
     }
 }

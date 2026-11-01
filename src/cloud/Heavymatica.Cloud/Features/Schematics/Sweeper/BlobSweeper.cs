@@ -31,18 +31,27 @@ internal sealed class BlobSweeper(IMongoDatabase database, BlobStore blobs, Time
 
     private Task<bool> IsReferencedAsync(string key, CancellationToken cancellationToken)
     {
-        // accounts/{owner}/blobs/{sha256} or accounts/{owner}/thumbnails/{schematicId}/{number}.png
+        // accounts/{owner}/blobs/{sha256} or accounts/{owner}/thumbnails/{schematicId}/{number}[.rendered].png
         var parts = key.Split('/');
         if (parts is ["accounts", var owner, "blobs", var sha256])
         {
             return versions.Find(version => version.Owner == owner && version.Sha256 == sha256).AnyAsync(cancellationToken);
         }
 
-        if (parts is ["accounts", var thumbnailOwner, "thumbnails", var schematicId, var file]
-            && file.EndsWith(".png", StringComparison.Ordinal) && int.TryParse(file[..^4], out var number))
+        if (parts is ["accounts", var thumbnailOwner, "thumbnails", var schematicId, var file] && file.EndsWith(".png", StringComparison.Ordinal))
         {
-            var versionKey = VersionDocument.KeyOf(schematicId, number);
-            return versions.Find(version => version.Id == versionKey && version.Owner == thumbnailOwner && version.HasThumbnail).AnyAsync(cancellationToken);
+            var stem = file[..^4];
+            var rendered = stem.EndsWith(".rendered", StringComparison.Ordinal);
+            if (int.TryParse(rendered ? stem[..^9] : stem, out var number))
+            {
+                var versionKey = VersionDocument.KeyOf(schematicId, number);
+                var filter = Builders<VersionDocument>.Filter;
+                var source = rendered
+                    ? filter.Eq(version => version.ThumbnailSource, ThumbnailOrigin.Rendered)
+                    : filter.Ne(version => version.ThumbnailSource, ThumbnailOrigin.Rendered);
+                return versions.Find(filter.Eq(version => version.Id, versionKey) & filter.Eq(version => version.Owner, thumbnailOwner)
+                    & filter.Eq(version => version.HasThumbnail, true) & source).AnyAsync(cancellationToken);
+            }
         }
 
         // Keys the service does not know are left alone.

@@ -6,6 +6,7 @@
   import { libraryPath, libraryUrl, uploadUrl } from '../lib/navigation';
   import { messageOf, problemMessage } from '../lib/problems';
   import { refreshAccount } from '../lib/session';
+  import { mayStillGetThumbnail, versionHasThumbnail, waitForThumbnail } from '../lib/thumbnails';
   import TagEditor from './TagEditor.svelte';
 
   const id = new URLSearchParams(window.location.search).get('id') ?? '';
@@ -171,8 +172,18 @@
     }
   }
 
+  /** A version uploaded moments ago may still get its rendered thumbnail; reload once it has one. */
+  async function watchFreshUpload(signal: AbortSignal) {
+    const latest = details?.versions.at(-1);
+    if (latest && mayStillGetThumbnail(latest) && (await waitForThumbnail(() => versionHasThumbnail(id, latest.number), { signal }))) {
+      await load();
+    }
+  }
+
   onMount(() => {
-    void load();
+    const watching = new AbortController();
+    void load().then(() => watchFreshUpload(watching.signal));
+    return () => watching.abort();
   });
 </script>
 

@@ -31,7 +31,9 @@ internal sealed class BlobStore(IAmazonS3 s3, IOptions<S3Options> options)
 
     public static string FileKey(string accountId, string sha256) => $"accounts/{accountId}/blobs/{sha256}";
 
-    public static string ThumbnailKey(string accountId, string schematicId, int version) => $"accounts/{accountId}/thumbnails/{schematicId}/{version}.png";
+    /// <param name="rendered">A thumbnail the service rendered has its own key, so a rendering never overwrites an attached one.</param>
+    public static string ThumbnailKey(string accountId, string schematicId, int version, bool rendered = false) =>
+        $"accounts/{accountId}/thumbnails/{schematicId}/{version}{(rendered ? ".rendered" : string.Empty)}.png";
 
     public async Task<bool> ExistsAsync(string key, CancellationToken cancellationToken)
     {
@@ -53,6 +55,14 @@ internal sealed class BlobStore(IAmazonS3 s3, IOptions<S3Options> options)
     {
         using var stream = new MemoryStream(content, writable: false);
         await s3.PutObjectAsync(new PutObjectRequest { BucketName = Bucket, Key = key, InputStream = stream, ContentType = contentType }, cancellationToken);
+    }
+
+    public async Task<byte[]> GetBytesAsync(string key, CancellationToken cancellationToken)
+    {
+        using var response = await s3.GetObjectAsync(Bucket, key, cancellationToken);
+        using var content = new MemoryStream();
+        await response.ResponseStream.CopyToAsync(content, cancellationToken);
+        return content.ToArray();
     }
 
     public Task DeleteAsync(string key, CancellationToken cancellationToken) => s3.DeleteObjectAsync(Bucket, key, cancellationToken);

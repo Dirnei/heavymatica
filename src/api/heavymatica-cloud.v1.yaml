@@ -683,7 +683,9 @@ paths:
       tags: [Schematics]
       operationId: attachThumbnail
       summary: Attach the version's thumbnail
-      description: A PNG of at most 256 x 256 pixels and 256 KiB, once per version.
+      description: |
+        A PNG of at most 256 x 256 pixels and 256 KiB, once per version. It replaces a thumbnail the service rendered;
+        a version whose thumbnail was already attached answers 409 `thumbnail_exists`.
       requestBody:
         required: true
         content:
@@ -1315,9 +1317,18 @@ components:
           format: int32
         hasThumbnail:
           type: boolean
+        thumbnailSource:
+          $ref: '#/components/schemas/ThumbnailSource'
         createdAt:
           type: string
           format: date-time
+
+    ThumbnailSource:
+      type: string
+      enum: [uploaded, rendered]
+      description: >-
+        Where a version's thumbnail came from: attached by the uploader, or rendered by the service. Absent while the
+        version has no thumbnail.
 
     SchematicSummary:
       type: object

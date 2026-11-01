@@ -9,7 +9,7 @@ namespace Heavymatica.Cloud.Tests.Infrastructure;
 public sealed class AppHostTests
 {
     [Fact]
-    public async Task AppHost_starts_mongo_minio_and_a_healthy_service_with_github_sign_in_and_linking()
+    public async Task AppHost_starts_mongo_minio_and_a_healthy_service_with_github_sign_in_linking_and_thumbnails()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         // Ephemeral storage: a running development AppHost keeps its data volumes locked.
@@ -37,12 +37,27 @@ public sealed class AppHostTests
         var session = await SignIn.AsAsync(player, Guid.NewGuid(), "AppHostPlayer");
         player.Authorize(session.AccessToken);
         var me = await player.GetFromJsonAsync<Contract.Account>(new Uri("/v1/me", UriKind.Relative), SignIn.Json, cancellationToken);
+        using var file = new ByteArrayContent(File.ReadAllBytes(Path.Combine(RepositoryFiles.Conformance, "files", "house.nbt")));
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        using var upload = await player.PostAsync(new Uri("/v1/schematics?name=AppHostHouse", UriKind.Relative), file, cancellationToken);
+        var uploaded = (await upload.Content.ReadFromJsonAsync<Contract.UploadResult>(SignIn.Json, cancellationToken))!;
+        // A game upload waits the one-minute grace period, then the worker's timer picks it up.
+        var rendered = false;
+        for (var waited = TimeSpan.Zero; !rendered && waited < TimeSpan.FromMinutes(2); waited += TimeSpan.FromSeconds(2))
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+            var details = await player.GetFromJsonAsync<Contract.SchematicDetails>(new Uri("/v1/schematics/" + uploaded.SchematicId, UriKind.Relative),
+                SignIn.Json, cancellationToken);
+            rendered = details!.Versions.Single().ThumbnailSource == Contract.ThumbnailSource.Rendered;
+        }
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(HttpStatusCode.Redirect, signIn.StatusCode);
         Assert.Equal("github.com", signIn.Headers.Location?.Host);
         Assert.Contains("client_id=dummy-client-id", signIn.Headers.Location?.Query, StringComparison.Ordinal);
         Assert.True(me!.LinkingAvailable);
+        Assert.Equal(HttpStatusCode.Created, upload.StatusCode);
+        Assert.True(rendered, "The worker rendered no thumbnail within two minutes.");
     }
 
     [Fact]

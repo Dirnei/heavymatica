@@ -65,6 +65,22 @@ while `Accounts:LinkBaseUrl` is set to the website origin that redeems the codes
 `linkingAvailable: false`, an unknown Minecraft identity gets an account at once, and "Sign in with GitHub" without
 an account says there is none yet.
 
+The cloud renders a thumbnail for every version that has none: flat-shaded isometric blocks coloured from
+`Features/Schematics/Thumbnails/block-colors.json` (exported from the game by the mod's `exportBlockColors` dev step).
+Website uploads are rendered within seconds; game uploads wait a grace period first, because the game attaches its
+own, sharper thumbnail right after uploading, and that always replaces a rendered one. Versions stored before this
+are rendered in the background, newest first. The `Thumbnails` section configures it:
+
+| Setting | Default | Effect |
+|---|---|---|
+| `Thumbnails:Enabled` | `true` | `false` stops rendering; rendered thumbnails stay. |
+| `Thumbnails:GracePeriod` | `00:01:00` | How long a game upload waits for its own thumbnail. |
+| `Thumbnails:PollInterval` | `00:00:05` | How often an idle worker looks for due versions. |
+| `Thumbnails:ClaimTime` | `00:05:00` | How long a version stays with one worker before another may retry it. |
+| `Thumbnails:RenderTimeout` | `00:00:30` | How long one rendering may take; a timeout counts as a failed attempt. |
+| `Thumbnails:MaxAttempts` | `3` | Failed attempts before a version is left without a thumbnail. |
+| `Thumbnails:MaxDrawnBlocks` | `2000000` | Above this many blocks only every k-th block per axis is drawn. |
+
 Website commands run in `src/web/player`: `npm run dev`, `npm run build`, `npm run check` and `npm test`.
 
 ### Development aids

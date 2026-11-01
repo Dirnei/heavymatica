@@ -68,7 +68,7 @@ internal sealed class DeleteSchematics(IMongoDatabase database, Quota quota, Blo
         {
             if (version.HasThumbnail)
             {
-                await blobs.DeleteAsync(BlobStore.ThumbnailKey(owner, version.SchematicId, version.Number), cancellationToken);
+                await blobs.DeleteAsync(version.ThumbnailKey(), cancellationToken);
             }
         }
 

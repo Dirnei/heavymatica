@@ -24,6 +24,13 @@ internal sealed class Quota(IMongoDatabase database)
         return result.ModifiedCount == 1;
     }
 
+    /// <summary>Counts bytes even past the quota, for the few KiB of a thumbnail the service rendered.</summary>
+    public Task ChargeAsync(string accountId, long bytes, CancellationToken cancellationToken) =>
+        bytes == 0
+            ? Task.CompletedTask
+            : accounts.UpdateOneAsync(account => account.Id == accountId, Builders<AccountDocument>.Update.Inc(account => account.UsedBytes, bytes),
+                cancellationToken: cancellationToken);
+
     public Task ReleaseAsync(string accountId, long bytes, CancellationToken cancellationToken) =>
         bytes == 0
             ? Task.CompletedTask

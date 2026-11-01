@@ -9,8 +9,8 @@ using MongoDB.Driver;
 namespace Heavymatica.Cloud.Features.Schematics.Thumbnails;
 
 /// <summary>
-/// Attaches a version's thumbnail once: a PNG of at most 256 x 256 pixels and 256 KiB, counted toward the quota.
-/// Only the PNG header is checked; the image itself is never decoded on the server.
+/// Attaches a version's thumbnail once: a PNG of at most 256 x 256 pixels and 256 KiB, counted toward the quota. It
+/// replaces a thumbnail the service rendered. Only the PNG header is checked; the image itself is never decoded here.
 /// </summary>
 internal sealed class AttachThumbnail(IMongoDatabase database, Quota quota, BlobStore blobs)
 {
@@ -28,7 +28,7 @@ internal sealed class AttachThumbnail(IMongoDatabase database, Quota quota, Blob
             return SchematicProblems.NotFound();
         }
 
-        if (version.HasThumbnail)
+        if (version.HasThumbnail && !version.HasRenderedThumbnail)
         {
             return Exists();
         }
@@ -57,11 +57,18 @@ internal sealed class AttachThumbnail(IMongoDatabase database, Quota quota, Blob
         try
         {
             await blobs.PutBytesAsync(BlobStore.ThumbnailKey(owner, schematicId, number), png, "image/png", cancellationToken);
-            var attached = await versions.UpdateOneAsync(
-                document => document.Id == key && document.Owner == owner && !document.HasThumbnail,
-                Builders<VersionDocument>.Update.Set(document => document.HasThumbnail, true).Set(document => document.ThumbnailBytes, png.Length),
-                cancellationToken: cancellationToken);
-            if (attached.ModifiedCount == 0)
+            var filter = Builders<VersionDocument>.Filter;
+            var replaceable = filter.Eq(document => document.HasThumbnail, false) | filter.Eq(document => document.ThumbnailSource, ThumbnailOrigin.Rendered);
+            var before = await versions.FindOneAndUpdateAsync(
+                filter.Eq(document => document.Id, key) & filter.Eq(document => document.Owner, owner) & replaceable,
+                Builders<VersionDocument>.Update
+                    .Set(document => document.HasThumbnail, true)
+                    .Set(document => document.ThumbnailSource, ThumbnailOrigin.Uploaded)
+                    .Set(document => document.ThumbnailBytes, png.Length)
+                    .Unset(document => document.RenderClaimedUntil),
+                new FindOneAndUpdateOptions<VersionDocument> { ReturnDocument = ReturnDocument.Before },
+                cancellationToken);
+            if (before is null)
             {
                 // Another request attached one first; keep its bytes and accounting.
                 await quota.ReleaseAsync(owner, png.Length, CancellationToken.None);
@@ -70,8 +77,17 @@ internal sealed class AttachThumbnail(IMongoDatabase database, Quota quota, Blob
 
             await schematics.UpdateOneAsync(
                 Builders<SchematicDocument>.Filter.Eq(document => document.Id, schematicId) & Builders<SchematicDocument>.Filter.Eq(document => document.Latest.Number, number),
-                Builders<SchematicDocument>.Update.Set(document => document.Latest.HasThumbnail, true).Set(document => document.Latest.ThumbnailBytes, png.Length),
-                cancellationToken: cancellationToken);
+                Builders<SchematicDocument>.Update
+                    .Set(document => document.Latest.HasThumbnail, true)
+                    .Set(document => document.Latest.ThumbnailSource, ThumbnailOrigin.Uploaded)
+                    .Set(document => document.Latest.ThumbnailBytes, png.Length),
+                cancellationToken: CancellationToken.None);
+            if (before.HasRenderedThumbnail)
+            {
+                await quota.ReleaseAsync(owner, before.ThumbnailBytes, CancellationToken.None);
+                await blobs.DeleteAsync(before.ThumbnailKey(), CancellationToken.None);
+            }
+
             return new NoContentResult();
         }
         catch

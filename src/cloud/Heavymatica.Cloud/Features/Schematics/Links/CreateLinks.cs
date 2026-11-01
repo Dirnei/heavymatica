@@ -24,7 +24,7 @@ internal sealed class CreateLinks(IMongoDatabase database, BlobStore blobs, Time
         return new DownloadLinks
         {
             FileUrl = new Uri(await blobs.LinkAsync(BlobStore.FileKey(owner, version.Sha256), expiresAt)),
-            ThumbnailUrl = version.HasThumbnail ? new Uri(await blobs.LinkAsync(BlobStore.ThumbnailKey(owner, schematicId, number), expiresAt)) : null,
+            ThumbnailUrl = version.HasThumbnail ? new Uri(await blobs.LinkAsync(version.ThumbnailKey(), expiresAt)) : null,
             ExpiresAt = expiresAt,
         };
     }

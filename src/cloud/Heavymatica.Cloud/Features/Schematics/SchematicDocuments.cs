@@ -32,7 +32,13 @@ internal sealed class SchematicDocument
     public static IMongoCollection<SchematicDocument> In(IMongoDatabase database) => database.GetCollection<SchematicDocument>(Collection);
 }
 
-/// <summary>An immutable version: once stored, nothing but its thumbnail flag ever changes.</summary>
+internal enum ThumbnailOrigin
+{
+    Uploaded,
+    Rendered,
+}
+
+/// <summary>An immutable version: once stored, nothing but its thumbnail and its place in the render queue ever change.</summary>
 internal sealed class VersionDocument
 {
     public const string Collection = "versions";
@@ -70,9 +76,23 @@ internal sealed class VersionDocument
 
     public long ThumbnailBytes { get; set; }
 
+    /// <summary>Where the thumbnail came from; absent without one, and on thumbnails attached before rendering existed.</summary>
+    public ThumbnailOrigin? ThumbnailSource { get; set; }
+
+    /// <summary>When the service may render a thumbnail for it; absent once it has one or was never queued.</summary>
+    public DateTime? ThumbnailDueAt { get; set; }
+
+    public int RenderAttempts { get; set; }
+
+    public DateTime? RenderClaimedUntil { get; set; }
+
     public DateTime CreatedAt { get; init; }
 
+    public bool HasRenderedThumbnail => HasThumbnail && ThumbnailSource == ThumbnailOrigin.Rendered;
+
     public static string KeyOf(string schematicId, int number) => $"{schematicId}:{number}";
+
+    public string ThumbnailKey() => Infrastructure.S3.BlobStore.ThumbnailKey(Owner, SchematicId, Number, HasRenderedThumbnail);
 
     public static IMongoCollection<VersionDocument> In(IMongoDatabase database) => database.GetCollection<VersionDocument>(Collection);
 }
@@ -106,6 +126,14 @@ internal sealed class SchematicIndexes : IMongoIndexes
             new CreateIndexModel<VersionDocument>(
                 versionKeys.Ascending(version => version.Owner).Ascending(version => version.Sha256),
                 new CreateIndexOptions { Name = "owner_sha256" }),
+            new CreateIndexModel<VersionDocument>(
+                versionKeys.Descending(version => version.ThumbnailDueAt),
+                new CreateIndexOptions<VersionDocument>
+                {
+                    Name = "render_queue",
+                    PartialFilterExpression = Builders<VersionDocument>.Filter.Eq(version => version.HasThumbnail, false)
+                        & Builders<VersionDocument>.Filter.Lt(version => version.RenderAttempts, Thumbnails.ThumbnailOptions.DefaultMaxAttempts),
+                }),
         ], cancellationToken);
     }
 }
