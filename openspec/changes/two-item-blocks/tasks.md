@@ -6,7 +6,7 @@
 
 ## 2. Comparison
 
-- [x] 2.1 Add `base` to `CellState.Expected` and `CellState.Found`. Fill them in `CellKeys`, giving a cake a base only at `bites == 0`. Extend `classify` with the empty-base rule (not enough yet) and the filled-on-planned-base rule (too many) (D2). Verify with `CellStateTest` cases for every scenario in "Two-item blocks in the comparison" and "Other plant in the pot", under `./gradlew :heavymatica:test`.
+- [x] 2.1 Add `base` to `CellState.Expected` and `CellState.Found`. Fill them in `CellKeys`, giving a cake a base only at `bites == 0`. Extend `classify` with the empty-base rule (not enough yet) and the filled-on-planned-base rule (extra) (D2). Verify with `CellStateTest` cases for every scenario in "Two-item blocks in the comparison" and "Other plant in the pot", under `./gradlew :heavymatica:test`.
 
 ## 3. Materials
 

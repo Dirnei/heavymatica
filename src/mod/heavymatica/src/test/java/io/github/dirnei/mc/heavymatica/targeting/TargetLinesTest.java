@@ -62,8 +62,13 @@ class TargetLinesTest {
         assertEquals(new StateLine("heavymatica.target.too_many", TargetLines.ORANGE), TargetLines.state(CellState.TOO_MANY, null, false));
     }
 
+    @Test
+    void extraOnAPlannedBlockIsMagenta() {
+        assertEquals(new StateLine("heavymatica.target.extra", TargetLines.MAGENTA), TargetLines.state(CellState.EXTRA, null, false));
+    }
+
     @ParameterizedTest
-    @EnumSource(value = CellState.class, names = {"MATCHING", "IGNORED", "EXTRA"})
+    @EnumSource(value = CellState.class, names = {"MATCHING", "IGNORED"})
     void noLineForStatesThatAreNeverTargets(CellState state) {
         assertNull(TargetLines.state(state, null, false));
     }

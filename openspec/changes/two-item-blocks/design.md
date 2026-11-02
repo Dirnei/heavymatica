@@ -53,7 +53,8 @@ of the world block's empty base when it is a two-item block, or -1. `CellKeys` f
 `classify` extends the block check:
 - `found.block == expected.base` → `INCOMPLETE`. The orientation check still runs before it, since pots and cakes
   have none and cauldrons none.
-- `found.base == expected.block` → `TOO_MANY`.
+- `found.base == expected.block` → `EXTRA`. The content is something the schematic does not have, like a block where
+  it has air. An extra position on a planned block is targetable, so the HUD can name the content to remove.
 - Anything else that differs stays `WRONG_BLOCK`. This includes another content: a different block id with a different
   or equal base.
 
@@ -90,7 +91,7 @@ highlights potted dead bushes.
 
 `TargetHud.stateLine` and `PlacementOverlay` use a new text for two-item positions:
 - **Not enough yet:** "Needs %s", with the content item name.
-- **Too many:** "%s must go".
+- **Extra:** "%s must go", in magenta.
 
 They no longer use the amount text there.
 
@@ -108,7 +109,7 @@ which side of a wall a mistake is on.
 
 ## Risks / Trade-offs
 
-- [A base block planned on its own, such as a plain flower pot, now gets a too-many check against filled pots] →
+- [A base block planned on its own, such as a plain flower pot, now counts a filled pot as extra] →
   Only blocks from the table qualify, and the HUD names what must go.
 - [Content blocks numbered as planned blocks show up in the materials screen as rows the schematic never names
   directly (dead bush, water)] → That is the intent: they are what the player has to bring. Rows still sort by item.

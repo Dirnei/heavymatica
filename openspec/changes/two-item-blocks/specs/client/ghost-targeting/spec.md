@@ -28,7 +28,7 @@ The candidate items for a planned block SHALL be, in this order: its own item, t
 - **THEN** the action bar says `You have no Dead Bush` and the selected slot stays the same
 
 ### Requirement: Target state in the HUD
-The HUD SHALL show the target's state on its own line, in the comparison colours: missing; wrong block in red, naming the found block; wrong orientation in orange, with the found block's orientation; too many in orange, with the found and the planned amount, or, for a two-item block on a planned empty base, naming the content to remove; wrong water in cyan, saying whether water is needed or must go; needs finishing in yellow, naming the step; not enough yet, with how many more are needed, or, for a two-item block on its empty base, naming the content to add; and not compared yet, muted, while the position is unknown.
+The HUD SHALL show the target's state on its own line, in the comparison colours: missing; wrong block in red, naming the found block; wrong orientation in orange, with the found block's orientation; too many in orange, with the found and the planned amount; extra in magenta, for a two-item block on a planned empty base, naming the content to remove; wrong water in cyan, saying whether water is needed or must go; needs finishing in yellow, naming the step; not enough yet, with how many more are needed, or, for a two-item block on its empty base, naming the content to add; and not compared yet, muted, while the position is unknown.
 
 #### Scenario: Wrong block
 - **WHEN** the target expects oak planks and the world has dirt there
@@ -60,4 +60,4 @@ The HUD SHALL show the target's state on its own line, in the comparison colours
 
 #### Scenario: Plant in a planned empty pot
 - **WHEN** the target expects an empty flower pot and the world has a potted dead bush there
-- **THEN** the HUD shows an orange line saying the dead bush must go
+- **THEN** the HUD shows a magenta line saying the dead bush must go

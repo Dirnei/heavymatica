@@ -13,12 +13,13 @@ public enum CellState {
     WRONG_BLOCK,
     WRONG_ORIENTATION,
     WRONG_WATER,
+    /** A block where the schematic has air, or a two-item block on a planned empty base. */
     EXTRA,
     /** A block that becomes the planned one after a finishing step, such as dirt under a planned dirt path. */
     NEEDS_FINISHING,
     /** The planned block in its orientation with fewer candles, pickles, layers or slabs than planned, or a two-item block's empty base. */
     INCOMPLETE,
-    /** The planned block in its orientation with more candles, pickles, layers or slabs than planned, or a filled planned base. */
+    /** The planned block in its orientation, with more candles, pickles, layers or slabs than planned. */
     TOO_MANY,
     /** A block the game does not know: nothing to compare with, shown as a placeholder. */
     CANT_CHECK;
@@ -139,7 +140,7 @@ public enum CellState {
                     yield INCOMPLETE;
                 }
                 if (found.base() >= 0 && found.base() == expected.block()) {
-                    yield TOO_MANY;
+                    yield EXTRA;
                 }
                 CellState done;
                 if (found.block() == expected.block() || Arrays.binarySearch(expected.same(), found.block()) >= 0) {

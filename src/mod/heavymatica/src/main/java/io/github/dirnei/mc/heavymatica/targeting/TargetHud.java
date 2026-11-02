@@ -155,27 +155,29 @@ public final class TargetHud {
             text = Component.translatable(line.key(), WorldComparison.details(target.found()));
         } else if ((target.state() == CellState.INCOMPLETE || target.state() == CellState.TOO_MANY) && target.found() != null) {
             text = amountText(target.state(), target.planned(), target.found());
+        } else if (target.state() == CellState.EXTRA && target.found() != null) {
+            text = contentMustGo(target.found());
         } else {
             text = Component.translatable(line.key());
         }
         return new Line(text, line.color());
     }
 
-    /**
-     * The amount an incomplete or too many position holds against the planned amount; for a two-item block, the content
-     * still needed or the content that must go.
-     */
+    /** The amount an incomplete or too many position holds against the planned amount; for a two-item block, the content still needed. */
     public static Component amountText(CellState state, BlockState planned, BlockState found) {
         TwoItemBlocks.Parts needed = state == CellState.INCOMPLETE ? TwoItemBlocks.of(planned.getBlock()) : null;
         if (needed != null) {
             return Component.translatable("heavymatica.target.needs_content", name(needed.contentItem()));
         }
-        TwoItemBlocks.Parts extra = state == CellState.TOO_MANY ? TwoItemBlocks.of(found.getBlock()) : null;
-        if (extra != null && extra.base() == planned.getBlock()) {
-            return Component.translatable("heavymatica.target.content_must_go", name(extra.contentItem()));
-        }
         String key = state == CellState.INCOMPLETE ? "heavymatica.target.incomplete" : "heavymatica.target.too_many";
         return Component.translatable(key, WorldComparison.amount(found), WorldComparison.amount(planned));
+    }
+
+    /** What an extra position on a planned empty base must lose: the found two-item block's content. */
+    public static Component contentMustGo(BlockState found) {
+        TwoItemBlocks.Parts parts = TwoItemBlocks.of(found.getBlock());
+        return parts == null ? Component.translatable("heavymatica.target.extra")
+                : Component.translatable("heavymatica.target.content_must_go", name(parts.contentItem()));
     }
 
     private static Component name(Item item) {

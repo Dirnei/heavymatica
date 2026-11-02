@@ -34,7 +34,7 @@ public final class TargetRules {
         if (state.showsGhost()) {
             return inHandShows;
         }
-        return state.boxed() && state != CellState.EXTRA;
+        return state.boxed();
     }
 
     /** The selected placement's candidate, otherwise the first; null without candidates. */

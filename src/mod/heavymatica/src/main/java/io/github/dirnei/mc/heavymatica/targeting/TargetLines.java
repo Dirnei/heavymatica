@@ -14,6 +14,7 @@ public final class TargetLines {
     public static final int RED = PlacementOverlay.MISTAKE_RED;
     public static final int ORANGE = PlacementOverlay.MISTAKE_ORANGE;
     public static final int CYAN = PlacementOverlay.MISTAKE_CYAN;
+    public static final int MAGENTA = PlacementOverlay.MISTAKE_MAGENTA;
     public static final int YELLOW = PlacementOverlay.FINISHING_YELLOW;
 
     /**
@@ -40,7 +41,8 @@ public final class TargetLines {
             case NEEDS_FINISHING -> new StateLine(finish == null ? "heavymatica.target.finish"
                     : "heavymatica.target.finish." + finish.name().toLowerCase(Locale.ROOT), YELLOW);
             case CANT_CHECK -> new StateLine("heavymatica.target.cant_check", MUTED);
-            case MATCHING, IGNORED, EXTRA -> null;
+            case EXTRA -> new StateLine("heavymatica.target.extra", MAGENTA);
+            case MATCHING, IGNORED -> null;
         };
     }
 }

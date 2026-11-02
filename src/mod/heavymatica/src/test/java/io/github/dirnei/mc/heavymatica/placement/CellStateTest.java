@@ -337,8 +337,8 @@ class CellStateTest {
     }
 
     @Test
-    void plantInAPlannedEmptyPotIsTooMany() {
-        assertEquals(CellState.TOO_MANY, CellState.classify(Expected.block(FLOWER_POT, NONE, false), inWorld(POTTED_DEAD_BUSH, 510, FLOWER_POT)));
+    void plantInAPlannedEmptyPotIsExtra() {
+        assertEquals(CellState.EXTRA, CellState.classify(Expected.block(FLOWER_POT, NONE, false), inWorld(POTTED_DEAD_BUSH, 510, FLOWER_POT)));
     }
 
     @Test

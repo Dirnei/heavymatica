@@ -1,5 +1,16 @@
 ## MODIFIED Requirements
 
+### Requirement: Cell states
+Every other position SHALL be in exactly one state, decided by the schematic block as placed (rotated and mirrored) and the world block there: matching (same block, or one the equivalents table accepts in its place, with the same orientation, amount and waterlogging, or air in both), missing (a block in the schematic, air in the world), extra (air in the schematic and a block in the world, or a planned empty base holding a content), not enough yet, needs finishing, or one of the mistakes below.
+
+#### Scenario: Missing
+- **WHEN** a locked placement expects oak planks at a position where the world has air
+- **THEN** that position is missing
+
+#### Scenario: Air already empty
+- **WHEN** the schematic has air at a position where the world has air
+- **THEN** that position is matching
+
 ### Requirement: Mistake states
 A position with a block in both the schematic and the world SHALL be wrong block when the blocks differ and the equivalents table neither accepts the world block in place of the planned block nor lists it as needing a finishing step, and the world block is neither the empty base of a planned two-item block nor a two-item block on the planned empty base. It SHALL be wrong orientation when only the orientation differs, too many when the world block has a larger amount than planned, and wrong water when only the waterlogging differs.
 
@@ -61,7 +72,7 @@ For a locked placement:
 ## ADDED Requirements
 
 ### Requirement: Two-item blocks in the comparison
-A position whose planned block is a two-item block SHALL be not enough yet when the world holds the empty base block there, in the planned orientation. A position whose planned block is the empty base of a two-item block SHALL be too many when the world holds a two-item block on that base. A two-item block with a different content than planned SHALL be wrong block. The water level of a cauldron SHALL NOT be compared. Not enough yet SHALL NOT count as done for progress.
+A position whose planned block is a two-item block SHALL be not enough yet when the world holds the empty base block there, in the planned orientation. A position whose planned block is the empty base of a two-item block SHALL be extra when the world holds a two-item block on that base. A two-item block with a different content than planned SHALL be wrong block. The water level of a cauldron SHALL NOT be compared. Not enough yet SHALL NOT count as done for progress.
 
 #### Scenario: Empty pot under a planned potted plant
 - **WHEN** a locked placement expects a potted dead bush and the world has an empty flower pot there
@@ -85,7 +96,7 @@ A position whose planned block is a two-item block SHALL be not enough yet when 
 
 #### Scenario: Plant in a planned empty pot
 - **WHEN** a locked placement expects an empty flower pot and the world has a potted dead bush there
-- **THEN** that position is too many
+- **THEN** that position is extra and a magenta box shows around the pot
 
 #### Scenario: Pot only
 - **WHEN** a placement has 10 counted blocks, 9 match and the tenth is a potted dead bush with only its empty pot placed

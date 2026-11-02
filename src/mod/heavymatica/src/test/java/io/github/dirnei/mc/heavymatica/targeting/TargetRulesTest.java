@@ -29,7 +29,7 @@ class TargetRulesTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = CellState.class, names = {"WRONG_BLOCK", "WRONG_ORIENTATION", "WRONG_WATER", "NEEDS_FINISHING"})
+    @EnumSource(value = CellState.class, names = {"WRONG_BLOCK", "WRONG_ORIENTATION", "WRONG_WATER", "NEEDS_FINISHING", "EXTRA"})
     void boxesAreDrawnInTheLayersWhateverTheFilterSays(CellState state) {
         assertTrue(TargetRules.drawn(Kind.BLOCK, state, true, true, true));
         assertTrue(TargetRules.drawn(Kind.BLOCK, state, true, false, true));
@@ -37,7 +37,7 @@ class TargetRulesTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = CellState.class, names = {"MATCHING", "IGNORED", "EXTRA"})
+    @EnumSource(value = CellState.class, names = {"MATCHING", "IGNORED"})
     void otherStatesAreNeverDrawn(CellState state) {
         assertFalse(TargetRules.drawn(Kind.BLOCK, state, true, true, true));
     }

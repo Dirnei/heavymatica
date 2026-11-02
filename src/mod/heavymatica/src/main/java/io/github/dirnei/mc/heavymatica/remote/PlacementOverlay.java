@@ -64,7 +64,7 @@ public final class PlacementOverlay {
     public static final int MISTAKE_RED = 0xFFFF5050;
     public static final int MISTAKE_ORANGE = 0xFFFFA040;
     public static final int MISTAKE_CYAN = 0xFF40E8F8;
-    private static final int MISTAKE_MAGENTA = 0xFFFF60FF;
+    public static final int MISTAKE_MAGENTA = 0xFFFF60FF;
     public static final int FINISHING_YELLOW = 0xFFFFF040;
     private static final int CAPTURE = 0xFF80FF80;
     private static final int SHORTAGE_LINES = 3;
@@ -315,6 +315,8 @@ public final class PlacementOverlay {
                 lines.add(Line.text(Component.translatable("heavymatica.overlay.found", block(found)), MUTED));
                 if ((target == CellState.INCOMPLETE || target == CellState.TOO_MANY) && !found.isAir()) {
                     lines.add(Line.text(TargetHud.amountText(target, expected, found), target == CellState.TOO_MANY ? MISTAKE_ORANGE : TEXT));
+                } else if (target == CellState.EXTRA && !expected.isAir() && !found.isAir()) {
+                    lines.add(Line.text(TargetHud.contentMustGo(found), MISTAKE_MAGENTA));
                 }
                 BlockEquivalents.Finish finish = comparison.finishAt(targeted);
                 if (target == CellState.NEEDS_FINISHING && finish != null) {
