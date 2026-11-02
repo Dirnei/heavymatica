@@ -205,7 +205,7 @@ Changes, in order:
    cards and a breadcrumb, an "All schematics" view, tags in the sidebar, and search inside a folder. The website
    adds a folder tree, thumbnails on the cards, moving several schematics at once (dialog or drag and drop),
    renaming whole folders and editing tags.
-3. **`cloud-thumbnails` (next):** the cloud renders a thumbnail for every version uploaded without one (website uploads),
+3. **`cloud-thumbnails` (done):** the cloud renders a thumbnail for every version uploaded without one (website uploads),
    and backfills older versions.
 4. **`account-links` (done):** connecting the game. The game library shows a link code with a QR code, entered on the
    website; the first-sign-in choice (create new or join existing); linking and unlinking more identities. After

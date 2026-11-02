@@ -30,12 +30,12 @@ Cloud tests run with `dotnet test --project src/cloud/Heavymatica.Cloud.Tests`; 
 
 ## 5. Website
 
-- [ ] 5.1 After an upload of a new schematic or version, poll `getSchematic` every 3 seconds for up to 60 seconds until the version reports `hasThumbnail`, then update the card or details page; stop when the page is left (D8); verify a Vitest test of the poll helper (stops on thumbnail, on timeout and on cancel), `npm run check`, and **(manual check)** that a website upload shows its rendered thumbnail without a reload
+- [x] 5.1 After an upload of a new schematic or version, poll `getSchematic` every 3 seconds for up to 60 seconds until the version reports `hasThumbnail`, then update the card or details page; stop when the page is left (D8); verify a Vitest test of the poll helper (stops on thumbnail, on timeout and on cancel), `npm run check`, and **(manual check)** that a website upload shows its rendered thumbnail without a reload
 
 ## 6. Integration
 
-- [ ] 6.1 **(manual check)** and **(in-game check)**: upload a schematic on the website and check its thumbnail on the website and in the game's library; upload from the game and check the game's own thumbnail is kept (`thumbnailSource: uploaded`); start the cloud with an older version without a thumbnail and check it gets one
-- [ ] 6.2 Update `ROADMAP.md` step 5 to mark `cloud-thumbnails` done; verify the file reads consistently
+- [x] 6.1 **(manual check)** and **(in-game check)**: upload a schematic on the website and check its thumbnail on the website and in the game's library; upload from the game and check the game's own thumbnail is kept (`thumbnailSource: uploaded`); start the cloud with an older version without a thumbnail and check it gets one
+- [x] 6.2 Update `ROADMAP.md` step 5 to mark `cloud-thumbnails` done; verify the file reads consistently
 
 ## Workflow follow-up
 
