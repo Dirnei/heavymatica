@@ -29,10 +29,12 @@ public final class MaterialCounts {
 
     public void add(int layer, Demand demand) {
         change(layer, demand, demand.amount());
+        changeContent(layer, demand, 1);
     }
 
     public void remove(int layer, Demand demand) {
         change(layer, demand, -demand.amount());
+        changeContent(layer, demand, -1);
     }
 
     /** Replaces what a position asked for in its old state with what it asks for in its new one. */
@@ -40,6 +42,13 @@ public final class MaterialCounts {
         int difference = demand.amountFor(next, nextFound) - demand.amountFor(old, oldFound);
         if (difference != 0) {
             change(layer, demand, difference);
+        }
+        changeContent(layer, demand, demand.contentFor(next) - demand.contentFor(old));
+    }
+
+    private void changeContent(int layer, Demand demand, int amount) {
+        if (demand.content() >= 0 && amount != 0) {
+            needed[layer * planned + demand.content()] += amount;
         }
     }
 

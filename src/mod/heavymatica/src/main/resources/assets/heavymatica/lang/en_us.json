@@ -200,6 +200,8 @@
   "heavymatica.target.wrong_orientation": "Wrong orientation: %s",
   "heavymatica.target.too_many": "%s/%s",
   "heavymatica.target.incomplete": "%s/%s",
+  "heavymatica.target.needs_content": "Needs %s",
+  "heavymatica.target.content_must_go": "%s must go",
   "heavymatica.target.needs_water": "Needs water",
   "heavymatica.target.not_waterlogged": "Must not be waterlogged",
   "heavymatica.target.finish": "Needs finishing",

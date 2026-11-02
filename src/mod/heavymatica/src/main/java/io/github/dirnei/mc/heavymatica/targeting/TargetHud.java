@@ -5,6 +5,7 @@ import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
+import io.github.dirnei.mc.heavymatica.placement.TwoItemBlocks;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
 import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting.GhostTarget;
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
@@ -159,10 +161,25 @@ public final class TargetHud {
         return new Line(text, line.color());
     }
 
-    /** The amount an incomplete or too many position holds against the planned amount. */
+    /**
+     * The amount an incomplete or too many position holds against the planned amount; for a two-item block, the content
+     * still needed or the content that must go.
+     */
     public static Component amountText(CellState state, BlockState planned, BlockState found) {
+        TwoItemBlocks.Parts needed = state == CellState.INCOMPLETE ? TwoItemBlocks.of(planned.getBlock()) : null;
+        if (needed != null) {
+            return Component.translatable("heavymatica.target.needs_content", name(needed.contentItem()));
+        }
+        TwoItemBlocks.Parts extra = state == CellState.TOO_MANY ? TwoItemBlocks.of(found.getBlock()) : null;
+        if (extra != null && extra.base() == planned.getBlock()) {
+            return Component.translatable("heavymatica.target.content_must_go", name(extra.contentItem()));
+        }
         String key = state == CellState.INCOMPLETE ? "heavymatica.target.incomplete" : "heavymatica.target.too_many";
         return Component.translatable(key, WorldComparison.amount(found), WorldComparison.amount(planned));
+    }
+
+    private static Component name(Item item) {
+        return item.getName(item.getDefaultInstance());
     }
 
     /** The HUD's lines as text, or why it is hidden, for development checks. */

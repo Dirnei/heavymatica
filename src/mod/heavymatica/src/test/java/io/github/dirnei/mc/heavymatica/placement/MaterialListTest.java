@@ -3,6 +3,7 @@ package io.github.dirnei.mc.heavymatica.placement;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -149,5 +150,48 @@ class MaterialListTest {
         assertEquals(new MaterialList.Planned<>(DIRT, 5, 0, 5, 0, 15, BlockEquivalents.Finish.SHOVEL), list.planned(PATH));
         assertEquals(new MaterialList.Planned<>(DIRT, 10, 0, 10, 0, 0, null), list.planned(GRASS));
         assertEquals(null, list.planned(FARMLAND));
+    }
+
+    /** The list of planned blocks numbered as the comparison numbers them, each placed by the item at the same index. */
+    private static MaterialList<String, String> twoItemList(List<String> plannedBlocks, List<String> items, MaterialCounts counts) {
+        int[] needed = counts.sum(0, 0).needed();
+        List<MaterialList.Need<String>> planned = new ArrayList<>();
+        for (int i = 0; i < plannedBlocks.size(); i++) {
+            planned.add(new MaterialList.Need<>(plannedBlocks.get(i), i, new int[] {i}, needed[i], 0, null));
+        }
+        return MaterialList.shared(planned, items, new int[items.size()], Map.of(), Comparator.naturalOrder(), Comparator.naturalOrder());
+    }
+
+    @Test
+    void pottedPlantsNeedPotsAndPlants() {
+        int pot = 0;
+        int deadBush = 1;
+        int poppy = 2;
+        MaterialCounts counts = new MaterialCounts(1, 3, 0);
+        counts.add(0, Demand.twoItem(pot, deadBush));
+        counts.add(0, Demand.twoItem(pot, deadBush));
+        counts.add(0, Demand.twoItem(pot, poppy));
+        counts.add(0, Demand.planned(pot, 1));
+
+        MaterialList<String, String> list = twoItemList(List.of("flower_pot", "dead_bush", "poppy"), List.of("flower_pot", "dead_bush", "poppy"), counts);
+
+        assertEquals(List.of(new MaterialList.Row<>("flower_pot", 4, 0, 4), new MaterialList.Row<>("dead_bush", 2, 0, 2),
+                new MaterialList.Row<>("poppy", 1, 0, 1)), list.rows());
+        assertTrue(list.cantCarry().isEmpty());
+    }
+
+    @Test
+    void waterCauldronsNeedCauldronsAndBuckets() {
+        int cauldron = 0;
+        int water = 1;
+        MaterialCounts counts = new MaterialCounts(1, 2, 0);
+        for (int i = 0; i < 3; i++) {
+            counts.add(0, Demand.twoItem(cauldron, water));
+        }
+
+        MaterialList<String, String> list = twoItemList(List.of("cauldron", "water"), List.of("cauldron", "water_bucket"), counts);
+
+        assertEquals(List.of(new MaterialList.Row<>("cauldron", 3, 0, 3), new MaterialList.Row<>("water_bucket", 3, 0, 3)), list.rows());
+        assertTrue(list.cantCarry().isEmpty());
     }
 }

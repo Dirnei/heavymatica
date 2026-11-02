@@ -1,5 +1,6 @@
 package io.github.dirnei.mc.heavymatica.placement;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -134,5 +135,14 @@ class BlockEquivalentsTest {
     void holdingABlockWithoutARowHighlightsItself() {
         assertEquals(List.of("minecraft:oak_planks"), BlockEquivalents.highlights("minecraft:oak_planks", PLANNED));
         assertEquals(List.of(), BlockEquivalents.highlights("minecraft:stone", PLANNED));
+    }
+
+    @Test
+    void filledCauldronsTakeTheirBucket() {
+        assertEquals(3, BlockEquivalents.FILLED_CAULDRONS.size());
+        assertArrayEquals(new String[] {"minecraft:water", "minecraft:water_bucket"}, BlockEquivalents.FILLED_CAULDRONS.get("minecraft:water_cauldron"));
+        assertArrayEquals(new String[] {"minecraft:lava", "minecraft:lava_bucket"}, BlockEquivalents.FILLED_CAULDRONS.get("minecraft:lava_cauldron"));
+        assertArrayEquals(new String[] {"minecraft:powder_snow", "minecraft:powder_snow_bucket"},
+                BlockEquivalents.FILLED_CAULDRONS.get("minecraft:powder_snow_cauldron"));
     }
 }

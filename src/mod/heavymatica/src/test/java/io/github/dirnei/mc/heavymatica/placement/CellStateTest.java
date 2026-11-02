@@ -285,4 +285,64 @@ class CellStateTest {
         assertEquals(1, Found.block(OAK_PLANKS, NONE, false).amount());
         assertEquals(CellState.MATCHING, CellState.classify(Expected.block(OAK_PLANKS, NONE, false), Found.block(OAK_PLANKS, NONE, false)));
     }
+
+    private static final int FLOWER_POT = 50;
+    private static final int POTTED_DEAD_BUSH = 51;
+    private static final int POTTED_POPPY = 52;
+    private static final int CAKE = 53;
+    private static final int RED_CANDLE_CAKE = 54;
+    private static final int CAULDRON = 55;
+    private static final int WATER_CAULDRON = 56;
+    private static final int FLOWER_POT_STATE = 500;
+    private static final int UNEATEN_CAKE_STATE = 530;
+    private static final int EATEN_CAKE_STATE = 531;
+    private static final int CAULDRON_STATE = 550;
+
+    private static Expected twoItem(int block, int baseState) {
+        return Expected.block(block, NONE, false).withBase(baseState);
+    }
+
+    private static Found inWorld(int block, int state, int base) {
+        return Found.block(block, NONE, false).withState(state, base);
+    }
+
+    @Test
+    void emptyPotUnderAPlannedPottedPlantIsNotEnoughYet() {
+        assertEquals(CellState.INCOMPLETE, CellState.classify(twoItem(POTTED_DEAD_BUSH, FLOWER_POT_STATE), inWorld(FLOWER_POT, FLOWER_POT_STATE, -1)));
+    }
+
+    @Test
+    void cakeWithoutItsCandleIsNotEnoughYet() {
+        assertEquals(CellState.INCOMPLETE, CellState.classify(twoItem(RED_CANDLE_CAKE, UNEATEN_CAKE_STATE), inWorld(CAKE, UNEATEN_CAKE_STATE, -1)));
+    }
+
+    @Test
+    void eatenCakeIsWrongBlock() {
+        assertEquals(CellState.WRONG_BLOCK, CellState.classify(twoItem(RED_CANDLE_CAKE, UNEATEN_CAKE_STATE), inWorld(CAKE, EATEN_CAKE_STATE, -1)));
+    }
+
+    @Test
+    void emptyCauldronIsNotEnoughYet() {
+        assertEquals(CellState.INCOMPLETE, CellState.classify(twoItem(WATER_CAULDRON, CAULDRON_STATE), inWorld(CAULDRON, CAULDRON_STATE, -1)));
+    }
+
+    @Test
+    void anyWaterLevelMatches() {
+        assertEquals(CellState.MATCHING, CellState.classify(twoItem(WATER_CAULDRON, CAULDRON_STATE), inWorld(WATER_CAULDRON, 561, CAULDRON)));
+    }
+
+    @Test
+    void otherPlantInThePotIsWrongBlock() {
+        assertEquals(CellState.WRONG_BLOCK, CellState.classify(twoItem(POTTED_DEAD_BUSH, FLOWER_POT_STATE), inWorld(POTTED_POPPY, 520, FLOWER_POT)));
+    }
+
+    @Test
+    void plantInAPlannedEmptyPotIsTooMany() {
+        assertEquals(CellState.TOO_MANY, CellState.classify(Expected.block(FLOWER_POT, NONE, false), inWorld(POTTED_DEAD_BUSH, 510, FLOWER_POT)));
+    }
+
+    @Test
+    void plannedPottedPlantInPlaceMatches() {
+        assertEquals(CellState.MATCHING, CellState.classify(twoItem(POTTED_DEAD_BUSH, FLOWER_POT_STATE), inWorld(POTTED_DEAD_BUSH, 510, FLOWER_POT)));
+    }
 }

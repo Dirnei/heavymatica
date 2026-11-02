@@ -16,9 +16,9 @@ public enum CellState {
     EXTRA,
     /** A block that becomes the planned one after a finishing step, such as dirt under a planned dirt path. */
     NEEDS_FINISHING,
-    /** The planned block in its orientation, with fewer candles, pickles, layers or slabs than planned. */
+    /** The planned block in its orientation with fewer candles, pickles, layers or slabs than planned, or a two-item block's empty base. */
     INCOMPLETE,
-    /** The planned block in its orientation, with more candles, pickles, layers or slabs than planned. */
+    /** The planned block in its orientation with more candles, pickles, layers or slabs than planned, or a filled planned base. */
     TOO_MANY,
     /** A block the game does not know: nothing to compare with, shown as a placeholder. */
     CANT_CHECK;
@@ -62,9 +62,10 @@ public enum CellState {
      * @param finish      the finishing step's ordinal, or -1 without one
      * @param amount      candles, pickles, layers or slabs; 1 for blocks without an amount
      * @param half        which half a single slab fills, 1 bottom or 2 top; 0 for a double slab and other blocks
+     * @param base        the state of a two-item block's empty base that takes its content, -1 for other blocks
      */
     public record Expected(Kind kind, int block, int orientation, boolean waterlogged, int[] same, int[] finishFrom, int finish, int amount,
-                           int half) {
+                           int half, int base) {
 
         public enum Kind {
             IGNORED,
@@ -75,20 +76,24 @@ public enum CellState {
 
         private static final int[] NONE = {};
 
-        public static final Expected IGNORE = new Expected(Kind.IGNORED, 0, 0, false, NONE, NONE, -1, 1, 0);
-        public static final Expected AIR = new Expected(Kind.AIR, 0, 0, false, NONE, NONE, -1, 1, 0);
-        public static final Expected CANT_CHECK = new Expected(Kind.CANT_CHECK, 0, 0, false, NONE, NONE, -1, 1, 0);
+        public static final Expected IGNORE = new Expected(Kind.IGNORED, 0, 0, false, NONE, NONE, -1, 1, 0, -1);
+        public static final Expected AIR = new Expected(Kind.AIR, 0, 0, false, NONE, NONE, -1, 1, 0, -1);
+        public static final Expected CANT_CHECK = new Expected(Kind.CANT_CHECK, 0, 0, false, NONE, NONE, -1, 1, 0, -1);
 
         public static Expected block(int block, int orientation, boolean waterlogged) {
             return block(block, orientation, waterlogged, NONE, NONE, -1);
         }
 
         public static Expected block(int block, int orientation, boolean waterlogged, int[] same, int[] finishFrom, int finish) {
-            return new Expected(Kind.BLOCK, block, orientation, waterlogged, same, finishFrom, finish, 1, 0);
+            return new Expected(Kind.BLOCK, block, orientation, waterlogged, same, finishFrom, finish, 1, 0, -1);
         }
 
         public Expected withAmount(int amount, int half) {
-            return new Expected(kind, block, orientation, waterlogged, same, finishFrom, finish, amount, half);
+            return new Expected(kind, block, orientation, waterlogged, same, finishFrom, finish, amount, half, base);
+        }
+
+        public Expected withBase(int base) {
+            return new Expected(kind, block, orientation, waterlogged, same, finishFrom, finish, amount, half, base);
         }
 
         /** True when the position counts toward progress. */
@@ -97,17 +102,26 @@ public enum CellState {
         }
     }
 
-    /** What the world holds at a position, in the same terms as {@link Expected}. */
-    public record Found(boolean air, int block, int orientation, boolean waterlogged, int amount, int half) {
+    /**
+     * What the world holds at a position, in the same terms as {@link Expected}.
+     *
+     * @param state the block state identity, compared with {@link Expected#base}
+     * @param base  the empty base block of a two-item block, -1 for other blocks
+     */
+    public record Found(boolean air, int block, int orientation, boolean waterlogged, int amount, int half, int state, int base) {
 
-        public static final Found NOTHING = new Found(true, 0, 0, false, 0, 0);
+        public static final Found NOTHING = new Found(true, 0, 0, false, 0, 0, -1, -1);
 
         public static Found block(int block, int orientation, boolean waterlogged) {
             return block(block, orientation, waterlogged, 1, 0);
         }
 
         public static Found block(int block, int orientation, boolean waterlogged, int amount, int half) {
-            return new Found(false, block, orientation, waterlogged, amount, half);
+            return new Found(false, block, orientation, waterlogged, amount, half, -1, -1);
+        }
+
+        public Found withState(int state, int base) {
+            return new Found(air, block, orientation, waterlogged, amount, half, state, base);
         }
     }
 
@@ -120,6 +134,12 @@ public enum CellState {
             case BLOCK -> {
                 if (found.air()) {
                     yield MISSING;
+                }
+                if (expected.base() >= 0 && found.state() == expected.base()) {
+                    yield INCOMPLETE;
+                }
+                if (found.base() >= 0 && found.base() == expected.block()) {
+                    yield TOO_MANY;
                 }
                 CellState done;
                 if (found.block() == expected.block() || Arrays.binarySearch(expected.same(), found.block()) >= 0) {

@@ -44,6 +44,7 @@ public final class WorldComparison implements AutoCloseable {
     private final Expected[] expected;
     private final Demand[] demands;
     private final int[] plannedOf;
+    private final int[] contentOf;
     private final List<Item> items = new ArrayList<>();
     private final List<Block> blocks = new ArrayList<>();
     private final List<Block> planned = new ArrayList<>();
@@ -65,15 +66,21 @@ public final class WorldComparison implements AutoCloseable {
         this.expected = new Expected[model.palette().size()];
         this.demands = new Demand[model.palette().size()];
         this.plannedOf = new int[model.palette().size()];
+        this.contentOf = new int[model.palette().size()];
         for (int i = 0; i < expected.length; i++) {
             expected[i] = keys.expected(view.entry(i), view.placed(i), view.unknown(i));
         }
         Map<Block, Integer> plannedIndex = indexPlanned(keys);
         Map<Block, Integer> blockIndex = new IdentityHashMap<>();
         for (int i = 0; i < expected.length; i++) {
-            Integer index = expected[i].counted() ? plannedIndex.get(view.placed(i).getBlock()) : null;
+            Block block = view.placed(i).getBlock();
+            TwoItemBlocks.Parts parts = expected[i].counted() ? TwoItemBlocks.of(block) : null;
+            Integer index = expected[i].counted() ? plannedIndex.get(parts == null ? block : parts.base()) : null;
             plannedOf[i] = index == null ? -1 : index;
-            demands[i] = expected[i].counted() ? demand(view.placed(i), plannedOf[i], blockIndex) : Demand.NONE;
+            Integer content = parts == null ? null : plannedIndex.get(parts.content());
+            contentOf[i] = content == null || index == null ? -1 : content;
+            demands[i] = !expected[i].counted() ? Demand.NONE
+                    : contentOf[i] >= 0 ? Demand.twoItem(plannedOf[i], contentOf[i]) : demand(view.placed(i), plannedOf[i], blockIndex);
         }
         this.materials = new MaterialCounts(view.sizeY(), planned.size(), blocks.size());
         this.unknown = new UnknownCounts(view.sizeY());
@@ -99,7 +106,8 @@ public final class WorldComparison implements AutoCloseable {
     /**
      * Numbers the planned blocks an item places in block ID order, with their placing item, the items that count
      * toward them and their finishing step, and maps each block that counts toward a planned block to the planned
-     * blocks it highlights. Returns the planned block indices.
+     * blocks it highlights. A two-item block is not numbered itself: its base and its content are, each with its own
+     * item, and holding either highlights it. Returns the planned block indices.
      */
     private Map<Block, Integer> indexPlanned(CellKeys keys) {
         TreeMap<String, Block> byId = new TreeMap<>();
@@ -112,21 +120,20 @@ public final class WorldComparison implements AutoCloseable {
         Map<Item, Integer> itemIndex = new IdentityHashMap<>();
         Map<Block, Integer> plannedIndex = new IdentityHashMap<>();
         Set<String> holdable = new LinkedHashSet<>();
+        Map<Block, Set<Block>> twoItemHighlights = new IdentityHashMap<>();
         byId.forEach((id, block) -> {
-            BlockEquivalents.Equivalence equivalence = keys.equivalence(block);
-            List<String> accepted = equivalence.accepted(id);
-            holdable.addAll(accepted);
-            Block placedWith = CellKeys.known(equivalence.placedWith());
-            Item item = placedWith == null ? Items.AIR : placedWith.asItem();
-            if (item == Items.AIR) {
+            TwoItemBlocks.Parts parts = TwoItemBlocks.of(block);
+            if (parts == null) {
+                plan(block, keys, plannedIndex, itemIndex, holdable);
                 return;
             }
-            plannedIndex.put(block, planned.size());
-            planned.add(block);
-            placingItems.add(index(item, itemIndex, items));
-            accepts.add(accepted.stream().map(CellKeys::known).filter(known -> known != null && known.asItem() != Items.AIR)
-                    .mapToInt(known -> index(known.asItem(), itemIndex, items)).distinct().toArray());
-            finishes.add(equivalence.finish());
+            plan(parts.base(), keys, plannedIndex, itemIndex, holdable);
+            if (!plannedIndex.containsKey(parts.content())) {
+                int item = index(parts.contentItem(), itemIndex, items);
+                addPlanned(parts.content(), item, new int[] {item}, null, plannedIndex);
+            }
+            twoItemHighlights.computeIfAbsent(parts.base(), ignored -> new LinkedHashSet<>()).add(block);
+            twoItemHighlights.computeIfAbsent(parts.content(), ignored -> new LinkedHashSet<>()).add(block);
         });
         for (String held : holdable) {
             Block heldBlock = CellKeys.known(held);
@@ -136,7 +143,36 @@ public final class WorldComparison implements AutoCloseable {
                 highlights.put(heldBlock, lit);
             }
         }
+        twoItemHighlights.forEach((held, twoItem) -> highlights
+                .computeIfAbsent(held, ignored -> Collections.newSetFromMap(new IdentityHashMap<>())).addAll(twoItem));
         return plannedIndex;
+    }
+
+    /** Numbers a planned block that an item places, once; a block no item places is left out. */
+    private void plan(Block block, CellKeys keys, Map<Block, Integer> plannedIndex, Map<Item, Integer> itemIndex, Set<String> holdable) {
+        if (plannedIndex.containsKey(block)) {
+            return;
+        }
+        String id = BuiltInRegistries.BLOCK.getKey(block).toString();
+        BlockEquivalents.Equivalence equivalence = keys.equivalence(block);
+        List<String> accepted = equivalence.accepted(id);
+        holdable.addAll(accepted);
+        Block placedWith = CellKeys.known(equivalence.placedWith());
+        Item item = placedWith == null ? Items.AIR : placedWith.asItem();
+        if (item == Items.AIR) {
+            return;
+        }
+        int[] accepts = accepted.stream().map(CellKeys::known).filter(known -> known != null && known.asItem() != Items.AIR)
+                .mapToInt(known -> index(known.asItem(), itemIndex, items)).distinct().toArray();
+        addPlanned(block, index(item, itemIndex, items), accepts, equivalence.finish(), plannedIndex);
+    }
+
+    private void addPlanned(Block block, int placingItem, int[] accepted, BlockEquivalents.@Nullable Finish finish, Map<Block, Integer> plannedIndex) {
+        plannedIndex.put(block, planned.size());
+        planned.add(block);
+        placingItems.add(placingItem);
+        accepts.add(accepted);
+        finishes.add(finish);
     }
 
     /** What building one position that holds {@code placed} takes; {@code plannedBlock} is -1 when no item places it. */
@@ -297,9 +333,13 @@ public final class WorldComparison implements AutoCloseable {
         return finish < 0 ? null : BlockEquivalents.Finish.values()[finish];
     }
 
-    /** The {@link #plannedBlock} index of the block at a local position inside the placement, or -1 when no item places it. */
+    /**
+     * The {@link #plannedBlock} index of what a local position inside the placement takes next: the content of a
+     * two-item block whose base stands, otherwise the planned block or a two-item block's base; -1 when no item places it.
+     */
     public int plannedIndexAt(int x, int y, int z) {
-        return plannedOf[view.paletteIndex(x, y, z, scratch)];
+        int entry = view.paletteIndex(x, y, z, scratch);
+        return contentOf[entry] >= 0 && stateAt(x, y, z) == CellState.INCOMPLETE ? contentOf[entry] : plannedOf[entry];
     }
 
     /** The candles, pickles or snow layers of a state, 2 for a double slab, otherwise 1. */

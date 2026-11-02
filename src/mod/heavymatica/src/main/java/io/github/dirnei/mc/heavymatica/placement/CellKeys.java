@@ -24,7 +24,8 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Turns block states into the comparison's {@link Expected} and {@link Found} terms: block identity, an orientation
- * key over the placement properties only, the amount, the slab half and waterlogging. Found keys are cached per state.
+ * key over the placement properties only, the amount, the slab half, waterlogging and a two-item block's base. Found
+ * keys are cached per state.
  * Game thread only.
  */
 final class CellKeys {
@@ -72,8 +73,10 @@ final class CellKeys {
             return BlockStates.isAirLike(id) ? Expected.AIR : Expected.IGNORE;
         }
         Equivalence equivalence = equivalence(resolved.getBlock());
+        TwoItemBlocks.Parts parts = TwoItemBlocks.of(resolved.getBlock());
         return Expected.block(block(resolved), orientation(resolved), waterlogged(resolved), ids(equivalence.same()), ids(equivalence.finishFrom()),
-                equivalence.finish() == null ? -1 : equivalence.finish().ordinal()).withAmount(amount(resolved), half(resolved));
+                equivalence.finish() == null ? -1 : equivalence.finish().ordinal()).withAmount(amount(resolved), half(resolved))
+                .withBase(parts == null ? -1 : Block.getId(parts.base().defaultBlockState()));
     }
 
     /**
@@ -100,8 +103,14 @@ final class CellKeys {
     }
 
     Found found(BlockState state) {
-        return found.computeIfAbsent(state, key -> key.isAir() ? Found.NOTHING
-                : Found.block(block(key), orientation(key), waterlogged(key), amount(key), half(key)));
+        return found.computeIfAbsent(state, key -> {
+            if (key.isAir()) {
+                return Found.NOTHING;
+            }
+            TwoItemBlocks.Parts parts = TwoItemBlocks.of(key.getBlock());
+            return Found.block(block(key), orientation(key), waterlogged(key), amount(key), half(key))
+                    .withState(Block.getId(key), parts == null ? -1 : BuiltInRegistries.BLOCK.getId(parts.base()));
+        });
     }
 
     /** The candles, pickles or snow layers of a state, 2 for a double slab, otherwise 1. */

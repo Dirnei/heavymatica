@@ -191,4 +191,55 @@ class MaterialCountsTest {
         first.set(CellState.MATCHING, 2);
         assertArrayEquals(new int[] {0, 0}, counts.sum(0, 0).needed());
     }
+
+    private static final int POT = 0;
+    private static final int DEAD_BUSH = 1;
+
+    @Test
+    void missingPottedPlantNeedsPotAndPlant() {
+        MaterialCounts counts = new MaterialCounts(1, 2, 0);
+        Demand potted = Demand.twoItem(POT, DEAD_BUSH);
+        counts.add(0, potted);
+        assertArrayEquals(new int[] {1, 1}, counts.sum(0, 0).needed());
+        counts.move(0, potted, CellState.UNKNOWN, 0, CellState.MISSING, 0);
+        assertArrayEquals(new int[] {1, 1}, counts.sum(0, 0).needed());
+    }
+
+    @Test
+    void emptyPotNeedsOnlyThePlant() {
+        MaterialCounts counts = new MaterialCounts(1, 2, 0);
+        Demand potted = Demand.twoItem(POT, DEAD_BUSH);
+        counts.add(0, potted);
+        counts.move(0, potted, CellState.UNKNOWN, 0, CellState.INCOMPLETE, 1);
+        assertArrayEquals(new int[] {0, 1}, counts.sum(0, 0).needed());
+    }
+
+    @Test
+    void otherPlantNeedsPotAndPlant() {
+        MaterialCounts counts = new MaterialCounts(1, 2, 0);
+        Demand potted = Demand.twoItem(POT, DEAD_BUSH);
+        counts.add(0, potted);
+        counts.move(0, potted, CellState.UNKNOWN, 0, CellState.WRONG_BLOCK, 1);
+        assertArrayEquals(new int[] {1, 1}, counts.sum(0, 0).needed());
+    }
+
+    @Test
+    void pottedPlantMovesBetweenStates() {
+        MaterialCounts counts = new MaterialCounts(1, 2, 0);
+        Demand potted = Demand.twoItem(POT, DEAD_BUSH);
+        counts.add(0, potted);
+        counts.move(0, potted, CellState.UNKNOWN, 0, CellState.MISSING, 0);
+        counts.move(0, potted, CellState.MISSING, 0, CellState.INCOMPLETE, 1);
+        assertArrayEquals(new int[] {0, 1}, counts.sum(0, 0).needed());
+        counts.move(0, potted, CellState.INCOMPLETE, 1, CellState.MATCHING, 1);
+        assertArrayEquals(new int[] {0, 0}, counts.sum(0, 0).needed());
+        counts.move(0, potted, CellState.MATCHING, 1, CellState.WRONG_BLOCK, 1);
+        assertArrayEquals(new int[] {1, 1}, counts.sum(0, 0).needed());
+        counts.move(0, potted, CellState.WRONG_BLOCK, 1, CellState.INCOMPLETE, 1);
+        assertArrayEquals(new int[] {0, 1}, counts.sum(0, 0).needed());
+        counts.move(0, potted, CellState.INCOMPLETE, 1, CellState.UNKNOWN, 0);
+        assertArrayEquals(new int[] {1, 1}, counts.sum(0, 0).needed());
+        counts.remove(0, potted);
+        assertArrayEquals(new int[] {0, 0}, counts.sum(0, 0).needed());
+    }
 }

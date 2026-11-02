@@ -2,6 +2,7 @@ package io.github.dirnei.mc.heavymatica.placement;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -39,10 +40,15 @@ final class MistakeBoxes implements AutoCloseable {
     static final int NEEDS_FINISHING_COLOR = 0x70FFF020;
 
     private static final float INFLATE = 0.005F;
+    /** How strongly boxes behind other blocks show, relative to visible ones. */
+    private static final float HIDDEN_ALPHA = 0.5F;
     private static final int INDICES_PER_QUAD = 6;
 
     /** One section's boxes; {@code layerStart[y - section min y]} is the first quad of that layer, the last entry the total. */
     private record Section(int minY, GpuBuffer vertices, int[] layerStart) {
+    }
+
+    private record Draw(GpuBuffer vertices, int firstQuad, int endQuad) {
     }
 
     private final ComparisonState state;
@@ -154,8 +160,6 @@ final class MistakeBoxes implements AutoCloseable {
 
     /** Draws the boxes of layers {@code from} to {@code to} at {@code offset} (placement minimum corner minus camera). */
     void draw(Matrix4fc modelView, Vector3f offset, int from, int to) {
-        record Draw(GpuBuffer vertices, int firstQuad, int endQuad) {
-        }
         List<Draw> draws = new ArrayList<>();
         int maxQuad = 0;
         for (Section section : sections.values()) {
@@ -175,16 +179,21 @@ final class MistakeBoxes implements AutoCloseable {
         if (draws.isEmpty()) {
             return;
         }
-        Minecraft minecraft = Minecraft.getInstance();
         Matrix4f moved = new Matrix4f(modelView).translate(offset);
-        GpuBufferSlice transform = RenderSystem.getDynamicUniforms()
-                .writeTransform(moved, new Vector4f(1.0F, 1.0F, 1.0F, 1.0F), new Vector3f(), new Matrix4f());
         RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
         GpuBuffer indexBuffer = indices.getBuffer(maxQuad * INDICES_PER_QUAD);
-        RenderTarget target = minecraft.getMainRenderTarget();
+        drawPass(GhostPipeline.MISTAKE_BOX_HIDDEN, HIDDEN_ALPHA, moved, indices, indexBuffer, draws);
+        drawPass(GhostPipeline.MISTAKE_BOX, 1.0F, moved, indices, indexBuffer, draws);
+    }
+
+    private static void drawPass(RenderPipeline pipeline, float alpha, Matrix4f moved, RenderSystem.AutoStorageIndexBuffer indices,
+            GpuBuffer indexBuffer, List<Draw> draws) {
+        GpuBufferSlice transform = RenderSystem.getDynamicUniforms()
+                .writeTransform(moved, new Vector4f(1.0F, 1.0F, 1.0F, alpha), new Vector3f(), new Matrix4f());
+        RenderTarget target = Minecraft.getInstance().getMainRenderTarget();
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Heavymatica mistake boxes",
                 target.getColorTextureView(), OptionalInt.empty(), target.useDepth ? target.getDepthTextureView() : null, OptionalDouble.empty())) {
-            pass.setPipeline(GhostPipeline.MISTAKE_BOX);
+            pass.setPipeline(pipeline);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform("DynamicTransforms", transform);
             pass.setIndexBuffer(indexBuffer, indices.type());

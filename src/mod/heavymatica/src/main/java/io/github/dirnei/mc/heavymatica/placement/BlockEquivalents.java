@@ -71,6 +71,12 @@ public final class BlockEquivalents {
             new Rule("minecraft:stripped_bamboo_block", "minecraft:bamboo_block", List.of(), List.of("minecraft:bamboo_block"), Finish.AXE),
             new Rule("minecraft:*_concrete", "minecraft:*_concrete_powder", List.of(), List.of("minecraft:*_concrete_powder"), Finish.WATER));
 
+    /** Filled cauldron ID to the block ID of its content and the ID of the bucket that fills it. */
+    static final Map<String, String[]> FILLED_CAULDRONS = Map.of(
+            "minecraft:water_cauldron", new String[] {"minecraft:water", "minecraft:water_bucket"},
+            "minecraft:lava_cauldron", new String[] {"minecraft:lava", "minecraft:lava_bucket"},
+            "minecraft:powder_snow_cauldron", new String[] {"minecraft:powder_snow", "minecraft:powder_snow_bucket"});
+
     private static final List<Pattern> PATTERNS = RULES.stream().map(rule -> pattern(rule.planned())).toList();
     private static final Map<String, Equivalence> CACHE = new ConcurrentHashMap<>();
 

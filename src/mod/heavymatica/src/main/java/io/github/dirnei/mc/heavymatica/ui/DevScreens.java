@@ -23,6 +23,7 @@ import io.github.dirnei.mc.heavymatica.placement.MaterialList;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
+import io.github.dirnei.mc.heavymatica.placement.TwoItemBlocks;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
 import io.github.dirnei.mc.heavymatica.remote.PlacementOverlay;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu;
@@ -57,6 +58,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
@@ -107,6 +109,7 @@ import net.neoforged.neoforge.common.NeoForge;
  *     shape per block) to the file</li>
  *     <li>{@code logFinish}: log the placement count, the selected placement and whether a finished one can be brought back</li>
  *     <li>{@code bringBack}: bring the latest finished placement back</li>
+ *     <li>{@code logTwoItem=<block id>,...}: log the base, content and content item of each block, or that it is not a two-item block</li>
  *     <li>{@code logCell=<x>,<y>,<z>}: log the selected placement's comparison state at a world position</li>
  *     <li>{@code logMaterials}: log the selected placement's material list, counting the player's items again, the numbers
  *     and finishing counts per planned block, and the rows of an open materials screen</li>
@@ -276,6 +279,13 @@ public final class DevScreens {
                 }
             }
             case "logMaterials" -> logMaterials(minecraft);
+            case "logTwoItem" -> {
+                for (String id : argument.split(",")) {
+                    TwoItemBlocks.Parts parts = TwoItemBlocks.of(BuiltInRegistries.BLOCK.getValue(Identifier.parse(id)));
+                    Heavymatica.LOGGER.info("Dev two-item {}: {}", id, parts == null ? "none" : BuiltInRegistries.BLOCK.getKey(parts.base()) + " + "
+                            + BuiltInRegistries.BLOCK.getKey(parts.content()) + " (" + BuiltInRegistries.ITEM.getKey(parts.contentItem()) + ")");
+                }
+            }
             case "logOverlay" -> {
                 PlacementSession session = HeavymaticaClient.placements();
                 if (session != null) {
