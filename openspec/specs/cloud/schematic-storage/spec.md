@@ -21,6 +21,10 @@ The service SHALL accept a schematic file upload either as a new schematic or as
 - **WHEN** a player signed in on the website uploads a valid file as a new schematic
 - **THEN** the new schematic is owned by the account of their website session, exactly as for an upload from the game
 
+#### Scenario: New version from an alt
+- **WHEN** a player signed in as `SteveBuilds` uploads a new version of a schematic uploaded as `Steve`, and both identities are linked to the same account
+- **THEN** the schematic gets the new version
+
 ### Requirement: Uploads are validated before they are stored
 The service SHALL parse and validate every upload according to the `schematic-formats` capability before storing it. A rejected upload SHALL leave no schematic, version or stored file behind.
 
@@ -63,6 +67,10 @@ The service SHALL let only the account that owns a schematic read, download, cha
 #### Scenario: Separate GitHub and Minecraft accounts
 - **WHEN** a player signed in on the website with GitHub requests a schematic they uploaded from the game, and the GitHub and Minecraft identities belong to different accounts
 - **THEN** the service responds exactly as it does for a non-existent schematic
+
+#### Scenario: Unlinked identity
+- **WHEN** an identity is unlinked from an account and then signs in to a new account
+- **THEN** the schematics of the old account are reported as not found to it
 
 ### Requirement: Downloads through short-lived links
 The service SHALL serve a version's file and thumbnail through download links that expire 5 minutes after they are issued and work without the caller's access token.
@@ -125,7 +133,7 @@ The service SHALL let an owner attach one PNG thumbnail of at most 256 x 256 pix
 - **THEN** the service rejects it and the version is unchanged
 
 ### Requirement: Storage quota
-The service SHALL enforce a storage quota per account, an entitlement of the account rather than of any identity. Usage SHALL be the sum of the sizes of all the account's stored versions and thumbnails. The service SHALL report usage and quota to the owner.
+The service SHALL enforce a storage quota per account, an entitlement of the account shared by all its identities. Usage SHALL be the sum of the sizes of all the account's stored versions and thumbnails. The service SHALL report usage and quota to the owner, and linking or unlinking identities SHALL change neither.
 
 #### Scenario: Upload over quota
 - **WHEN** an upload would take the account's usage above its quota
@@ -138,6 +146,10 @@ The service SHALL enforce a storage quota per account, an entitlement of the acc
 #### Scenario: Quota kept through the migration
 - **WHEN** a Minecraft-keyed account with a quota of 100 MiB and 40 MiB used is migrated
 - **THEN** the migrated account reports 40 MiB used of 100 MiB
+
+#### Scenario: Alts share the quota
+- **WHEN** `Steve` has used 90 MiB of a 100 MiB quota and `SteveBuilds`, linked to the same account, uploads a 20 MiB file
+- **THEN** the service rejects it as over quota
 
 ### Requirement: Deleting schematics and versions
 The service SHALL let an owner delete a whole schematic, or any single version except the only remaining one. Deleted content SHALL stop counting toward the quota at once. New download links SHALL NOT be issued for it, and links issued before the deletion SHALL stop working no later than their expiry.

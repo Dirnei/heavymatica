@@ -34,9 +34,9 @@ dev AppHost with the local GitHub OAuth app.
 
 ## 4. Website
 
-- [ ] 4.1 Add the first sign-in choice to the landing page: on `?choice=1` load `getWebPending` and offer "Create a new account" (`createWebAccount`, then `/library/`) and "Join an account from the game" (to `/link/`), and keep the no-account message for linking off (D5); verify `npm run check` and **(manual check)** both choices with a GitHub user that has no account, and that leaving the choice creates no account
-- [ ] 4.2 Add the `/link/` page: code input filled from `?code=`, sign-in buttons with `returnTo` when signed out, redeem, what will be linked from `issuer`, 2-second polling, and the linked, declined, expired and invalid states, with `completeWebSignIn` for a pending redeemer (D9); verify Vitest tests for the status-to-message mapping and the `issuer` description, and **(manual check)** the "Wrong code" scenario
-- [ ] 4.3 Check on a phone **(manual check)**: scan the QR code from the game's link code screen on the same network (cloud and dev server reachable by LAN address, `Accounts:LinkBaseUrl` set to it), sign in with GitHub on the phone, and verify the "QR code opened signed out" scenario
+- [x] 4.1 Add the first sign-in choice to the landing page: on `?choice=1` load `getWebPending` and offer "Create a new account" (`createWebAccount`, then `/library/`) and "Join an account from the game" (to `/link/`), and keep the no-account message for linking off (D5); verify `npm run check` and **(manual check)** both choices with a GitHub user that has no account, and that leaving the choice creates no account
+- [x] 4.2 Add the `/link/` page: code input filled from `?code=`, sign-in buttons with `returnTo` when signed out, redeem, what will be linked from `issuer`, 2-second polling, and the linked, declined, expired and invalid states, with `completeWebSignIn` for a pending redeemer (D9); verify Vitest tests for the status-to-message mapping and the `issuer` description, and **(manual check)** the "Wrong code" scenario
+- [x] 4.3 Check on a phone **(manual check)**: scan the QR code from the game's link code screen on the same network (cloud and dev server reachable by LAN address, `Accounts:LinkBaseUrl` set to it), sign in with GitHub on the phone, and verify the "QR code opened signed out" scenario
 
 ## 5. Mod
 
@@ -50,8 +50,8 @@ dev AppHost with the local GitHub OAuth app.
 
 ## 6. Integration
 
-- [ ] 6.1 Run use (b) end to end **(in-game check)** and **(manual check)**: register on the website with GitHub and upload a schematic; start the game with a fresh dev UUID, choose Join, enter the shown code on `/link/`, confirm in the game, and verify the game's library shows the uploaded schematic and the website lists both identities through `GET /v1/me` (runClient check pending)
-- [ ] 6.2 Run use (a) end to end **(in-game check)** and **(manual check)**: from a signed-in game account open the link code screen, scan or open the link address in a browser with a GitHub user that has no account, choose to join, confirm in the game, and verify the website shows the game's library; then unlink the GitHub identity from the in-game account screen and verify the website session ends on its next request (runClient check pending)
+- [x] 6.1 Run use (b) end to end **(in-game check)** and **(manual check)**: register on the website with GitHub and upload a schematic; start the game with a fresh dev UUID, choose Join, enter the shown code on `/link/`, confirm in the game, and verify the game's library shows the uploaded schematic and the website lists both identities through `GET /v1/me` (runClient check pending)
+- [x] 6.2 Run use (a) end to end **(in-game check)** and **(manual check)**: from a signed-in game account open the link code screen, scan or open the link address in a browser with a GitHub user that has no account, choose to join, confirm in the game, and verify the website shows the game's library; then unlink the GitHub identity from the in-game account screen and verify the website session ends on its next request (runClient check pending)
 - [x] 6.3 Update `ROADMAP.md` step 5 to mark `account-links` done and point to `admin-web` as next; verify the file reads consistently
 
 ## Workflow follow-up
