@@ -14,6 +14,7 @@ import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Page;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Segment;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Selection;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.State;
+import io.github.dirnei.mc.heavymatica.targeting.PointerMode;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -135,10 +136,10 @@ class RadialMenuTest {
         assertEquals(Page.OPTIONS, menu.page());
         assertEquals(new Label("heavymatica.wheel.options", ""), menu.label());
         assertEquals(List.of(new Segment(Entry.IN_HAND, true, false), new Segment(Entry.EASY_PLACE, true, false),
-                new Segment(Entry.RESTRICTION, true, true)), menu.segments());
+                new Segment(Entry.RESTRICTION, true, true), new Segment(Entry.MISTAKES, true, false)), menu.segments());
         RadialMenu all = menu(Mode.TOGGLE, new Selection(State.LOCKED, "Castle Gate", Layers.Mode.OFF, true).withBuild(true, false));
         all.click(index(all, Entry.OPTIONS));
-        assertEquals(List.of(true, true, false), all.segments().stream().map(Segment::current).toList());
+        assertEquals(List.of(true, true, false, false), all.segments().stream().map(Segment::current).toList());
     }
 
     @Test
@@ -171,6 +172,69 @@ class RadialMenuTest {
         assertEquals(Outcome.CLOSE, escape.escape());
         RadialMenu centre = menu(Mode.TOGGLE, LOCKED);
         centre.click(index(centre, Entry.OPTIONS));
+        assertEquals(Outcome.CLOSE, centre.click(-1));
+    }
+
+    @Test
+    void mistakesComesLastInOptionsAndIsMarkedWhileThePointerIsOn() {
+        for (PointerMode pointer : PointerMode.values()) {
+            RadialMenu menu = menu(Mode.TOGGLE, LOCKED.with(pointer));
+            menu.click(index(menu, Entry.OPTIONS));
+            List<Segment> segments = menu.segments();
+            assertEquals(new Segment(Entry.MISTAKES, true, pointer != PointerMode.OFF), segments.getLast());
+        }
+    }
+
+    @Test
+    void mistakesOpensItsSubWheelWithTheCurrentModeMarked() {
+        for (PointerMode pointer : PointerMode.values()) {
+            RadialMenu menu = menu(Mode.TOGGLE, LOCKED.with(pointer));
+            menu.click(index(menu, Entry.OPTIONS));
+            assertEquals(Outcome.STAY, menu.click(index(menu, Entry.MISTAKES)));
+            assertEquals(Page.MISTAKES, menu.page());
+            assertEquals(new Label("heavymatica.wheel.mistakes", ""), menu.label());
+            assertEquals(List.of(new Segment(Entry.MISTAKES_OFF, true, pointer == PointerMode.OFF),
+                    new Segment(Entry.MISTAKES_ONLY, true, pointer == PointerMode.MISTAKES),
+                    new Segment(Entry.MISTAKES_AND_MISSING, true, pointer == PointerMode.MISTAKES_AND_MISSING)), menu.segments());
+        }
+    }
+
+    @Test
+    void mistakesPicksSetThePointerAndClose() {
+        for (Entry entry : List.of(Entry.MISTAKES_OFF, Entry.MISTAKES_ONLY, Entry.MISTAKES_AND_MISSING)) {
+            RadialMenu menu = menu(Mode.TOGGLE, LOCKED.with(PointerMode.MISTAKES));
+            menu.click(index(menu, Entry.OPTIONS));
+            menu.click(index(menu, Entry.MISTAKES));
+            PointerMode expected = switch (entry) {
+                case MISTAKES_OFF -> PointerMode.OFF;
+                case MISTAKES_ONLY -> PointerMode.MISTAKES;
+                default -> PointerMode.MISTAKES_AND_MISSING;
+            };
+            assertEquals(new Outcome.Run(Command.SET_MISTAKE_POINTER, 0, null, expected), menu.click(index(menu, entry)));
+        }
+    }
+
+    @Test
+    void mistakesStaysOpenAfterTheReleaseInHoldMode() {
+        RadialMenu menu = menu(Mode.HOLD, LOCKED);
+        menu.release(index(menu, Entry.OPTIONS));
+        assertEquals(Outcome.STAY, menu.release(index(menu, Entry.MISTAKES)));
+        assertEquals(Page.OPTIONS, menu.page());
+        menu.click(index(menu, Entry.MISTAKES));
+        assertEquals(Outcome.STAY, menu.release(index(menu, Entry.MISTAKES_AND_MISSING)));
+        assertEquals(Page.MISTAKES, menu.page());
+        assertEquals(Outcome.Run.pointer(PointerMode.MISTAKES_AND_MISSING), menu.click(index(menu, Entry.MISTAKES_AND_MISSING)));
+    }
+
+    @Test
+    void mistakesClosesWithoutAChange() {
+        RadialMenu escape = menu(Mode.TOGGLE, LOCKED);
+        escape.click(index(escape, Entry.OPTIONS));
+        escape.click(index(escape, Entry.MISTAKES));
+        assertEquals(Outcome.CLOSE, escape.escape());
+        RadialMenu centre = menu(Mode.TOGGLE, LOCKED);
+        centre.click(index(centre, Entry.OPTIONS));
+        centre.click(index(centre, Entry.MISTAKES));
         assertEquals(Outcome.CLOSE, centre.click(-1));
     }
 
@@ -397,7 +461,7 @@ class RadialMenuTest {
         assertEquals(List.of(Entry.PASTE_REPLACE_ALL, Entry.PASTE_ONLY_AIR, Entry.PASTE_SKIP_AIR), entries(menu));
         assertEquals(new Label("heavymatica.wheel.paste", "Castle Gate"), menu.label());
         assertEquals(Outcome.Run.paste(PasteMode.ONLY_INTO_AIR), menu.click(1));
-        assertEquals(new Outcome.Run(Command.PASTE, 0, PasteMode.REPLACE_ALL), menu.click(0));
+        assertEquals(new Outcome.Run(Command.PASTE, 0, PasteMode.REPLACE_ALL, null), menu.click(0));
         assertEquals(Outcome.Run.paste(PasteMode.SKIP_AIR), menu.click(2));
     }
 

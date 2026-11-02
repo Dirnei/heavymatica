@@ -3,6 +3,7 @@ package io.github.dirnei.mc.heavymatica.remote;
 import io.github.dirnei.mc.heavymatica.paste.PasteMode;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
 import io.github.dirnei.mc.heavymatica.placement.OpacitySteps;
+import io.github.dirnei.mc.heavymatica.targeting.PointerMode;
 import java.util.ArrayList;
 import java.util.List;
 import org.jetbrains.annotations.Nullable;
@@ -26,14 +27,14 @@ public final class RadialMenu {
     }
 
     /**
-     * The selected placement, what paste allows, and the Easy Place and placement restriction settings as the wheel
-     * opened.
+     * The selected placement, what paste allows, and the Easy Place, placement restriction and mistake pointer settings
+     * as the wheel opened.
      *
      * @param unknownBlocks whether it has blocks the game does not know
      * @param unknownShown  whether unknown blocks are shown
      */
     public record Selection(State state, String name, Layers.Mode layers, boolean inHand, boolean unknownBlocks, boolean unknownShown, Paste paste,
-                            boolean easyPlace, boolean restriction) {
+                            boolean easyPlace, boolean restriction, PointerMode pointer) {
 
         public static final Selection NONE = new Selection(State.NONE, "", Layers.Mode.OFF, false);
 
@@ -46,15 +47,19 @@ public final class RadialMenu {
         }
 
         public Selection(State state, String name, Layers.Mode layers, boolean inHand, boolean unknownBlocks, boolean unknownShown, Paste paste) {
-            this(state, name, layers, inHand, unknownBlocks, unknownShown, paste, false, false);
+            this(state, name, layers, inHand, unknownBlocks, unknownShown, paste, false, false, PointerMode.OFF);
         }
 
         public Selection with(Paste paste) {
-            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction);
+            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction, pointer);
         }
 
         public Selection withBuild(boolean easyPlace, boolean restriction) {
-            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction);
+            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction, pointer);
+        }
+
+        public Selection with(PointerMode pointer) {
+            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction, pointer);
         }
     }
 
@@ -86,6 +91,7 @@ public final class RadialMenu {
         OPACITY,
         PASTE,
         OPTIONS,
+        MISTAKES,
     }
 
     public enum Entry {
@@ -99,6 +105,10 @@ public final class RadialMenu {
         OPTIONS,
         EASY_PLACE,
         RESTRICTION,
+        MISTAKES,
+        MISTAKES_OFF,
+        MISTAKES_ONLY,
+        MISTAKES_AND_MISSING,
         LAYERS,
         MATERIALS,
         PASTE,
@@ -143,6 +153,7 @@ public final class RadialMenu {
         TOGGLE_IN_HAND,
         TOGGLE_EASY_PLACE,
         TOGGLE_RESTRICTION,
+        SET_MISTAKE_POINTER,
         LAYERS_OFF,
         LAYERS_FROM_TO,
         LAYERS_FOLLOW,
@@ -180,21 +191,26 @@ public final class RadialMenu {
         }
 
         /**
-         * @param value the opacity to set, 0 for other commands
-         * @param paste the mode of a paste, null for other commands
+         * @param value   the opacity to set, 0 for other commands
+         * @param paste   the mode of a paste, null for other commands
+         * @param pointer the mistake pointer mode to set, null for other commands
          */
-        record Run(Command command, double value, @Nullable PasteMode paste) implements Outcome {
+        record Run(Command command, double value, @Nullable PasteMode paste, @Nullable PointerMode pointer) implements Outcome {
 
             public Run(Command command) {
                 this(command, 0);
             }
 
             public Run(Command command, double value) {
-                this(command, value, null);
+                this(command, value, null, null);
             }
 
             public static Run paste(PasteMode mode) {
-                return new Run(Command.PASTE, 0, mode);
+                return new Run(Command.PASTE, 0, mode, null);
+            }
+
+            public static Run pointer(PointerMode mode) {
+                return new Run(Command.SET_MISTAKE_POINTER, 0, null, mode);
             }
         }
     }
@@ -255,7 +271,9 @@ public final class RadialMenu {
                     layer(Entry.LAYERS_FOLLOW, Layers.Mode.FOLLOW));
             case PASTE -> List.of(segment(Entry.PASTE_REPLACE_ALL), segment(Entry.PASTE_ONLY_AIR), segment(Entry.PASTE_SKIP_AIR));
             case OPTIONS -> List.of(new Segment(Entry.IN_HAND, true, selection.inHand()), new Segment(Entry.EASY_PLACE, true, selection.easyPlace()),
-                    new Segment(Entry.RESTRICTION, true, selection.restriction()));
+                    new Segment(Entry.RESTRICTION, true, selection.restriction()), new Segment(Entry.MISTAKES, true, selection.pointer() != PointerMode.OFF));
+            case MISTAKES -> List.of(pointer(Entry.MISTAKES_OFF, PointerMode.OFF), pointer(Entry.MISTAKES_ONLY, PointerMode.MISTAKES),
+                    pointer(Entry.MISTAKES_AND_MISSING, PointerMode.MISTAKES_AND_MISSING));
             case CONFIRM_REMOVE, CONFIRM_UNLOCK -> List.of(segment(Entry.YES), segment(Entry.NO));
         };
     }
@@ -319,6 +337,7 @@ public final class RadialMenu {
             case OPACITY -> new Label("heavymatica.wheel.opacity", "");
             case PASTE -> new Label("heavymatica.wheel.paste", selection.name());
             case OPTIONS -> new Label("heavymatica.wheel.options", "");
+            case MISTAKES -> new Label("heavymatica.wheel.mistakes", "");
             case CONFIRM_REMOVE -> new Label("heavymatica.wheel.confirm.remove", selection.name());
             case CONFIRM_UNLOCK -> new Label("heavymatica.wheel.confirm.unlock", selection.name());
         };
@@ -368,6 +387,10 @@ public final class RadialMenu {
             case OPTIONS -> turnTo(Page.OPTIONS);
             case EASY_PLACE -> run(Command.TOGGLE_EASY_PLACE);
             case RESTRICTION -> run(Command.TOGGLE_RESTRICTION);
+            case MISTAKES -> turnTo(Page.MISTAKES);
+            case MISTAKES_OFF -> Outcome.Run.pointer(PointerMode.OFF);
+            case MISTAKES_ONLY -> Outcome.Run.pointer(PointerMode.MISTAKES);
+            case MISTAKES_AND_MISSING -> Outcome.Run.pointer(PointerMode.MISTAKES_AND_MISSING);
             case LAYERS -> turnTo(Page.LAYERS);
             case MATERIALS -> run(Command.OPEN_MATERIALS);
             case PASTE -> turnTo(Page.PASTE);
@@ -411,5 +434,9 @@ public final class RadialMenu {
 
     private Segment layer(Entry entry, Layers.Mode layers) {
         return new Segment(entry, true, selection.layers() == layers);
+    }
+
+    private Segment pointer(Entry entry, PointerMode pointer) {
+        return new Segment(entry, true, selection.pointer() == pointer);
     }
 }

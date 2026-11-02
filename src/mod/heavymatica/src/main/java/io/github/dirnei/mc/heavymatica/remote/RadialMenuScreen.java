@@ -268,6 +268,10 @@ public final class RadialMenuScreen extends Screen {
             case OPTIONS -> Items.COMPARATOR;
             case EASY_PLACE -> Items.OAK_STAIRS;
             case RESTRICTION -> Items.SHIELD;
+            case MISTAKES -> Items.COMPASS;
+            case MISTAKES_OFF -> Items.GRAY_DYE;
+            case MISTAKES_ONLY -> Items.RED_DYE;
+            case MISTAKES_AND_MISSING -> Items.ORANGE_DYE;
             case LAYERS -> Items.LADDER;
             case MATERIALS -> Items.BRUSH;
             case PASTE -> Items.PISTON;

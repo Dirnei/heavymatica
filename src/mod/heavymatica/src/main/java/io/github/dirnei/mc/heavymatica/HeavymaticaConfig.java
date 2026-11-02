@@ -2,6 +2,7 @@ package io.github.dirnei.mc.heavymatica;
 
 import io.github.dirnei.mc.heavymatica.placement.OpacitySteps;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu;
+import io.github.dirnei.mc.heavymatica.targeting.PointerMode;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
@@ -94,6 +95,11 @@ public final class HeavymaticaConfig {
             .comment("Pick block (middle click) on a ghost within reach picks the item for the planned block from the inventory.",
                     "Sneak while picking, or turn this off, to pick the block behind the ghost as usual.")
             .define("pickBlock", true);
+
+    private static final ModConfigSpec.EnumValue<PointerMode> TARGETING_MISTAKE_POINTER = BUILDER
+            .comment("Mistake pointer: an arrow below the crosshair toward the nearest position of the selected locked placement that needs attention.",
+                    "OFF, MISTAKES (boxed positions only) or MISTAKES_AND_MISSING (also positions still missing their block).")
+            .defineEnum("mistakePointer", PointerMode.OFF);
 
     private static final ModConfigSpec.BooleanValue BUILD_EASY_PLACE = BUILDER
             .pop()
@@ -192,6 +198,16 @@ public final class HeavymaticaConfig {
 
     public static boolean targetingPickBlock() {
         return TARGETING_PICK_BLOCK.get();
+    }
+
+    public static PointerMode mistakePointer() {
+        return TARGETING_MISTAKE_POINTER.get();
+    }
+
+    /** Sets the mistake pointer mode and writes the config file. */
+    public static void setMistakePointer(PointerMode mode) {
+        TARGETING_MISTAKE_POINTER.set(mode);
+        TARGETING_MISTAKE_POINTER.save();
     }
 
     public static boolean easyPlace() {

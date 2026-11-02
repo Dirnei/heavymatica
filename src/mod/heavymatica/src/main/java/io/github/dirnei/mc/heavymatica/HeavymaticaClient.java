@@ -30,6 +30,8 @@ import io.github.dirnei.mc.heavymatica.remote.RemoteKeys;
 import io.github.dirnei.mc.heavymatica.remote.Remotes;
 import io.github.dirnei.mc.heavymatica.targeting.GhostPick;
 import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting;
+import io.github.dirnei.mc.heavymatica.targeting.MistakePointer;
+import io.github.dirnei.mc.heavymatica.targeting.PointerHud;
 import io.github.dirnei.mc.heavymatica.targeting.TargetHud;
 import io.github.dirnei.mc.heavymatica.thumbnail.ThumbnailSpike;
 import io.github.dirnei.mc.heavymatica.ui.DevScreens;
@@ -73,6 +75,7 @@ public final class HeavymaticaClient {
     private static @Nullable Library library;
     private static @Nullable PlacementSession placements;
     private static @Nullable GhostTargeting targeting;
+    private static @Nullable MistakePointer mistakePointer;
     private static @Nullable CaptureController capture;
     private static @Nullable CreativePaste paste;
 
@@ -83,6 +86,7 @@ public final class HeavymaticaClient {
         modEventBus.addListener(GhostPipeline::register);
         modEventBus.addListener((RegisterGuiLayersEvent event) -> new PlacementOverlay(HeavymaticaClient::placements).register(event));
         modEventBus.addListener((RegisterGuiLayersEvent event) -> new TargetHud(HeavymaticaClient::placements, HeavymaticaClient::targeting).register(event));
+        modEventBus.addListener((RegisterGuiLayersEvent event) -> new PointerHud(HeavymaticaClient::mistakePointer).register(event));
         NeoForge.EVENT_BUS.addListener(HeavymaticaClient::tick);
         ThumbnailSpike.registerIfRequested();
         DevScreens.registerIfRequested();
@@ -122,6 +126,11 @@ public final class HeavymaticaClient {
     /** The ghost under the crosshair; null before client setup. */
     public static @Nullable GhostTargeting targeting() {
         return targeting;
+    }
+
+    /** The mistake pointer's candidate; null before client setup. */
+    public static @Nullable MistakePointer mistakePointer() {
+        return mistakePointer;
     }
 
     /** Heavymatica's files in the game directory (sessions, library, local, cache, import, placements). */
@@ -195,6 +204,8 @@ public final class HeavymaticaClient {
             targeting = new GhostTargeting(placements);
             targeting.register();
             new GhostPick(placements, targeting).register();
+            mistakePointer = new MistakePointer(placements);
+            mistakePointer.register();
             capture = new CaptureController(placements.capture(), HeavymaticaClient::library);
             paste = new CreativePaste();
             paste.register();

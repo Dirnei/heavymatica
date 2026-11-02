@@ -36,9 +36,10 @@ public final class TargetHud {
     private static final int PADDING = 3;
     private static final int LINE = 10;
     private static final int ICON = 16;
-    private static final int GAP_BELOW_CROSSHAIR = 12;
+    static final int GAP_BELOW_CROSSHAIR = 12;
 
     private static volatile boolean shownByJade;
+    private static int bottom = -1;
 
     /** One HUD line; the first line is the block name, drawn next to the icon. */
     public record Line(Component text, int color) {
@@ -62,7 +63,13 @@ public final class TargetHud {
         event.registerAbove(VanillaGuiLayers.CROSSHAIR, ID, this::render);
     }
 
+    /** The bottom edge of the HUD as drawn this frame, or -1 when it is hidden; read by layers drawn after it. */
+    static int bottomThisFrame() {
+        return bottom;
+    }
+
     private void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
+        bottom = -1;
         Minecraft minecraft = Minecraft.getInstance();
         PlacementSession session = sessions.get();
         if (session == null || minecraft.options.hideGui || minecraft.screen != null || minecraft.player == null) {
@@ -88,6 +95,7 @@ public final class TargetHud {
         int x = (graphics.guiWidth() - width) / 2;
         int y = graphics.guiHeight() / 2 + GAP_BELOW_CROSSHAIR;
         graphics.fill(x, y, x + width, y + height, 0x90000000);
+        bottom = y + height;
         int lineY = y + PADDING;
         if (!icon.isEmpty()) {
             graphics.item(icon, x + PADDING, lineY);

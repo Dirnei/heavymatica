@@ -32,6 +32,8 @@ public final class ComparisonState {
     private final int[] layerMatching;
     private final int[] totals = new int[CellState.values().length];
     private final Section[] sections;
+    private final int[] sectionBoxed;
+    private final int[] sectionMissing;
     private final byte[] mask;
     private final BitSet dirtyBoxSections = new BitSet();
     private final Map<Integer, Integer> incompleteFound = new HashMap<>();
@@ -58,6 +60,8 @@ public final class ComparisonState {
         totals[CellState.UNKNOWN.ordinal()] = volume;
         this.sections = new Section[sectionsX * Math.ceilDiv(sizeY, SECTION) * sectionsZ];
         Arrays.fill(sections, Section.PENDING);
+        this.sectionBoxed = new int[sections.length];
+        this.sectionMissing = new int[sections.length];
         this.pending = sections.length;
         this.mask = new byte[Math.max(1, Math.ceilDiv(volume, 8))];
         Arrays.fill(mask, (byte) 0xFF);
@@ -150,9 +154,16 @@ public final class ComparisonState {
             dirtyMaskFrom = Math.min(dirtyMaskFrom, at);
             dirtyMaskTo = Math.max(dirtyMaskTo, at + 1);
         }
-        if (old.boxed() || state.boxed()) {
+        if (old.boxed() || state.boxed() || old == CellState.MISSING || state == CellState.MISSING) {
             int rest = index % layer;
-            markBoxes(rest % sizeX, y, rest / sizeX);
+            int x = rest % sizeX;
+            int z = rest / sizeX;
+            int section = section(x, y, z);
+            sectionBoxed[section] += (state.boxed() ? 1 : 0) - (old.boxed() ? 1 : 0);
+            sectionMissing[section] += (state == CellState.MISSING ? 1 : 0) - (old == CellState.MISSING ? 1 : 0);
+            if (old.boxed() || state.boxed()) {
+                markBoxes(x, y, z);
+            }
         }
         return old;
     }
@@ -204,6 +215,16 @@ public final class ComparisonState {
     /** True until every section has been compared once. */
     public boolean scanning() {
         return pending > 0;
+    }
+
+    /** Boxed positions in a section. */
+    public int boxed(int section) {
+        return sectionBoxed[section];
+    }
+
+    /** Missing positions in a section. */
+    public int missing(int section) {
+        return sectionMissing[section];
     }
 
     public int total(CellState state) {

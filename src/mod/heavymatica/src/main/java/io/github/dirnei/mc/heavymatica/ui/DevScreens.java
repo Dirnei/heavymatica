@@ -156,6 +156,9 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code logPaste}: log whether paste is available, running and undoable, and the progress</li>
  *     <li>{@code waitPaste}: wait until no paste or undo runs, logging progress, frame rate and server tick time</li>
  *     <li>{@code logBlock=<x>,<y>,<z>}: log the integrated server's block state and block-entity data at a position</li>
+ *     <li>{@code mistakePointer=<mode>}: set the mistake pointer to that {@code PointerMode}; {@code logPointer}: log the mistake
+ *     pointer setting and its HUD text with colours and target, or why it is hidden</li>
+ *     <li>{@code layerWindow=<bottom>,<top>}: show only layers bottom to top of the selected locked placement</li>
  *     <li>{@code quit}: stop the game</li>
  * </ul>
  */
@@ -545,6 +548,27 @@ public final class DevScreens {
                     ? hit.getType() + " " + hit.getBlockPos().toShortString() + " " + hit.getDirection() + " " + hit.getLocation()
                     : String.valueOf(minecraft.hitResult == null ? null : minecraft.hitResult.getType()));
             case "clearActionBar" -> minecraft.gui.setOverlayMessage(Component.empty(), false);
+            case "mistakePointer" -> HeavymaticaConfig.setMistakePointer(io.github.dirnei.mc.heavymatica.targeting.PointerMode.valueOf(argument));
+            case "logPointer" -> Heavymatica.LOGGER.info("Dev pointer: setting {}, {}", HeavymaticaConfig.mistakePointer(),
+                    io.github.dirnei.mc.heavymatica.targeting.PointerHud.textForDevelopment(minecraft, HeavymaticaClient.mistakePointer()));
+            case "layerWindow" -> {
+                String[] parts = argument.split(",");
+                int bottom = Integer.parseInt(parts[0]);
+                int top = Integer.parseInt(parts[1]);
+                PlacementSession session = HeavymaticaClient.placements();
+                session.controller().setLayerMode(Layers.Mode.FROM_TO, bottom);
+                for (int i = 0; i < 512; i++) {
+                    Layers layers = session.placements().selected().map(Placement::layers).orElse(Layers.NONE);
+                    if (layers.bottom() == bottom && layers.top() == top || !layers.windowSet()) {
+                        break;
+                    }
+                    if (layers.bottom() != bottom) {
+                        session.controller().moveWindow(Integer.signum(bottom - layers.bottom()));
+                    } else {
+                        session.controller().resizeWindow(Integer.signum(top - layers.top()));
+                    }
+                }
+            }
             case "quit" -> minecraft.stop();
             default -> Heavymatica.LOGGER.warn("Unknown dev screen step {}", step);
         }

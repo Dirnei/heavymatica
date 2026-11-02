@@ -243,4 +243,51 @@ class ComparisonStateTest {
         state.set(7, CellState.UNKNOWN);
         assertEquals(0, state.found(7));
     }
+
+    @Test
+    void sectionCountsFollowBoxedAndMissingStates() {
+        ComparisonState state = new ComparisonState(20, 20, 20, new BitSet());
+        int at = state.index(17, 3, 2);
+        int section = state.section(17, 3, 2);
+        state.set(at, CellState.MISSING);
+        assertEquals(0, state.boxed(section));
+        assertEquals(1, state.missing(section));
+        for (CellState boxed : CellState.values()) {
+            if (!boxed.boxed()) {
+                continue;
+            }
+            state.set(at, boxed);
+            assertEquals(1, state.boxed(section), boxed.name());
+            assertEquals(0, state.missing(section), boxed.name());
+        }
+        state.set(state.index(16, 0, 0), CellState.WRONG_BLOCK);
+        assertEquals(2, state.boxed(section));
+        state.set(at, CellState.MATCHING);
+        assertEquals(1, state.boxed(section));
+        assertEquals(0, state.missing(section));
+        state.set(at, CellState.MISSING);
+        state.set(state.index(16, 0, 0), CellState.MISSING);
+        assertEquals(0, state.boxed(section));
+        assertEquals(2, state.missing(section));
+        state.set(at, CellState.MATCHING);
+        assertEquals(1, state.missing(section));
+        for (int other = 0; other < state.sectionCount(); other++) {
+            if (other != section) {
+                assertEquals(0, state.boxed(other));
+                assertEquals(0, state.missing(other));
+            }
+        }
+    }
+
+    @Test
+    void uncomparedSectionsCountNothing() {
+        ComparisonState state = new ComparisonState(20, 20, 20, new BitSet());
+        state.set(state.index(0, 0, 0), CellState.UNKNOWN);
+        state.set(state.index(1, 0, 0), CellState.IGNORED);
+        state.set(state.index(2, 0, 0), CellState.CANT_CHECK);
+        for (int section = 0; section < state.sectionCount(); section++) {
+            assertEquals(0, state.boxed(section));
+            assertEquals(0, state.missing(section));
+        }
+    }
 }
