@@ -53,7 +53,7 @@ internal sealed class AdminsApi(Admins admins, Invitations invitations, AdminAud
                 return AdminProblems.NotFound("The admin has no such passkey.");
             case RemovePasskeyOutcome.PasskeyRequired:
                 return AdminProblems.Result(StatusCodes.Status409Conflict, ProblemCode.Passkey_required,
-                    $"Every admin keeps at least {Admins.RequiredPasskeys} passkeys. Add another one before removing this one.");
+                    "Every admin keeps at least one passkey. Add another one before removing this one.");
         }
 
         await audit.RecordAsync(Actor, AdminAuditKinds.PasskeyRemoved, adminId, new() { ["passkeyId"] = passkeyId }, cancellationToken);

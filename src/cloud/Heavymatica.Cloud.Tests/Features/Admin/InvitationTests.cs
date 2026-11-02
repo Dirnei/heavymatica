@@ -106,7 +106,7 @@ public sealed class InvitationTests(CloudInfrastructure infrastructure) : IDispo
         using var signIn = await lostDevice.SignInAsync();
 
         Assert.Equal((InvitationKind.Recovery, bob.AdminId, "Bob"), (invitation.Kind, invitation.AdminId, invitation.AdminName));
-        Assert.Equal((bob.AdminId, 3), (session.AdminId, session.PasskeyCount));
+        Assert.Equal((bob.AdminId, 2), (session.AdminId, session.PasskeyCount));
         Assert.Equal(bob.AdminId, (await AdminBrowser.ReadAsync<AdminSession>(signIn)).AdminId);
         Assert.Equal(2, await AdminUser.In(Site.Factory.Database).CountDocumentsAsync(_ => true, cancellationToken: Cancel));
     }

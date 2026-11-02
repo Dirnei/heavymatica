@@ -4,7 +4,7 @@ using Heavymatica.Cloud.Contract.Admin;
 namespace Heavymatica.Cloud.Tests.Features.Admin;
 
 [Trait("Category", "Integration")]
-public sealed class SecondPasskeyTests(CloudInfrastructure infrastructure) : IDisposable
+public sealed class AdditionalPasskeyTests(CloudInfrastructure infrastructure) : IDisposable
 {
     private AdminSite? site;
 
@@ -13,36 +13,37 @@ public sealed class SecondPasskeyTests(CloudInfrastructure infrastructure) : IDi
     public void Dispose() => site?.Dispose();
 
     [Fact]
-    public async Task An_admin_with_one_passkey_can_only_add_a_second_and_then_everything_works()
+    public async Task An_admin_with_one_passkey_can_use_every_call_and_add_more_passkeys()
     {
         var (browser, session) = await Site.AdminAsync(passkeys: 1);
 
-        using var blocked = await browser.GetAsync("/admin/v1/accounts?q=steve");
+        using var accounts = await browser.GetAsync("/admin/v1/accounts?q=steve");
         using var admins = await browser.GetAsync("/admin/v1/admins");
         using var invite = await browser.PostAsync("/admin/v1/invitations", new { kind = "admin" });
         using var added = await browser.AddPasskeyAsync("Phone");
         var after = await AdminBrowser.ReadAsync<AdminSession>(added);
-        using var allowed = await browser.GetAsync("/admin/v1/accounts?q=steve");
 
-        Assert.Equal((1, true), (session.PasskeyCount, session.NeedsSecondPasskey));
-        Assert.Equal(HttpStatusCode.Forbidden, blocked.StatusCode);
-        Assert.Equal(ProblemCode.Second_passkey_required, (await blocked.AdminProblemAsync()).Code);
-        Assert.Equal(HttpStatusCode.Forbidden, admins.StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, invite.StatusCode);
-        Assert.Equal((2, false), (after.PasskeyCount, after.NeedsSecondPasskey));
-        Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+        Assert.Equal(1, session.PasskeyCount);
+        Assert.Equal(HttpStatusCode.OK, accounts.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, admins.StatusCode);
+        Assert.True(invite.IsSuccessStatusCode, invite.StatusCode.ToString());
+        Assert.Equal(2, after.PasskeyCount);
     }
 
     [Fact]
-    public async Task An_admin_with_one_passkey_still_reads_the_session_and_signs_out()
+    public async Task Removing_the_last_passkey_is_refused_and_any_other_can_go()
     {
-        var (browser, _) = await Site.AdminAsync(passkeys: 1);
+        var (browser, session) = await Site.AdminAsync(passkeys: 2);
+        var first = browser.Authenticator.Credentials[0].IdText;
+        var second = browser.Authenticator.Credentials[1].IdText;
 
-        using var session = await browser.GetAsync("/admin/v1/session");
-        using var signOut = await browser.PostAsync("/admin/v1/sign-out");
+        using var removed = await browser.DeleteAsync($"/admin/v1/admins/{session.AdminId}/passkeys/{first}");
+        using var refused = await browser.DeleteAsync($"/admin/v1/admins/{session.AdminId}/passkeys/{second}");
 
-        Assert.Equal(HttpStatusCode.OK, session.StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, signOut.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, removed.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal(ProblemCode.Passkey_required, (await refused.AdminProblemAsync()).Code);
+        Assert.Equal(1, (await browser.SessionAsync()).PasskeyCount);
     }
 
     [Fact]

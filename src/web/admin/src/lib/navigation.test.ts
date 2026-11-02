@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   accountUrl,
   accountsUrl,
-  afterSignIn,
   invitationToken,
   isWellFormedSetupCode,
   normalizeSetupCode,
@@ -32,14 +31,6 @@ describe('signInUrl', () => {
   it('leaves out the default destinations', () => {
     expect(signInUrl('/accounts/', false)).toBe('/');
     expect(signInUrl('/passkeys/', true)).toBe('/?ended=1');
-  });
-});
-
-describe('afterSignIn', () => {
-  it('asks for a second passkey first', () => {
-    expect(afterSignIn({ needsSecondPasskey: true }, '/audit/')).toBe('/passkeys/');
-    expect(afterSignIn({ needsSecondPasskey: false }, '/audit/')).toBe('/audit/');
-    expect(afterSignIn({ needsSecondPasskey: false }, '//evil.example')).toBe('/accounts/');
   });
 });
 

@@ -61,7 +61,7 @@ internal sealed class AdminSite : IDisposable
         (await Factory.Services.GetRequiredService<SetupCodes>().IssueAsync(adminId, Cancel))!.Code;
 
     /// <summary>A new admin from a setup code, with the given number of passkeys, signed in.</summary>
-    public async Task<(AdminBrowser Browser, AdminSession Session)> AdminAsync(string displayName = "Alice", int passkeys = 2)
+    public async Task<(AdminBrowser Browser, AdminSession Session)> AdminAsync(string displayName = "Alice", int passkeys = 1)
     {
         var browser = Browser();
         using var registered = await browser.RegisterAsync(new { setupCode = await SetupCodeAsync(), displayName });

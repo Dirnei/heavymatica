@@ -116,7 +116,7 @@ public sealed class SetupCodeTests(CloudInfrastructure infrastructure) : IDispos
             "YubiKey");
         var session = await AdminBrowser.ReadAsync<AdminSession>(response);
 
-        Assert.Equal(("Alice", 1, true), (session.DisplayName, session.PasskeyCount, session.NeedsSecondPasskey));
+        Assert.Equal(("Alice", 1), (session.DisplayName, session.PasskeyCount));
         var admin = await AdminUser.In(Database).Find(_ => true).SingleAsync(Cancel);
         var passkey = await AdminPasskeyDocument.In(Database).Find(_ => true).SingleAsync(Cancel);
         Assert.Equal((session.AdminId, "Alice"), (admin.Id, admin.DisplayName));
@@ -207,7 +207,7 @@ public sealed class SetupCodeTests(CloudInfrastructure infrastructure) : IDispos
 
         using var signIn = await recovering.SignInAsync();
 
-        Assert.Equal((alice.AdminId, "Alice", 3), (session.AdminId, session.DisplayName, session.PasskeyCount));
+        Assert.Equal((alice.AdminId, "Alice", 2), (session.AdminId, session.DisplayName, session.PasskeyCount));
         Assert.Equal(1, await AdminUser.In(Database).CountDocumentsAsync(_ => true, cancellationToken: Cancel));
         Assert.Equal(alice.AdminId, (await AdminBrowser.ReadAsync<AdminSession>(signIn)).AdminId);
     }

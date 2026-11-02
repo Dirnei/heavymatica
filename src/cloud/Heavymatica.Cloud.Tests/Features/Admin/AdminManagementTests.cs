@@ -23,7 +23,6 @@ public sealed class AdminManagementTests(CloudInfrastructure infrastructure) : I
         var browser = Site.Browser();
         using var registered = await browser.RegisterAsync(new { invitationToken = invitation.Url!.Fragment.TrimStart('#'), displayName });
         Assert.Equal(HttpStatusCode.OK, registered.StatusCode);
-        using var second = await browser.AddPasskeyAsync();
         return (browser, await browser.SessionAsync());
     }
 
@@ -37,7 +36,7 @@ public sealed class AdminManagementTests(CloudInfrastructure infrastructure) : I
         using var response = await alice.GetAsync("/admin/v1/admins");
         var list = await AdminBrowser.ReadAsync<AdminList>(response);
 
-        Assert.Equal([(aliceSession.AdminId, "Alice", 2, true), (bobSession.AdminId, "Bob", 2, false)],
+        Assert.Equal([(aliceSession.AdminId, "Alice", 1, true), (bobSession.AdminId, "Bob", 1, false)],
             list.Admins.Select(admin => (admin.Id, admin.DisplayName, admin.Passkeys.Count, admin.IsYou)));
         Assert.Equal(alice.Authenticator.Credentials.Select(credential => credential.IdText).Order(), list.Admins[0].Passkeys.Select(passkey => passkey.Id).Order());
     }
@@ -95,7 +94,7 @@ public sealed class AdminManagementTests(CloudInfrastructure infrastructure) : I
     }
 
     [Fact]
-    public async Task A_passkey_is_not_removed_when_it_would_leave_fewer_than_two()
+    public async Task An_admins_last_passkey_is_not_removed()
     {
         var (alice, session) = await Site.AdminAsync("Alice");
         var passkey = alice.Authenticator.Credentials[0].IdText;
@@ -104,15 +103,15 @@ public sealed class AdminManagementTests(CloudInfrastructure infrastructure) : I
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(ProblemCode.Passkey_required, (await response.AdminProblemAsync()).Code);
-        Assert.Equal(2, (await alice.SessionAsync()).PasskeyCount);
+        Assert.Equal(1, (await alice.SessionAsync()).PasskeyCount);
     }
 
     [Fact]
-    public async Task A_third_passkey_can_be_removed_by_any_admin()
+    public async Task A_second_passkey_can_be_removed_by_any_admin()
     {
         var (alice, _) = await Site.AdminAsync("Alice");
         var (bob, bobSession) = await InvitedAsync(alice, "Bob");
-        using var third = await bob.AddPasskeyAsync();
+        using var second = await bob.AddPasskeyAsync();
         var passkey = bob.Authenticator.Credentials[0];
 
         using var response = await alice.DeleteAsync($"/admin/v1/admins/{bobSession.AdminId}/passkeys/{passkey.IdText}");
@@ -125,7 +124,7 @@ public sealed class AdminManagementTests(CloudInfrastructure infrastructure) : I
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
-        Assert.Equal(2, await AdminPasskeyDocument.In(Site.Factory.Database).CountDocumentsAsync(candidate => candidate.AdminId == bobSession.AdminId,
+        Assert.Equal(1, await AdminPasskeyDocument.In(Site.Factory.Database).CountDocumentsAsync(candidate => candidate.AdminId == bobSession.AdminId,
             cancellationToken: Cancel));
         Assert.Equal(ProblemCode.Passkey_failed, (await signIn.AdminProblemAsync()).Code);
     }

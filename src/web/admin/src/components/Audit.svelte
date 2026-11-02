@@ -5,7 +5,7 @@
   import { formatTime } from '../lib/format';
   import { accountUrl } from '../lib/navigation';
   import { messageOf, offlineMessage } from '../lib/problems';
-  import { requireAdmin } from '../lib/session';
+  import { loadSession } from '../lib/session';
   import Notice from './Notice.svelte';
 
   const pageSize = 50;
@@ -18,7 +18,7 @@
 
   onMount(async () => {
     try {
-      if (!(await requireAdmin())) {
+      if (!(await loadSession())) {
         return;
       }
     } catch {

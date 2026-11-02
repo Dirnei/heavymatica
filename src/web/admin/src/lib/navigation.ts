@@ -30,11 +30,6 @@ export function signInUrl(current: string, ended: boolean): string {
   return search ? `${signInPath}?${search}` : signInPath;
 }
 
-/** Where a fresh admin session goes: the passkey page while a second passkey is missing, otherwise `returnTo`. */
-export function afterSignIn(session: { needsSecondPasskey: boolean }, returnTo: string | null | undefined): string {
-  return session.needsSecondPasskey ? passkeysPath : safeReturnTo(returnTo);
-}
-
 /** The invitation token from the link's fragment, `#token` or `#token=…`. */
 export function invitationToken(hash: string): string | undefined {
   const fragment = hash.startsWith('#') ? hash.slice(1) : hash;

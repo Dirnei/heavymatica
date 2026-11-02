@@ -34,7 +34,6 @@ internal static class AdminContract
             AdminId = admin.Id,
             DisplayName = admin.DisplayName,
             PasskeyCount = passkeyCount,
-            NeedsSecondPasskey = passkeyCount < Admins.RequiredPasskeys,
             ExpiresAt = Utc(expiresAt),
         };
     }

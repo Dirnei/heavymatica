@@ -1,7 +1,6 @@
 import createClient, { type Middleware } from 'openapi-fetch';
 import type { components, paths } from '../api/schema';
-import { passkeysPath, signInPath, signInUrl } from './navigation';
-import { codeOf } from './problems';
+import { signInPath, signInUrl } from './navigation';
 
 export type AdminSession = components['schemas']['AdminSession'];
 export type Admin = components['schemas']['Admin'];
@@ -30,12 +29,6 @@ export function goToSignIn(): void {
   window.location.assign(signInUrl(window.location.pathname + window.location.search, sessionConfirmed));
 }
 
-export function goToPasskeys(): void {
-  if (window.location.pathname !== passkeysPath) {
-    window.location.assign(passkeysPath);
-  }
-}
-
 const marker: Middleware = {
   onRequest({ request }) {
     request.headers.set(requestMarker.name, requestMarker.value);
@@ -44,17 +37,9 @@ const marker: Middleware = {
 };
 
 const session: Middleware = {
-  async onResponse({ response }) {
+  onResponse({ response }) {
     if (response.status === 401) {
       goToSignIn();
-    } else if (response.status === 403) {
-      const body: unknown = await response
-        .clone()
-        .json()
-        .catch(() => undefined);
-      if (codeOf(body) === 'second_passkey_required') {
-        goToPasskeys();
-      }
     }
     return response;
   },

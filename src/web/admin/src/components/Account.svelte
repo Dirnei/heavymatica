@@ -5,7 +5,7 @@
   import { formatBytes, formatCount, formatTime, providerName, usagePercent } from '../lib/format';
   import { accountsPath, auditPath } from '../lib/navigation';
   import { messageOf, offlineMessage } from '../lib/problems';
-  import { requireAdmin } from '../lib/session';
+  import { loadSession } from '../lib/session';
   import Notice from './Notice.svelte';
   import QuotaForm from './QuotaForm.svelte';
 
@@ -23,7 +23,7 @@
       return;
     }
     try {
-      if (!(await requireAdmin())) {
+      if (!(await loadSession())) {
         return;
       }
       const { data, error: problem, response } = await api.GET('/v1/accounts/{accountId}', {

@@ -21,7 +21,7 @@
   onMount(async () => {
     try {
       const current = await loadSession();
-      if (current && !current.needsSecondPasskey) {
+      if (current) {
         await loadPasskeys();
       }
       loaded = !!current;
@@ -43,15 +43,8 @@
     if (outcome.ok) {
       updateSession(outcome.session);
       passkeyLabel = '';
-      message = {
-        tone: 'success',
-        text: outcome.session.needsSecondPasskey
-          ? 'The passkey was added.'
-          : `The passkey was added. You now have ${outcome.session.passkeyCount} passkeys.`,
-      };
-      if (!outcome.session.needsSecondPasskey) {
-        await loadPasskeys().catch(() => undefined);
-      }
+      message = { tone: 'success', text: `The passkey was added. You now have ${outcome.session.passkeyCount} passkeys.` };
+      await loadPasskeys().catch(() => undefined);
     } else {
       message = { tone: outcome.cancelled ? 'info' : 'error', text: outcome.message };
     }
@@ -65,16 +58,15 @@
   <Notice message={loadError} />
 
   {#if loaded && $session}
-    {#if $session.needsSecondPasskey}
-      <div class="notice warning">
-        <p>
-          <strong>Register a second passkey to continue.</strong> Every admin needs two passkeys, ideally on different
-          devices or a security key, so that losing one does not lock you out. Until then this page and signing out are
-          all the admin site offers.
-        </p>
-      </div>
-    {:else}
-      <p>You have {$session.passkeyCount} passkeys. Passkeys are removed on the <a href="/admins/">Admins</a> page.</p>
+    <p>
+      You have {$session.passkeyCount === 1 ? 'one passkey' : `${$session.passkeyCount} passkeys`}. Passkeys are removed
+      on the <a href="/admins/">Admins</a> page.
+    </p>
+    {#if $session.passkeyCount === 1}
+      <p class="hint">
+        Tip: a second passkey on another device or a security key lets you sign in when this one is lost, without asking
+        for a recovery code.
+      </p>
     {/if}
 
     <form class="card form" onsubmit={add}>
@@ -90,9 +82,7 @@
       <Notice tone={message?.tone ?? 'error'} message={message?.text} />
       <div class="actions">
         <button type="submit" class="primary" disabled={busy || !supported}>Add a passkey</button>
-        {#if !$session.needsSecondPasskey}
-          <a class="button" href={accountsPath}>Continue to the accounts</a>
-        {/if}
+        <a class="button" href={accountsPath}>Continue to the accounts</a>
       </div>
     </form>
 

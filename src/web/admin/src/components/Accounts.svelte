@@ -4,7 +4,7 @@
   import { formatBytes, formatTime, providerName, shortId } from '../lib/format';
   import { accountUrl, accountsUrl } from '../lib/navigation';
   import { messageOf, offlineMessage } from '../lib/problems';
-  import { requireAdmin } from '../lib/session';
+  import { loadSession } from '../lib/session';
   import Notice from './Notice.svelte';
 
   let ready = $state(false);
@@ -16,7 +16,7 @@
 
   onMount(async () => {
     try {
-      ready = !!(await requireAdmin());
+      ready = !!(await loadSession());
     } catch {
       error = offlineMessage;
       return;

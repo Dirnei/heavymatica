@@ -3,10 +3,8 @@
   import { api, type Admin, type Invitation, type InvitationKind, type Passkey } from '../lib/api';
   import { formatTime, shortId } from '../lib/format';
   import { messageOf, offlineMessage } from '../lib/problems';
-  import { requireAdmin } from '../lib/session';
+  import { loadSession } from '../lib/session';
   import Notice from './Notice.svelte';
-
-  const minPasskeys = 2;
 
   let ready = $state(false);
   let admins = $state<Admin[]>([]);
@@ -19,7 +17,7 @@
 
   onMount(async () => {
     try {
-      if (!(await requireAdmin())) {
+      if (!(await loadSession())) {
         return;
       }
       await refresh();
@@ -210,8 +208,8 @@
     </div>
 
     <p class="hint">
-      Every admin keeps at least {minPasskeys} passkeys, so a passkey can only be removed while its admin has more. An
-      admin who lost their passkeys gets a recovery link that adds a new one.
+      Every admin keeps at least one passkey, so an admin's last passkey cannot be removed. An admin who lost their
+      passkeys gets a recovery link that adds a new one.
     </p>
 
     {#each admins as admin (admin.id)}
@@ -246,8 +244,8 @@
                       type="button"
                       class="danger"
                       onclick={() => removePasskey(admin, passkey)}
-                      disabled={busy || admin.passkeys.length <= minPasskeys}
-                      title={admin.passkeys.length <= minPasskeys ? `An admin keeps at least ${minPasskeys} passkeys.` : undefined}
+                      disabled={busy || admin.passkeys.length <= 1}
+                      title={admin.passkeys.length <= 1 ? 'An admin keeps at least one passkey.' : undefined}
                     >
                       Remove
                     </button>
@@ -259,12 +257,6 @@
             </tbody>
           </table>
         </div>
-        {#if admin.passkeys.length < minPasskeys}
-          <p class="notice warning">
-            {admin.isYou ? 'You have' : `${admin.displayName} has`} fewer than {minPasskeys} passkeys and can only register
-            another one until then.
-          </p>
-        {/if}
       </div>
     {/each}
   {:else if !error}

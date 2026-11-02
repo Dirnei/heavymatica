@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { signInApi } from '../lib/api';
   import { registerWithCode, signInWithPasskey, type Outcome } from '../lib/ceremonies';
-  import { afterSignIn, isWellFormedSetupCode, normalizeSetupCode } from '../lib/navigation';
+  import { isWellFormedSetupCode, normalizeSetupCode, safeReturnTo } from '../lib/navigation';
   import { passkeysSupported } from '../lib/webauthn';
   import Notice from './Notice.svelte';
 
@@ -24,7 +24,7 @@
     try {
       const { data } = await signInApi.GET('/v1/session');
       if (data) {
-        window.location.replace(afterSignIn(data, returnTo));
+        window.location.replace(safeReturnTo(returnTo));
         return;
       }
     } catch {
@@ -35,7 +35,7 @@
 
   function follow(outcome: Outcome): { text: string; cancelled: boolean } | undefined {
     if (outcome.ok) {
-      window.location.assign(afterSignIn(outcome.session, returnTo));
+      window.location.assign(safeReturnTo(returnTo));
       return undefined;
     }
     return { text: outcome.message, cancelled: outcome.cancelled };

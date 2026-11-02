@@ -17,11 +17,9 @@ internal enum RemovePasskeyOutcome
     PasskeyRequired,
 }
 
-/// <summary>Admins and their passkeys. Every admin keeps at least two passkeys once they have two, and one admin always remains.</summary>
+/// <summary>Admins and their passkeys. Every admin keeps at least one passkey, and one admin always remains.</summary>
 internal sealed class Admins(IMongoDatabase database, AdminSessions sessions, TimeProvider time)
 {
-    public const int RequiredPasskeys = 2;
-
     private readonly IMongoCollection<AdminUser> admins = AdminUser.In(database);
     private readonly IMongoCollection<AdminPasskeyDocument> passkeys = AdminPasskeyDocument.In(database);
 
@@ -114,7 +112,7 @@ internal sealed class Admins(IMongoDatabase database, AdminSessions sessions, Ti
         return (RemoveAdminOutcome.Removed, admin);
     }
 
-    /// <summary>Removes one passkey of an admin unless that would leave them with fewer than two.</summary>
+    /// <summary>Removes one passkey of an admin unless it is their last one.</summary>
     public async Task<RemovePasskeyOutcome> RemovePasskeyAsync(string adminId, string passkeyId, CancellationToken cancellationToken)
     {
         var passkey = await passkeys.Find(candidate => candidate.Id == passkeyId && candidate.AdminId == adminId).FirstOrDefaultAsync(cancellationToken);
@@ -123,7 +121,7 @@ internal sealed class Admins(IMongoDatabase database, AdminSessions sessions, Ti
             return RemovePasskeyOutcome.NotFound;
         }
 
-        if (await PasskeyCountAsync(adminId, cancellationToken) <= RequiredPasskeys)
+        if (await PasskeyCountAsync(adminId, cancellationToken) <= 1)
         {
             return RemovePasskeyOutcome.PasskeyRequired;
         }
@@ -133,8 +131,8 @@ internal sealed class Admins(IMongoDatabase database, AdminSessions sessions, Ti
             return RemovePasskeyOutcome.NotFound;
         }
 
-        // Concurrent removals can each pass the count; the one that goes below the minimum puts its passkey back.
-        if (await PasskeyCountAsync(adminId, cancellationToken) < RequiredPasskeys)
+        // Concurrent removals can each pass the count; the one that removed the last passkey puts it back.
+        if (await PasskeyCountAsync(adminId, cancellationToken) == 0)
         {
             await passkeys.InsertOneAsync(passkey, cancellationToken: cancellationToken);
             return RemovePasskeyOutcome.PasskeyRequired;

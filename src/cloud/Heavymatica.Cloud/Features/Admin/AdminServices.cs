@@ -130,41 +130,20 @@ internal static class AdminServices
         }
     }
 
-    /// <summary>
-    /// Rejects invalid requests with the admin contract's problem, and while the signed-in admin has fewer than two
-    /// passkeys answers every call but the session, adding a passkey and sign-out with <c>second_passkey_required</c>.
-    /// </summary>
-    private sealed class AdminFilter : IAsyncActionFilter
+    /// <summary>Rejects invalid requests with the admin contract's problem.</summary>
+    private sealed class AdminFilter : IActionFilter
     {
-        private static readonly HashSet<(Type, string)> AllowedWithOnePasskey =
-        [
-            (typeof(AdminSessionController), nameof(AdminSessionController.GetSession)),
-            (typeof(AdminSessionController), nameof(AdminSessionController.SignOut)),
-            (typeof(AdminRegistrationController), nameof(AdminRegistrationController.CreatePasskeyOptions)),
-            (typeof(AdminRegistrationController), nameof(AdminRegistrationController.AddPasskey)),
-        ];
-
-        public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+        public void OnActionExecuting(ActionExecutingContext context)
         {
             if (!context.ModelState.IsValid)
             {
                 var error = context.ModelState.Values.SelectMany(entry => entry.Errors).FirstOrDefault();
                 context.Result = AdminProblems.Invalid(error?.ErrorMessage is { Length: > 0 } message ? message : "The request is not valid.");
-                return;
             }
+        }
 
-            if (context.ActionDescriptor is ControllerActionDescriptor action
-                && AdminSessions.TryCaller(context.HttpContext) is { } caller
-                && !AllowedWithOnePasskey.Contains((action.ControllerTypeInfo.AsType(), action.ActionName))
-                && await context.HttpContext.RequestServices.GetRequiredService<Admins>().PasskeyCountAsync(caller.Admin.Id, context.HttpContext.RequestAborted)
-                    < Admins.RequiredPasskeys)
-            {
-                context.Result = AdminProblems.Result(StatusCodes.Status403Forbidden, ProblemCode.Second_passkey_required,
-                    "Register a second passkey first.");
-                return;
-            }
-
-            await next();
+        public void OnActionExecuted(ActionExecutedContext context)
+        {
         }
     }
 

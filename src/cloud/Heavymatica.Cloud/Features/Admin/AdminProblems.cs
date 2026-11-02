@@ -44,7 +44,6 @@ internal static class AdminProblems
         [ProblemCode.Internal_error] = "Unexpected error",
         [ProblemCode.Setup_code_invalid] = "Setup code not valid",
         [ProblemCode.Invitation_invalid] = "Invitation not valid",
-        [ProblemCode.Second_passkey_required] = "Second passkey required",
         [ProblemCode.Passkey_required] = "Passkey still needed",
         [ProblemCode.Last_admin] = "Last admin",
         [ProblemCode.Cannot_remove_self] = "Cannot remove yourself",

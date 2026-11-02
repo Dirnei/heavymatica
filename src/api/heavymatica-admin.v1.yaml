@@ -37,7 +37,7 @@ paths:
       description: Answers 401 once the session ended, so the admin site knows to show the sign-in.
       responses:
         '200':
-          description: The signed-in admin and whether a second passkey is still needed.
+          description: The signed-in admin.
           content:
             application/json:
               schema:
@@ -269,7 +269,7 @@ paths:
       tags: [Admins]
       operationId: removePasskey
       summary: Remove a passkey of an admin
-      description: Refused when it would leave the admin with fewer than two passkeys.
+      description: Refused when it is the admin's last passkey.
       responses:
         '204':
           description: Removed.
@@ -549,7 +549,6 @@ components:
         - internal_error
         - setup_code_invalid
         - invitation_invalid
-        - second_passkey_required
         - passkey_required
         - last_admin
         - cannot_remove_self
@@ -594,7 +593,7 @@ components:
 
     AdminSession:
       type: object
-      required: [adminId, displayName, passkeyCount, needsSecondPasskey, expiresAt]
+      required: [adminId, displayName, passkeyCount, expiresAt]
       properties:
         adminId:
           type: string
@@ -603,9 +602,6 @@ components:
         passkeyCount:
           type: integer
           format: int32
-        needsSecondPasskey:
-          type: boolean
-          description: True while the admin has fewer than two passkeys; until then only adding a passkey and signing out work.
         expiresAt:
           type: string
           format: date-time

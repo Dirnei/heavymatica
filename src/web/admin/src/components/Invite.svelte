@@ -1,6 +1,6 @@
 <script lang="ts">
   import { registerWithCode } from '../lib/ceremonies';
-  import { afterSignIn, invitationToken } from '../lib/navigation';
+  import { accountsPath, invitationToken } from '../lib/navigation';
   import { passkeysSupported } from '../lib/webauthn';
   import Notice from './Notice.svelte';
 
@@ -22,7 +22,7 @@
     const name = displayName.trim();
     const outcome = await registerWithCode({ invitationToken: token, ...(name ? { displayName: name } : {}) }, passkeyLabel);
     if (outcome.ok) {
-      window.location.assign(afterSignIn(outcome.session, null));
+      window.location.assign(accountsPath);
       return;
     }
     message = { text: outcome.message, cancelled: outcome.cancelled };

@@ -25,7 +25,7 @@
 </script>
 
 <div class="bar">
-  {#if $session && !$session.needsSecondPasskey}
+  {#if $session}
     <nav class="site-nav" aria-label="Admin pages">
       {#each links as link (link.href)}
         <a href={link.href} aria-current={current === link.href ? 'page' : undefined}>{link.label}</a>

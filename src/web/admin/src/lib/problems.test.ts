@@ -11,7 +11,6 @@ const adminCodes = [
   'internal_error',
   'setup_code_invalid',
   'invitation_invalid',
-  'second_passkey_required',
   'passkey_required',
   'last_admin',
   'cannot_remove_self',
@@ -42,7 +41,7 @@ describe('problemMessage', () => {
   it('names what the admin needs to do', () => {
     expect(problemMessage('setup_code_invalid')).toMatch(/setup command/);
     expect(problemMessage('invitation_invalid')).toMatch(/new one/);
-    expect(problemMessage('passkey_required')).toMatch(/two passkeys/);
+    expect(problemMessage('passkey_required')).toMatch(/at least one passkey/);
     expect(problemMessage('last_admin')).toMatch(/last admin/);
     expect(problemMessage('cannot_remove_self')).toMatch(/another admin/);
     expect(problemMessage('rate_limited')).toMatch(/Wait/);

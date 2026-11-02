@@ -32,7 +32,7 @@ public sealed class AdminSignInTests(CloudInfrastructure infrastructure) : IDisp
         using var signOut = await browser.PostAsync("/admin/v1/sign-out");
         using var after = await browser.GetAsync("/admin/v1/session");
 
-        Assert.Equal((created.AdminId, "Alice", 2, false), (session.AdminId, session.DisplayName, session.PasskeyCount, session.NeedsSecondPasskey));
+        Assert.Equal((created.AdminId, "Alice", 1), (session.AdminId, session.DisplayName, session.PasskeyCount));
         Assert.Equal(Site.Clock.GetUtcNow().AddHours(8), session.ExpiresAt, TimeSpan.FromSeconds(1));
         Assert.Equal(session.AdminId, read.AdminId);
         Assert.Equal(HttpStatusCode.NoContent, signOut.StatusCode);
