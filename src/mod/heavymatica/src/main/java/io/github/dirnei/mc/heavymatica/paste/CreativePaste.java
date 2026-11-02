@@ -4,6 +4,7 @@ import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.placement.GhostView;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
+import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -26,7 +27,8 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Pastes placements into the player's own single-player world while in creative mode, one job at a time, and keeps
  * what the last paste changed until it is undone or the player leaves the world. Plans are built on the client
- * thread; jobs run on the integrated server's tick, which fires in this process.
+ * thread; jobs run on the integrated server's tick, which fires in this process. Undoing a paste also puts back the
+ * placement the paste finished.
  */
 public final class CreativePaste {
 
@@ -36,12 +38,23 @@ public final class CreativePaste {
     public record Progress(boolean undo, double share) {
     }
 
+    private final PlacementSession session;
     private final AtomicReference<@Nullable PasteJob> running = new AtomicReference<>();
     private volatile @Nullable PasteRecord last;
     /** The record a running paste replaced, back in place if the server refuses the paste. */
     private volatile @Nullable PasteRecord replaced;
 
+    public CreativePaste(PlacementSession session) {
+        this.session = session;
+    }
+
     public void register() {
+        session.onFinish((placement, cantCheck) -> {
+            PasteRecord record = last;
+            if (record != null) {
+                record.finish().finished(placement, System.currentTimeMillis());
+            }
+        });
         NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) -> serverTick(event.getServer()));
         NeoForge.EVENT_BUS.addListener((ServerStoppingEvent event) -> stop());
         NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) -> stop());
@@ -110,7 +123,8 @@ public final class CreativePaste {
                 return PastePlan.unknown(view.entry(paletteIndex), placed.isAir()) ? null : placed;
             }
         }, model, placement.rotation(), placement.mirror(), bounds.minX(), bounds.minY(), bounds.minZ());
-        PasteRecord record = new PasteRecord(ResourceKey.create(Registries.DIMENSION, Identifier.parse(placement.dimension())));
+        PasteRecord record = new PasteRecord(ResourceKey.create(Registries.DIMENSION, Identifier.parse(placement.dimension())),
+                new PasteFinish(placement.id()));
         if (running.compareAndSet(null, PasteJob.paste(server, player.getUUID(), plan, mode, record))) {
             replaced = last;
             last = record;
@@ -150,8 +164,14 @@ public final class CreativePaste {
                     if (last == job.record()) {
                         last = null;
                     }
+                    job.record().finish().finished().ifPresent(placement -> {
+                        if (session.restoreFinished(placement)) {
+                            Heavymatica.LOGGER.info("Undo paste put back placement {}", placement.name());
+                        }
+                    });
                     message(player, Component.translatable("heavymatica.paste.undone"));
                 } else {
+                    job.record().finish().pasteDone(System.currentTimeMillis());
                     message(player, Component.translatable("heavymatica.paste.done", job.record().size()));
                 }
             }

@@ -81,6 +81,23 @@ class FinishesTest {
     }
 
     @Test
+    void aRestoredPlacementCanNoLongerBeBroughtBack() {
+        finishes.finish(placement, 1_000);
+        finishes.restored(placement);
+        assertFalse(finishes.canBringBack(2_000));
+        assertFalse(finishes.check(placement.id(), 200, 200, true));
+    }
+
+    @Test
+    void restoringAnOlderPlacementKeepsTheLatestOffer() {
+        Placement second = PlacementTransformTest.placement(3, 3, 3, State.LOCKED);
+        finishes.finish(placement, 1_000);
+        finishes.finish(second, 2_000);
+        finishes.restored(placement);
+        assertEquals(Optional.of(second), finishes.bringBack(3_000));
+    }
+
+    @Test
     void clearForgetsEverything() {
         finishes.finish(placement, 1_000);
         finishes.clear();

@@ -55,6 +55,16 @@ Before changing a position the job records its previous state and, if it has a b
 the same job in reverse order with the recorded states and NBT, then drops the record. A new paste replaces the record;
 leaving the world (client logout or server stopping) drops it and cancels a running job after its current section.
 
+The record also notes the pasted placement's ID. A paste that makes a locked placement match the world lets the finish
+remove it at once, so the paste listens to the session's finishes and keeps the placement of the first finish of that
+ID while the job runs or within 30 s after it is done (the comparison sees the last blocks a little later). When the
+undo job is done the session puts that placement back unless its ID is present again (already brought back), and marks
+it like a brought-back placement: no bring back offer for it any more, and no new finish until it is seen below
+complete with every position compared.
+
+- *Alternative: let the finish skip placements being pasted.* Rejected: the finish feedback and bring back after a
+  paste are wanted; only undo needs the placement back.
+
 ### D5: Availability
 
 Paste is available when `minecraft.hasSingleplayerServer()`, the local player is in creative mode, and no job runs. The

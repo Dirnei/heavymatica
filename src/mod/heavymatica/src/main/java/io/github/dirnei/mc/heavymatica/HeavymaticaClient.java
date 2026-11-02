@@ -207,7 +207,7 @@ public final class HeavymaticaClient {
             mistakePointer = new MistakePointer(placements);
             mistakePointer.register();
             capture = new CaptureController(placements.capture(), HeavymaticaClient::library);
-            paste = new CreativePaste();
+            paste = new CreativePaste(placements);
             paste.register();
             new RemoteInput(placements, HeavymaticaClient::openLibrary, HeavymaticaClient::openMaterials, capture, paste).register();
             new BuildInput(placements, targeting).register();

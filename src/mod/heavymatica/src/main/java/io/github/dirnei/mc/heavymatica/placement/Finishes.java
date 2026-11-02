@@ -60,6 +60,17 @@ final class Finishes {
         return Optional.of(placement);
     }
 
+    /**
+     * Treats a finished placement put back by other means like a brought-back one: it can no longer be brought back
+     * and does not finish again at once.
+     */
+    void restored(Placement placement) {
+        if (latest != null && latest.placement().id().equals(placement.id())) {
+            latest = null;
+        }
+        disarmed.add(placement.id());
+    }
+
     void clear() {
         disarmed.clear();
         latest = null;

@@ -107,6 +107,19 @@ public final class PlacementSession {
         finishes.bringBack(System.currentTimeMillis()).ifPresent(placements::add);
     }
 
+    /**
+     * Puts a finished placement back as it was, selected, unless a placement with its ID is there again; it then can
+     * no longer be brought back. Returns whether it was put back.
+     */
+    public boolean restoreFinished(Placement placement) {
+        if (!inWorld || placements.get(placement.id()).isPresent()) {
+            return false;
+        }
+        finishes.restored(placement);
+        placements.add(placement);
+        return true;
+    }
+
     /** The placement's schematic once loaded; null while loading or unavailable. */
     public @Nullable SchematicModel model(Placement placement) {
         return models.get(placement.source().sha256());

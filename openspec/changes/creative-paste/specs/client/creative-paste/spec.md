@@ -99,3 +99,23 @@ Only the last paste SHALL be undoable; a new paste replaces what is remembered. 
 #### Scenario: After leaving the world
 - **WHEN** the player pastes, leaves the world and joins it again
 - **THEN** Undo paste is not available
+
+### Requirement: Undo brings back the placement the paste finished
+When a paste causes a locked placement to finish and be removed, Undo paste SHALL, once the blocks are restored, put
+that placement back as it was when it finished (entry and version, position, rotation, mirror, swaps, locked state,
+layers and in-hand flag), selected, and SHALL no longer offer it for bring back. A finish counts as caused by the paste
+only while the paste runs or shortly after, and only the first one. Undo SHALL NOT add it while a placement with its ID
+is there again.
+
+#### Scenario: Undo restores a finished placement
+- **WHEN** the player pastes a locked placement with Replace all, the placement finishes and is removed, and the player picks Undo paste
+- **THEN** the world is back as it was and the placement is back, locked, at the same position with the same swaps and selected
+- **AND** Bring back is no longer offered for it
+
+#### Scenario: Already brought back
+- **WHEN** the paste finishes the placement, the player brings it back and then picks Undo paste
+- **THEN** the world is restored and there is still exactly one copy of the placement
+
+#### Scenario: Anchored paste
+- **WHEN** the player pastes an anchored placement and picks Undo paste
+- **THEN** only the blocks are restored and the placements stay as they are

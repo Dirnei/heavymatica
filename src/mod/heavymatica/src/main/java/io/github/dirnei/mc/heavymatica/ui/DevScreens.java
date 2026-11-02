@@ -115,7 +115,7 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code hotbar=<0-8>}: select a hotbar slot</li>
  *     <li>{@code press=<key mapping>}, {@code down=<key mapping>}, {@code up=<key mapping>}: press, hold or release a key
  *     mapping by name (for example {@code key.use}, {@code key.heavymatica.rotate}) through Minecraft's key handling</li>
- *     <li>{@code logPlacements}: log the placements, the selection and the ghost mesh count</li>
+ *     <li>{@code logPlacements}: log the placements with their swaps and IDs, the selection and the ghost mesh count</li>
  *     <li>{@code selectPlacement=<name>}: select the first placement with that name</li>
  *     <li>{@code logComparison}: log the selected placement's comparison: progress, totals, slowest scan tick</li>
  *     <li>{@code exportBlockColors=<path>}: write the cloud's block colour table (average top and side colours, alpha and
@@ -778,9 +778,9 @@ public final class DevScreens {
         Heavymatica.LOGGER.info("Dev placements: {} placements, selected {}, {} ghost meshes, remote held {}, last frame {}", session.placements().all().size(),
                 session.placements().selected().map(Placement::name).orElse("none"), session.meshCount(), Remotes.held(), session.lastFrame());
         for (Placement placement : session.placements().all()) {
-            Heavymatica.LOGGER.info("Dev placement: {} {} {} bounds {} rotation {} mirror {} in {} layers {} visible {} in-hand {}{}", placement.name(),
+            Heavymatica.LOGGER.info("Dev placement: {} {} {} bounds {} rotation {} mirror {} in {} layers {} visible {} in-hand {} swaps {} id {}{}", placement.name(),
                     placement.source(), placement.state(), PlacementTransform.bounds(placement), placement.rotation(), placement.mirror(),
-                    placement.dimension(), placement.layers(), Layers.visible(placement, PlacementSession.feetLayer(placement)), placement.inHand(), session.unavailable(placement) ? " (unavailable)" : "");
+                    placement.dimension(), placement.layers(), Layers.visible(placement, PlacementSession.feetLayer(placement)), placement.inHand(), placement.swaps(), placement.id(), session.unavailable(placement) ? " (unavailable)" : "");
         }
     }
 

@@ -12,11 +12,13 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * What a paste changed, for undo: the previous state and block-entity data of every changed position, in the order
- * they changed, in batches of one section each. Written and read on the server thread.
+ * they changed, in batches of one section each. Written and read on the server thread, except {@link #finish()}, which
+ * belongs to the game thread.
  */
 final class PasteRecord {
 
     private final ResourceKey<Level> dimension;
+    private final PasteFinish finish;
     private long[] positions = new long[1024];
     private BlockState[] states = new BlockState[1024];
     private final Map<Integer, CompoundTag> blockEntities = new HashMap<>();
@@ -24,8 +26,13 @@ final class PasteRecord {
     private int[] batchEnds = new int[64];
     private int batches;
 
-    PasteRecord(ResourceKey<Level> dimension) {
+    PasteRecord(ResourceKey<Level> dimension, PasteFinish finish) {
         this.dimension = dimension;
+        this.finish = finish;
+    }
+
+    PasteFinish finish() {
+        return finish;
     }
 
     ResourceKey<Level> dimension() {

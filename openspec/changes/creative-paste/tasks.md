@@ -9,6 +9,7 @@
 ## 2. Undo
 
 - [x] 2.1 Add undo of the last paste through the same job in reverse with the recorded states and NBT, then drop the record; a new paste replaces it; logout drops it (D4). Verify in `runClient` for "Undo a paste" (including a replaced chest's contents), "Only the last one" and "After leaving the world".
+- [x] 2.2 Undo paste also puts back the placement the paste finished, as it was and selected, unless it is back already; its bring back offer goes away (D4). Verify with `PasteFinishTest` and `FinishesTest`, and in `runClient` for "Undo restores a finished placement" and "Already brought back".
 
 ## 3. Availability and wheel
 
