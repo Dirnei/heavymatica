@@ -251,6 +251,14 @@ public final class RadialMenu {
         return page;
     }
 
+    public Selection selection() {
+        return selection;
+    }
+
+    public Capture capture() {
+        return capture;
+    }
+
     public List<Segment> segments() {
         return switch (page) {
             case MAIN -> capture.on() ? List.of(new Segment(Entry.CAPTURE, capture.corners() == 2, false),

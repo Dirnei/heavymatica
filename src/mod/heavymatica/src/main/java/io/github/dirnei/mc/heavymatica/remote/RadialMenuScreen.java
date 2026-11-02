@@ -1,10 +1,13 @@
 package io.github.dirnei.mc.heavymatica.remote;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.OpacitySteps;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Entry;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Outcome;
+import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Page;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Segment;
+import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Selection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -19,11 +22,11 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Util;
 import net.minecraft.world.entity.player.Input;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec2;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
@@ -35,16 +38,8 @@ import org.lwjgl.glfw.GLFW;
  */
 public final class RadialMenuScreen extends Screen {
 
-    private static final int NORMAL = 0xB0282828;
-    private static final int HOVERED = 0xE0406FB0;
-    private static final int CURRENT = 0xC0205030;
-    private static final int DISABLED = 0x80101010;
-    private static final int DANGER = 0xE0A03030;
-    private static final int CONFIRM = 0xE0309040;
-    private static final int CENTRE = 0xC0000000;
-    private static final int TEXT = 0xFFFFFFFF;
-    private static final int MUTED = 0xFF808080;
-    private static final double GAP = 3;
+    /** The quickest a fast sweep can tick, so it does not buzz. */
+    private static final long TICK_SPACING = 30;
 
     /** Movement keys a development script holds, as if they were down on the keyboard. */
     private static final Set<String> heldForDevelopment = new HashSet<>();
@@ -53,8 +48,14 @@ public final class RadialMenuScreen extends Screen {
     private final Consumer<Outcome.Run> commands;
     private final Input before;
     private @Nullable ClientInput playerInput;
-    private List<WheelGeometry.Span> spans = List.of();
-    private int spanCount = -1;
+    private final WheelAnimation animation;
+    private final boolean sounds;
+    private Page shownPage;
+    private List<Segment> shownSegments;
+    private List<Segment> previousSegments = List.of();
+    private int lastHovered = -1;
+    private long lastTick;
+    private @Nullable WheelPainter lastFrame;
     private double mouseX = Double.NaN;
     private double mouseY = Double.NaN;
     /** Holding the key sends repeated presses, which must not count as a second tap. */
@@ -67,6 +68,10 @@ public final class RadialMenuScreen extends Screen {
         this.commands = commands;
         this.before = before;
         this.wheelKeyHeld = physicallyDown(RemoteKeys.WHEEL);
+        this.animation = new WheelAnimation(HeavymaticaConfig.wheelAnimations(), Util.getMillis());
+        this.sounds = HeavymaticaConfig.wheelSounds();
+        this.shownPage = menu.page();
+        this.shownSegments = menu.segments();
     }
 
     public RadialMenu menu() {
@@ -80,11 +85,13 @@ public final class RadialMenuScreen extends Screen {
             playerInput = player.input;
             player.input = new WheelMovement(minecraft.options, before);
         }
-        spanCount = -1;
     }
 
     @Override
     public void removed() {
+        if (animation.enabled() && lastFrame != null) {
+            WheelAfterglow.start(lastFrame);
+        }
         LocalPlayer player = minecraft.player;
         if (player != null && playerInput != null && player.input instanceof WheelMovement) {
             player.input = playerInput;
@@ -119,7 +126,7 @@ public final class RadialMenuScreen extends Screen {
     }
 
     public int inner() {
-        return outer() * 2 / 5;
+        return outer() * 9 / 20;
     }
 
     /** The hovered segment index, or -1 in the centre. */
@@ -189,12 +196,22 @@ public final class RadialMenuScreen extends Screen {
     private void apply(Outcome outcome) {
         switch (outcome) {
             case Outcome.Stay stay -> {
+                if (menu.page() != shownPage) {
+                    play(1.4F, 0.3F);
+                }
             }
             case Outcome.Close close -> onClose();
             case Outcome.Run run -> {
+                play(1.4F, 0.3F);
                 onClose();
                 commands.accept(run);
             }
+        }
+    }
+
+    private void play(float pitch, float volume) {
+        if (sounds) {
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), pitch, volume));
         }
     }
 
@@ -204,49 +221,67 @@ public final class RadialMenuScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partial) {
-        List<Segment> segments = menu.segments();
-        if (spanCount != segments.size()) {
-            spans = WheelGeometry.spans(inner(), outer(), segments.size(), GAP);
-            spanCount = segments.size();
+        long now = Util.getMillis();
+        if (menu.page() != shownPage) {
+            previousSegments = shownSegments;
+            shownPage = menu.page();
+            animation.turnPage(now);
+            lastHovered = -1;
         }
-        int cx = width / 2;
-        int cy = height / 2;
+        shownSegments = menu.segments();
+        int count = shownSegments.size();
         int hovered = hovered();
-        for (WheelGeometry.Span span : spans) {
-            graphics.fill(cx + span.x0(), cy + span.y(), cx + span.x1(), cy + span.y() + 1, color(segments.get(span.segment()), span.segment() == hovered));
+        animation.update(now, count, hovered);
+        if (hovered != lastHovered) {
+            if (hovered >= 0 && now - lastTick >= TICK_SPACING) {
+                play(2.0F, 0.12F);
+                lastTick = now;
+            }
+            lastHovered = hovered;
         }
-        for (WheelGeometry.Span span : WheelGeometry.spans(0, inner() - 3, 1, 0)) {
-            graphics.fill(cx + span.x0(), cy + span.y(), cx + span.x1(), cy + span.y() + 1, CENTRE);
+        double[] hover = new double[count];
+        double[] arrival = new double[count];
+        for (int i = 0; i < count; i++) {
+            hover[i] = animation.hover(i);
+            arrival[i] = animation.arrival(i, count, now);
         }
-        for (int i = 0; i < segments.size(); i++) {
-            Segment segment = segments.get(i);
-            double[] point = segmentPoint(i);
-            int x = (int) Math.round(point[0]);
-            int y = (int) Math.round(point[1]);
-            graphics.item(new ItemStack(icon(segment.entry())), x - 8, y - 12);
-            graphics.centeredText(font, name(segment), x, y + 6, segment.enabled() ? TEXT : MUTED);
+        WheelPainter.Ring ring = new WheelPainter.Ring(shownSegments, hover, arrival, 1, animation.openScale(now), animation.pageRotation(now));
+        WheelPainter.Ring previous = null;
+        if (animation.previousShown(now) && !previousSegments.isEmpty()) {
+            int before = previousSegments.size();
+            double[] previousHover = new double[before];
+            double[] arrived = new double[before];
+            for (int i = 0; i < before; i++) {
+                previousHover[i] = animation.previousHover(i);
+                arrived[i] = 1;
+            }
+            previous = new WheelPainter.Ring(previousSegments, previousHover, arrived, animation.previousAlpha(now),
+                    animation.openScale(now) * animation.previousScale(now), animation.previousRotation(now));
         }
-        RadialMenu.Label label = menu.label();
-        Component title = Component.translatable(label.key(), label.name());
-        graphics.centeredText(font, title, cx, cy - outer() - 14, TEXT);
-        if (hovered >= 0) {
-            Component hint = name(segments.get(hovered));
-            graphics.centeredText(font, hint, cx, cy - 4, TEXT);
-        }
+        WheelPainter painter = new WheelPainter(width, height, inner(), outer(), 1.0 / minecraft.getWindow().getGuiScale(),
+                animation.openAlpha(now), ring, previous, hovered, animation.accentAngle(), animation.accentShown(), title());
+        painter.paint(graphics, font, 1, 1);
+        lastFrame = painter;
     }
 
-    private int color(Segment segment, boolean hovered) {
-        if (!segment.enabled()) {
-            return DISABLED;
-        }
-        if (hovered) {
-            return switch (segment.entry()) {
-                case REMOVE, CANCEL, CANCEL_CAPTURE, NO -> DANGER;
-                case YES, BRING_BACK -> CONFIRM;
-                default -> HOVERED;
-            };
-        }
-        return segment.current() ? CURRENT : NORMAL;
+    /** The centre text while nothing is hovered: the placement and its state, or what the page asks. */
+    private WheelPainter.Title title() {
+        RadialMenu.Label label = menu.label();
+        Component head = Component.translatable(label.key(), label.name());
+        Selection selection = menu.selection();
+        return switch (menu.page()) {
+            case MAIN -> {
+                if (menu.capture().on()) {
+                    yield new WheelPainter.Title(head, Component.translatable("heavymatica.wheel.centre.corners", menu.capture().corners()));
+                }
+                if (selection.state() == RadialMenu.State.NONE) {
+                    yield new WheelPainter.Title(head, Component.translatable("heavymatica.wheel.centre.none"));
+                }
+                yield new WheelPainter.Title(head, Component.translatable(WheelText.stateKey(selection.state())));
+            }
+            case CONFIRM_REMOVE, CONFIRM_UNLOCK -> new WheelPainter.Title(head, Component.translatable("heavymatica.wheel.centre.confirm"));
+            default -> new WheelPainter.Title(head, null);
+        };
     }
 
     public static Component name(Segment segment) {
@@ -255,43 +290,6 @@ public final class RadialMenuScreen extends Screen {
             return Component.translatable(key + (segment.current() ? ".shown" : ".hidden"));
         }
         return segment.entry() == Entry.OPACITY_STEP ? Component.translatable(key, OpacitySteps.percent(segment.value())) : Component.translatable(key);
-    }
-
-    private static Item icon(Entry entry) {
-        return switch (entry) {
-            case BRING_BACK -> Items.CLOCK;
-            case LIBRARY -> Items.BOOK;
-            case CANCEL, REMOVE -> Items.BARRIER;
-            case LOCK -> Items.IRON_BARS;
-            case UNLOCK -> Items.OAK_DOOR;
-            case IN_HAND -> Items.SPYGLASS;
-            case OPTIONS -> Items.COMPARATOR;
-            case EASY_PLACE -> Items.OAK_STAIRS;
-            case RESTRICTION -> Items.SHIELD;
-            case MISTAKES -> Items.COMPASS;
-            case MISTAKES_OFF -> Items.GRAY_DYE;
-            case MISTAKES_ONLY -> Items.RED_DYE;
-            case MISTAKES_AND_MISSING -> Items.ORANGE_DYE;
-            case LAYERS -> Items.LADDER;
-            case MATERIALS -> Items.BRUSH;
-            case PASTE -> Items.PISTON;
-            case PASTE_REPLACE_ALL -> Items.TNT;
-            case PASTE_ONLY_AIR -> Items.FEATHER;
-            case PASTE_SKIP_AIR -> Items.GRASS_BLOCK;
-            case UNDO_PASTE -> Items.RECOVERY_COMPASS;
-            case OPACITY -> Items.TINTED_GLASS;
-            case OPACITY_STEP -> Items.GLASS_PANE;
-            case UNKNOWN_BLOCKS -> Items.PURPLE_STAINED_GLASS;
-            case START_CAPTURE, CAPTURE -> Items.STRUCTURE_BLOCK;
-            case SWAP_CORNER -> Items.COMPASS;
-            case RESET_CORNERS -> Items.BUCKET;
-            case CANCEL_CAPTURE -> Items.BARRIER;
-            case LAYERS_OFF -> Items.GLASS;
-            case LAYERS_FROM_TO -> Items.SCAFFOLDING;
-            case LAYERS_FOLLOW -> Items.LEATHER_BOOTS;
-            case YES -> Items.LIME_DYE;
-            case NO -> Items.RED_DYE;
-        };
     }
 
     /** Holds or lets go of a movement key for development scripts, by key mapping name. */

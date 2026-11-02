@@ -28,6 +28,7 @@ import io.github.dirnei.mc.heavymatica.remote.PlacementOverlay;
 import io.github.dirnei.mc.heavymatica.remote.RemoteInput;
 import io.github.dirnei.mc.heavymatica.remote.RemoteKeys;
 import io.github.dirnei.mc.heavymatica.remote.Remotes;
+import io.github.dirnei.mc.heavymatica.remote.WheelAfterglow;
 import io.github.dirnei.mc.heavymatica.targeting.GhostPick;
 import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting;
 import io.github.dirnei.mc.heavymatica.targeting.MistakePointer;
@@ -87,6 +88,7 @@ public final class HeavymaticaClient {
         modEventBus.addListener((RegisterGuiLayersEvent event) -> new PlacementOverlay(HeavymaticaClient::placements).register(event));
         modEventBus.addListener((RegisterGuiLayersEvent event) -> new TargetHud(HeavymaticaClient::placements, HeavymaticaClient::targeting).register(event));
         modEventBus.addListener((RegisterGuiLayersEvent event) -> new PointerHud(HeavymaticaClient::mistakePointer).register(event));
+        modEventBus.addListener(WheelAfterglow::register);
         NeoForge.EVENT_BUS.addListener(HeavymaticaClient::tick);
         ThumbnailSpike.registerIfRequested();
         DevScreens.registerIfRequested();

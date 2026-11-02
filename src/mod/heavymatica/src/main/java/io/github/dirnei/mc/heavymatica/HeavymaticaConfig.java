@@ -72,6 +72,14 @@ public final class HeavymaticaConfig {
             .push("wheel")
             .defineEnum("mode", RadialMenu.Mode.HOLD);
 
+    private static final ModConfigSpec.BooleanValue WHEEL_ANIMATIONS = BUILDER
+            .comment("Animate the placement wheel as it opens, changes page, highlights and closes. Off shows each state at once.")
+            .define("animations", true);
+
+    private static final ModConfigSpec.BooleanValue WHEEL_SOUNDS = BUILDER
+            .comment("Play a quiet tick when the wheel highlights another segment, and a click when a segment is picked.")
+            .define("sounds", true);
+
     private static final ModConfigSpec.DoubleValue LAYERS_HOTBAR_OPACITY = BUILDER
             .pop()
             .push("layers")
@@ -182,6 +190,14 @@ public final class HeavymaticaConfig {
 
     public static RadialMenu.Mode wheelMode() {
         return WHEEL_MODE.get();
+    }
+
+    public static boolean wheelAnimations() {
+        return WHEEL_ANIMATIONS.get();
+    }
+
+    public static boolean wheelSounds() {
+        return WHEEL_SOUNDS.get();
     }
 
     public static float layersHotbarOpacity() {
