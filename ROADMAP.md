@@ -3,7 +3,7 @@
 Heavymatica is a schematic mod in the spirit of Litematica, with a much simpler UI, MineColonies-style placement and a
 cloud library (Heavymatica Cloud) that follows the player to every world and server. Each step below becomes one
 OpenSpec change (`/opsx:propose`); finished changes live in `openspec/changes/archive/`, their requirements in
-`openspec/specs/`.
+`openspec/specs/`. This file lists only what is still open.
 
 ## Ground rules (decided)
 
@@ -18,204 +18,42 @@ OpenSpec change (`/opsx:propose`); finished changes live in `openspec/changes/ar
 - **Stack:** NeoForge 26.1.2 / Java 25; cloud in C# / .NET with Akka.NET, Akka.Streams, MongoDB and S3-compatible
   storage, run locally with Aspire; contract-first OpenAPI (`src/api`) with generated server and client.
 
-## Steps
+## Open in the mod
 
-### 1 + 2. Cloud core and client library (done)
+### Litematica gaps
 
-Archived as `2026-10-21-cloud-core-and-client-library`: sign-in through the Mojang handshake, uploads with immutable
-versions, library screen, cache, offline mode, import and upload.
+- **Entities:** item frames, armor stands, paintings and minecarts are dropped on import and never captured. Minimum:
+  show them in the ghost and keep them through import, capture and export, even if the comparison ignores them.
+- **X and Z layers:** only the Y axis is sliced today; walls and facades would benefit from X and Z.
+- **Block-entity data in server captures:** chest contents and the like need the optional server mod, as Litematica
+  uses Servux.
+- Deliberately skipped: moving parts within a placement, multi-box selections, fill / replace / delete tools
+  (WorldEdit's job), the legacy MCEdit `.schematic` format, and material list export (the web library shows the
+  list).
 
-Left over: real Litematica / WorldEdit / structure-block exports for `src/conformance/files/real/` (task 3.1 of that
-change). `.blueprint` (Structurize) import was out of scope.
+### Smaller follow-ups
 
-### 3. Placement UI
+- **Material swaps:** saving or sharing a set of swaps as a variant on top of the cloud version, and family-wide swaps.
+- **Block equivalents:** copper weathering accepted as equivalent, waxed copper (copper plus honeycomb), snow layers,
+  crop ages and leaf persistence.
+- **Ghost targeting:** picking from carried containers and chests, and targeting anchored or following placements.
+- **Capture and export:** ignoring air on a placement (a placement option next to material swaps), converting formats
+  on export.
+- **Mistake pointer:** a beam or world marker, if the HUD arrow turns out not to be enough.
+- **Conformance:** real Litematica / WorldEdit / structure-block exports for `src/conformance/files/real/`.
+  `.blueprint` (Structurize) import stays out of scope.
 
-- **Placing (change `placement-interaction`):**
-  - A held remote controls placements: a configurable vanilla item (default stick) or anything in the
-    `heavymatica:remotes` item tag; the machines addon adds a real Remote item to the tag later.
-  - Library **Place** starts a ghost that follows the crosshair. Right-click anchors it, sneak + right-click releases
-    it again.
-  - Keyboard instead of an on-screen pad: arrows move relative to the camera (Shift: 10), numpad + / - up and down,
-    R rotate, M mirror, remove (press twice; on the wheel since `radial-menu`).
-  - Many placements per world; right-click a ghost to select it. A side overlay shows the state and key hints.
-    Anchored placements are saved per world or server.
-- **Locking and layers (change `placement-layers`):**
-  - Locking an anchored ghost, unlocking with a confirmation (both on the wheel since `radial-menu`). A locked ghost
-    can't move, rotate or be removed.
-  - While locked, the arrows and numpad + / - control layers on the Y axis: off, a from-to window, or follow feet
-    (layers up to the player's feet + 1).
-  - The in-hand filter (on the wheel): the held block shows normally and other hotbar blocks show dimmed. It combines
-    with the layer setting and works whatever the player holds.
-- **Wheel (change `radial-menu`):**
-  - V (rebindable, only with the remote) opens a radial menu of the one-shot actions the selected placement's state
-    allows: Lock / Unlock, Remove (Cancel while following), In-hand filter, Layers (a sub-wheel with off, from-to and
-    follow feet), Material list, Materials and Library.
-  - HOLD (default: hold V, point, let go) or TOGGLE (tap V, click) in the client config. The camera stays still and
-    WASD keeps working while it is open.
-  - Remove and Unlock ask Yes / Cancel on the wheel, so one flick never removes anything.
-  - Direct keys stay for continuous controls: arrows, numpad + / -, R and M, plus H for the library. The wheel's
-    actions are still keys in the controls screen, unbound by default; a bound remove or unlock key keeps the
-    press-twice rule.
-- **Material swaps (change `material-swaps`):**
-  - A placement swaps block types of its schematic for other blocks, per block type and not by family: oak stairs to
-    spruce stairs leaves oak planks and slabs as they are. Each swap covers every state of its block, and properties
-    the new block also has (facing, half, waterlogged) carry over.
-  - Swaps are stored with the placement and saved with it, in every state; on a locked placement the comparison and
-    the material list start over with the new blocks.
-  - The wheel's Materials segment (or an unbound key) opens the materials screen: every block type with its count and
-    swap, a block picker with same-kind suggestions and search, and a reset per row. The overlay shows the number of
-    swaps.
-  - Later: saving or sharing a set of swaps as a variant on top of the cloud version, and family-wide swaps.
-- Step 3 is done. Dragging ghosts with the mouse is dropped for now.
+## Open in the cloud and on the web
 
-### 4. Hand-build helper
+- **Sign-in:** Microsoft and Google as further web providers, next to GitHub.
+- **Share links** with title and thumbnail previews in chat apps.
+- **Merging accounts:** "join existing" only works for an identity without an account; combining two accounts that
+  both have data is a later feature.
+- **Admin host behind WireGuard:** possible later by changing only DNS and the proxy or firewall rules, keeping the
+  hostname (passkeys are bound to it) and switching Let's Encrypt to the DNS-01 challenge.
+- Out of scope for now: billing, subscriptions and marketplace orders.
 
-- **World comparison (change `world-comparison`):** a locked placement compares itself with the world.
-  - Blocks that already match are hidden; missing blocks show as the normal ghost.
-  - Mistakes get a coloured box: red for a wrong block, orange for a wrong orientation (facing, axis, half, slab type
-    and the like), cyan for wrong waterlogging, magenta for any block where the schematic has air.
-  - Boxes follow the layer setting but ignore the in-hand filter, so follow feet keeps every mistake below the feet in
-    view.
-  - The overlay shows progress, progress of the visible layers, a count per colour and the expected and found block
-    under the crosshair.
-  - No mixins: blocks within reach are rechecked every tick, the rest of the placement by a budgeted background scan.
-  - Gaps between the regions of a multi-region `.litematic` read as structure voids, so comparison ignores them.
-- **Material list (change `material-list`):** what a locked placement still needs against what the player carries.
-  - Missing, wrong-block and not yet compared positions need their item; turned blocks and wrong water do not.
-  - Only the visible layers count (off, from-to window or follow feet); the in-hand filter has no effect.
-  - Two-cell blocks count once, a double slab as two slabs, candles, sea pickles and snow layers by their amount.
-    Blocks no item places (water, lava, fire, portals) are listed apart under "can't carry".
-  - Carried means the inventory, the offhand and the contents of carried shulker boxes, bundles and other items with
-    NeoForge's item capability. Chests and other containers in the world don't count.
-  - The overlay shows the three largest shortages; the wheel's Material list opens the full list with needed, have and
-    short.
-- **Block equivalents (change `block-equivalents`):** planned blocks that are not placed as themselves.
-  - A built-in table names, per planned block, the item that places it, the blocks that already count as it and the
-    blocks that only need a finishing step: grass and dirt count as each other, dirt paths need a shovel and farmland
-    a hoe on dirt, stripped wood needs an axe on its log, and concrete needs water on its powder.
-  - Blocks that need finishing get a yellow box, don't count as done and need no item. The overlay counts them per
-    tool over the visible layers, and the materials screen shows them in a Finish column.
-  - Need and have are kept per planned block, and each carried item counts toward one planned block only, so
-    concrete never stands in for planned powder.
-  - Later rows: copper weathering accepted as equivalent, waxed copper (copper plus honeycomb), snow layers, crop
-    ages and leaf persistence.
-- **Ghost targeting (change `ghost-targeting`):** the crosshair targets ghosts as if they were real blocks.
-  - A ray from the eye finds the nearest drawn position of a locked placement (a ghost the layers and the in-hand
-    filter show, or a mistake or finishing box), unless a real block elsewhere is hit first.
-  - A small HUD below the crosshair names the planned block, its orientation and its state in the comparison colours,
-    the placement when it is not selected, and whether it is out of reach. Its range is a setting (32 blocks, 0 off).
-  - With Jade installed, Jade's tooltip shows the ghost instead of the HUD. Jade stays optional.
-  - Middle click on a ghost within reach picks its item, own item first, then the placing item, then the equivalents:
-    selects it in the hotbar, swaps it in from the main inventory, or adds it in creative. Works on vanilla servers;
-    sneak or the setting gives vanilla's pick.
-  - The overlay's expected and found lines follow the ghost target.
-  - Later: picking from carried containers and chests, and targeting anchored or following placements.
-- **Unknown and legacy blocks (change `unknown-and-legacy-blocks`):** blocks the game can't resolve no longer vanish.
-  - Schematics from older Minecraft versions are upgraded in the game with Minecraft's DataFixer when a ghost,
-    comparison, thumbnail or the library details are built. Files, uploads, exports and the cloud keep the names as
-    written, and swaps stay keyed by the block ID in the file.
-  - Known blocks with property values the game doesn't accept fall back to the block's defaults.
-  - Blocks the game doesn't know (missing mods, newer versions) show as the missing-texture cube, are "can't check" in
-    the comparison (not counted, but still finished with sound and toast), and are named in the overlay, the HUD, the
-    material list, the materials screen (where they can be swapped) and the library details.
-  - The wheel's Unknown blocks segment shows or hides the cubes for every placement (`ghost.showUnknownBlocks`).
-- Step 4 is done.
-
-### Capture and export (done)
-
-- **Capture (change `schematic-capture`):** the wheel's Capture starts capture mode on the remote.
-  - Right-click sets corner 1, then corner 2; the corner just set is active. The arrows move the active corner
-    relative to the camera, numpad + / - up and down (Shift: 10), so the top needs no nerdpole. Shift + scroll (or an
-    unbound key, or the wheel) swaps the active corner; with both set, a right-click moves the active corner.
-  - Capture names the area (date and time prefilled) and saves it as a local `.litematic` entry: blocks as they are,
-    air as air, block entities as the client knows them (all of them in single player), no entities.
-  - Boxes past the format limits or reaching into unloaded chunks are refused; large captures run over several ticks
-    with progress in the overlay.
-- **Export:** the library writes a local entry or a cloud version unchanged into `.minecraft/schematics/`, asking
-  before it overwrites a file.
-- Later: ignoring air on a placement (a placement option next to material swaps), converting formats on export.
-
-### 5. Web UIs
-
-Two separate web apps on the same cloud. They come before multiplayer sync and the machines addon: they only need the
-cloud (steps 1 + 2), and a visible web library makes the cloud easier to test.
-
-- **Player UI** on the public domain: organize schematics and share links in the browser.
-- **Admin UI** on its own hostname (for example `admin.heavymatica.example`) and its own listener in the cloud. The
-  public player domain never routes to admin paths.
-  - It starts **public**, hardened: rate limits on sign-in, setup code and invitations, short-lived single-use setup
-    codes and invitation links, a short-lived admin cookie bound to the admin host, and an audit log of every admin
-    action and every new passkey.
-  - It can move **behind WireGuard** later by changing only DNS (to the VPN address) and the proxy or firewall rules.
-    The hostname stays the same, because passkeys are bound to it; a new hostname would make every admin register
-    again.
-  - Certificates come from Let's Encrypt with the usual HTTP challenge while public; behind the VPN that challenge
-    can't reach the host, so the move switches to the DNS-01 challenge.
-
-Player accounts (decided):
-
-- An **account** owns the schematics and holds a list of linked identities: any number of **Minecraft accounts**
-  (UUID, verified through Mojang as today) and any number of **OIDC logins** (provider + user id, never the email).
-  This allows alts and several providers on one account.
-- **First sign-in** with an unknown identity, in the game or on the web, asks: create a new account, or join an
-  existing one. Creating is one click, so players who never use the web lose nothing.
-- **Joining and linking use a code entered on the website.** The game library shows a short, single-use code that
-  expires after a few minutes, together with a QR code of the link URL, so a phone can open it and sign in there.
-  - **Web identity, Minecraft account exists:** the player signs in on the web, chooses "join existing", and enters
-    the code that the game library shows.
-  - **Minecraft identity, web account exists:** the game library shows the code, and the player enters it on the
-    website while signed in to that account.
-  - **Account settings:** link more identities later with the same flow. An identity can be unlinked, except the
-    last one.
-- **No merging for now:** "join existing" only works for an identity that has no account yet. Combining two accounts
-  that both have data is a later "merge accounts" feature.
-- **Migration:** every existing Minecraft account becomes an account with one Minecraft link. Ownership moves from
-  the UUID to the account ID, and tokens carry the account ID as subject plus the identity that signed in.
-- **Quota stays a per-account entitlement**, so paid plans could raise it later without touching the schematics side.
-
-Sign-in (decided):
-
-- **Players** register and sign in on the web with **GitHub** first (OAuth2, the aspnet-contrib handler), handled by
-  the cloud itself, no broker. **Microsoft and Google** follow later as further providers of the same kind. The game
-  keeps the Mojang handshake and its ES256 tokens.
-- **Admins** sign in with **passkeys only**, built into the cloud (ASP.NET Core Identity passkeys, .NET 10). Admin
-  accounts have no password at all.
-  - The first admin registers with a one-time setup code created by a CLI command on the server.
-  - Further admins join by invitation from an existing admin.
-  - Every admin registers at least two passkeys; lost access is restored by another admin's invitation or the
-    server CLI.
-- Admins are their own principals, with no player account and no Minecraft link.
-
-Stack (decided):
-
-- **Astro**, built statically, with **Svelte** islands for the interactive parts. The cloud serves the built files on
-  the same origin as its API, so the web session is a cookie, with no tokens in the browser and no CORS. The admin UI
-  is a second Astro project, served on the admin host, so the two sessions never mix.
-- A typed API client is generated from `src/api/heavymatica-cloud.v1.yaml`.
-- Share pages get their title and thumbnail meta tags from the cloud, so links show a preview in chat apps.
-- Aspire runs the Astro dev servers next to the cloud during development; production runs only the cloud.
-
-Changes, in order:
-
-1. **`web-library` (done):** the website first. Register and sign in with GitHub only; upload schematics and see and manage
-   them in the browser (list and search, details, versions, rename, delete, storage use). It also brings the account
-   foundation: accounts with a list of linked identities, the migration of existing Minecraft accounts, and tokens
-   with the account ID as subject. Nothing changes for the game yet.
-2. **`web-folders` (done):** the library becomes a file explorer of cards, on the website and in the game: folder
-   cards and a breadcrumb, an "All schematics" view, tags in the sidebar, and search inside a folder. The website
-   adds a folder tree, thumbnails on the cards, moving several schematics at once (dialog or drag and drop),
-   renaming whole folders and editing tags.
-3. **`cloud-thumbnails` (done):** the cloud renders a thumbnail for every version uploaded without one (website uploads),
-   and backfills older versions.
-4. **`account-links` (done):** connecting the game. The game library shows a link code with a QR code, entered on the
-   website; the first-sign-in choice (create new or join existing); linking and unlinking more identities. After
-   this, the game and the website show the same library.
-5. **`admin-web`:** the admin host and its listener, passkey admins with setup code and invitations, account lookup and
-   quota adjustments.
-
-Later in this step: Microsoft and Google sign-in, and share links with previews.
-
-Out of scope for now: billing, subscriptions and marketplace orders.
+## Next steps
 
 ### 6. Multiplayer sync
 
@@ -226,6 +64,7 @@ Out of scope for now: billing, subscriptions and marketplace orders.
   to invited players).
 - Game servers fetch private schematics with short-lived, read-only tokens the placing player hands over; the access
   tokens are already ES256 so servers can check them with the public key.
+- The optional server mod could also accept a clean "place state X at Y" request for Easy Place.
 
 ### 7. Machines addon (`heavymatica_machines`, on Servus: Foundation)
 
@@ -238,7 +77,7 @@ Out of scope for now: billing, subscriptions and marketplace orders.
 - **Precision Charge:** tiny TNT that removes exactly one block (custom entity, not a vanilla explosion). Cannon ammo
   for obstructions, also placeable by hand. Respects bedrock, unbreakable blocks and claims (FTB Teams via
   `OwnedMachine`); containers spill their contents; drops go to the Cannon's network.
-- The addon is also the "server companion" for creative paste.
+- The addon is also the server companion for creative paste in multiplayer; single player already has it.
 
 ### Later: creator marketplace
 
