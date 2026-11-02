@@ -617,7 +617,17 @@ public class LibraryScreen extends GlassScreen {
         message = null;
         account.signIn().whenComplete((ignored, failure) -> minecraft.execute(() -> {
             if (failure != null) {
-                showMessage(Component.translatable(failureOf(failure).translationKey()), true);
+                Component reason = Component.translatable(failureOf(failure).translationKey());
+                if (minecraft.screen != this) {
+                    showMessage(reason, true);
+                    return;
+                }
+                minecraft.setScreen(new GlassConfirmScreen(this, Component.translatable("heavymatica.account.failed.title"), reason,
+                        Component.translatable("heavymatica.account.retry"), Component.translatable("gui.done"), false, retry -> {
+                            if (retry) {
+                                signIn();
+                            }
+                        }));
             } else if (account.status() == CloudAccount.Status.CHOOSING) {
                 minecraft.setScreen(new AccountChoiceScreen(this, account, this::refreshCloud));
             } else {

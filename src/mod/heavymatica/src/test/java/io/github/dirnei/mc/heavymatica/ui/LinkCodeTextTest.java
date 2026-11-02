@@ -165,4 +165,21 @@ class LinkCodeTextTest {
     private static CloudException problem(int status, ProblemCode code) {
         return new CloudException(status, code, "problem", null);
     }
+
+    @Test
+    void a_code_splits_into_two_groups_of_four() {
+        assertEquals(List.of("K7FQ", "29XM"), LinkCodeText.groups("K7FQ-29XM"));
+        assertEquals(List.of("K7FQ", "29XM"), LinkCodeText.groups("k7fq 29xm"));
+        assertEquals(List.of("K7FQ", "29XM"), LinkCodeText.groups("K7FQ29XM"));
+        assertEquals(List.of(), LinkCodeText.groups(""));
+    }
+
+    @Test
+    void the_time_left_is_a_share_of_the_whole() {
+        Duration five = Duration.ofMinutes(5);
+        assertEquals(1.0, LinkCodeText.fractionLeft(NOW.plus(five).atOffset(ZoneOffset.UTC), NOW, five), 1e-9);
+        assertEquals(0.5, LinkCodeText.fractionLeft(NOW.plusSeconds(150).atOffset(ZoneOffset.UTC), NOW, five), 1e-9);
+        assertEquals(0.0, LinkCodeText.fractionLeft(NOW.minusSeconds(1).atOffset(ZoneOffset.UTC), NOW, five), 1e-9);
+        assertEquals(0.0, LinkCodeText.fractionLeft(null, NOW, five), 1e-9);
+    }
 }

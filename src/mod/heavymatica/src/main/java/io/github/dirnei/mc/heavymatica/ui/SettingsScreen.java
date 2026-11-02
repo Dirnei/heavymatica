@@ -242,6 +242,8 @@ public final class SettingsScreen extends GlassScreen {
             List<Double> sanitized = OpacitySteps.sanitize(next);
             if (sanitized.stream().anyMatch(step -> OpacitySteps.matches(step, percent / 100.0))) {
                 set("ghost.opacitySteps", List.copyOf(sanitized));
+                // The prompt brings this screen back before the step is saved, so its widgets show the old steps.
+                rebuildWidgets();
             }
         } catch (NumberFormatException ignored) {
             // Not a number: nothing is added.

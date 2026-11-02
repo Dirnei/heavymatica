@@ -12,6 +12,7 @@ import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -38,10 +39,17 @@ final class AccountChip extends GlassButton {
             default -> "heavymatica.account.sign_in";
         }));
         active = account.status() != CloudAccount.Status.SIGNING_IN;
+        setTooltip(account.status() == CloudAccount.Status.EXPIRED ? Tooltip.create(Component.translatable("heavymatica.account.expired.hint")) : null);
     }
 
     @Override
     protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+        if (account.status() == CloudAccount.Status.SIGNING_IN) {
+            super.extractContents(graphics, mouseX, mouseY, a);
+            double pulse = 0.5 + 0.5 * Math.sin(System.currentTimeMillis() / 160.0);
+            Glass.fill(graphics, getX() + width - 9, getY() + height / 2.0 - 2.5, 5, 5, 2.5, GlassStyle.withAlpha(GlassStyle.ACCENT, (int) (90 + 165 * pulse)));
+            return;
+        }
         if (account.status() != CloudAccount.Status.SIGNED_IN) {
             super.extractContents(graphics, mouseX, mouseY, a);
             return;

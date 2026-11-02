@@ -70,6 +70,25 @@ final class LinkCodeText {
         return status;
     }
 
+    /**
+     * The code's characters in its two groups, for example {@code ABCD-EFGH} as {@code ABCD} and {@code EFGH}. Spaces
+     * and dashes don't count, as they don't when the code is entered.
+     */
+    static List<String> groups(String code) {
+        String plain = code.replaceAll("[\\s-]", "").toUpperCase(Locale.ROOT);
+        int half = (plain.length() + 1) / 2;
+        return plain.isEmpty() ? List.of() : List.of(plain.substring(0, half), plain.substring(half));
+    }
+
+    /** The share of {@code total} still left before {@code deadline}, from 0 to 1. */
+    static double fractionLeft(@Nullable OffsetDateTime deadline, Instant now, Duration total) {
+        if (deadline == null || total.isZero()) {
+            return 0;
+        }
+        double left = Duration.between(now, deadline.toInstant()).toMillis() / (double) total.toMillis();
+        return Math.max(0, Math.min(1, left));
+    }
+
     /** Minutes and seconds, for example {@code 4:05}; never below {@code 0:00}. */
     static String countdown(Duration left) {
         long seconds = Math.max(0, (left.toMillis() + 999) / 1000);

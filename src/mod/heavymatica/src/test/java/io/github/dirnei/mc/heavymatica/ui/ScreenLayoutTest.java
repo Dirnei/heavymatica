@@ -99,4 +99,15 @@ class ScreenLayoutTest {
             }
         }
     }
+
+    @ParameterizedTest
+    @CsvSource({"427,240", "640,360", "960,540"})
+    void accountPartsStayApart(int width, int height) {
+        AccountLayout layout = AccountLayout.of(width, height);
+        apart(layout.screen(), layout.parts());
+        assertTrue(layout.linkAnother().inside(layout.signIns()));
+        assertTrue(layout.list().inside(layout.signIns()));
+        assertFalse(layout.list().overlaps(layout.linkAnother()));
+        assertTrue(layout.visibleRows() >= 3, "three sign-ins fit at " + width + "x" + height);
+    }
 }
