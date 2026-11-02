@@ -285,10 +285,10 @@ public final class RadialMenu {
         };
     }
 
-    /** Paste goes after Materials on an anchored or locked placement. */
+    /** Paste goes after Materials on a locked placement. */
     private List<Segment> withPaste(List<Segment> main) {
         Paste paste = selection.paste();
-        if (!paste.available() || selection.state() != State.ANCHORED && selection.state() != State.LOCKED) {
+        if (!paste.available() || selection.state() != State.LOCKED) {
             return main;
         }
         List<Segment> segments = new ArrayList<>(main.size() + 1);

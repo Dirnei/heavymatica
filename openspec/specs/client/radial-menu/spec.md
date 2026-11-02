@@ -169,6 +169,8 @@ In capture mode, the wheel SHALL show only Capture, Swap corner, Reset and Cance
 ### Requirement: Unknown blocks segment
 When the selected placement has unknown blocks, the wheel SHALL also show an Unknown blocks segment in every placement state, labelled with whether unknown blocks are shown or hidden. Picking it SHALL switch between shown and hidden, write the choice to `ghost.showUnknownBlocks` in the client config file, save the file and close the wheel. Without unknown blocks, the segment SHALL NOT show.
 
+The segment SHALL be in the Options sub-wheel, not on the main ring. While the selected placement is FOLLOWING or ANCHORED and has unknown blocks, the main ring SHALL show an Options segment after Opacity, whose sub-wheel holds only Unknown blocks.
+
 #### Scenario: Hide from the wheel
 - **WHEN** the selected anchored placement has unknown blocks that are shown and the player picks Unknown blocks
 - **THEN** the wheel closes, the placeholders disappear from every placement, and the client config holds `ghost.showUnknownBlocks = false`
@@ -189,11 +191,21 @@ When the selected placement has unknown blocks, the wheel SHALL also show an Unk
 - **WHEN** no placement is selected
 - **THEN** the wheel shows no Unknown blocks segment
 
+#### Scenario: Anchored placement with unknown blocks
+- **WHEN** the selected anchored placement has unknown blocks and the player opens the wheel
+- **THEN** the main ring shows Options after Opacity and no Unknown blocks segment, and picking Options shows Unknown blocks alone
+
+#### Scenario: Anchored placement without unknown blocks
+- **WHEN** the selected anchored placement's blocks are all known
+- **THEN** the main ring shows no Options segment
+
 ### Requirement: Options sub-wheel
 Picking Options SHALL swap the wheel's segments to In-hand filter, Easy Place and Placement restriction, each marked
 while it is on: the selected locked placement's in-hand filter, and the Easy Place and placement restriction client
 settings. Picking one SHALL toggle it and close the wheel. Esc or the centre SHALL close the wheel and change nothing. In
 HOLD mode, releasing the wheel key on Options SHALL leave the sub-wheel open, and a click SHALL pick.
+
+When the selected locked placement has unknown blocks, Unknown blocks SHALL follow Placement restriction. In-hand filter, Easy Place and Placement restriction SHALL show only for a locked placement.
 
 #### Scenario: Turn Easy Place on
 - **WHEN** Easy Place is off and the player picks Options, then Easy Place
@@ -211,9 +223,13 @@ HOLD mode, releasing the wheel key on Options SHALL leave the sub-wheel open, an
 - **WHEN** the player picks Options and then presses Esc
 - **THEN** the wheel closes and no setting changes
 
+#### Scenario: Locked placement with unknown blocks
+- **WHEN** the selected locked placement has unknown blocks and the player picks Options
+- **THEN** the sub-wheel shows In-hand filter, Easy Place, Placement restriction, Unknown blocks and Mistakes, in that order
+
 ### Requirement: Paste segment
-While paste is available, the wheel SHALL show a Paste segment after Materials when the selected placement is ANCHORED
-or LOCKED. It SHALL be greyed out while a paste or undo is running; a greyed-out Paste SHALL do nothing and keep the
+While paste is available, the wheel SHALL show a Paste segment after Materials when the selected placement is LOCKED.
+It SHALL NOT show Paste while the selected placement is FOLLOWING or ANCHORED. It SHALL be greyed out while a paste or undo is running; a greyed-out Paste SHALL do nothing and keep the
 wheel open. Picking it SHALL swap the wheel's segments to the paste sub-wheel. In HOLD mode, releasing the wheel key on
 Paste SHALL leave the sub-wheel open, and a click SHALL pick.
 
@@ -227,6 +243,10 @@ Paste SHALL leave the sub-wheel open, and a click SHALL pick.
 
 #### Scenario: Following placement
 - **WHEN** the player is in creative single player with a following placement selected and opens the wheel
+- **THEN** it shows no Paste
+
+#### Scenario: Anchored placement
+- **WHEN** the player is in creative single player with an anchored placement selected and opens the wheel
 - **THEN** it shows no Paste
 
 ### Requirement: Paste sub-wheel
@@ -283,3 +303,59 @@ change nothing.
 #### Scenario: Close without a change
 - **WHEN** the player opens the Mistakes sub-wheel and presses Esc
 - **THEN** the wheel closes and the mistake pointer setting is unchanged
+
+### Requirement: Segment labels and centre hint
+Every segment SHALL show its icon with its name under it on the ring. While a segment is hovered, the centre of the wheel SHALL show that segment's name and a one-line hint of what picking it does. While no segment is hovered, the centre SHALL name the selected placement and its state, or the question when the wheel asks to confirm. A segment that is greyed out SHALL say in its hint why it does nothing.
+
+#### Scenario: Hover shows the hint
+- **WHEN** the wheel is open on an anchored placement and the mouse points at Lock
+- **THEN** the centre shows "Lock" and a hint saying the placement is fixed in place for building
+
+#### Scenario: Nothing hovered
+- **WHEN** the wheel opens on an anchored placement named "Castle Gate" with the mouse in the centre
+- **THEN** the centre shows "Castle Gate" and its state, Anchored
+
+#### Scenario: Greyed-out segment explains itself
+- **WHEN** in capture mode with no corner set the mouse points at Capture
+- **THEN** the centre's hint says both corners must be set first
+
+### Requirement: Current option mark
+On a page that offers settings, such as Layers, Options, Mistakes or Opacity, the option that is currently in effect or switched on SHALL be marked on its segment. The mark SHALL stay visible while the segment is hovered.
+
+#### Scenario: Current layer setting
+- **WHEN** a locked placement uses From-to and the player opens the Layers sub-wheel
+- **THEN** From-to carries the mark and Off and Follow feet do not
+
+#### Scenario: Hovering a marked segment
+- **WHEN** the mouse points at the marked From-to segment
+- **THEN** the segment is highlighted and still shows the mark
+
+### Requirement: Wheel sounds
+With the client setting `wheel.sounds` on (the default), the wheel SHALL play a quiet tick when the hovered segment changes to another segment, and a click when a segment runs or opens a sub-page or a confirm page. Moving into the centre, a greyed-out segment being picked, and closing without running anything SHALL NOT play the click. With `wheel.sounds` off, the wheel SHALL play no sounds. The sounds SHALL play only for the player who has the wheel open.
+
+#### Scenario: Sweeping across segments
+- **WHEN** with sounds on the mouse moves from Lock over Remove to Materials
+- **THEN** one tick plays as Remove becomes hovered and one as Materials does
+
+#### Scenario: Picking plays a click
+- **WHEN** with sounds on the player picks Library
+- **THEN** a click plays and the library opens
+
+#### Scenario: Sounds off
+- **WHEN** `wheel.sounds` is off and the player sweeps across segments and picks one
+- **THEN** no wheel sound plays
+
+### Requirement: Wheel animations setting
+With the client setting `wheel.animations` on (the default), the wheel SHALL animate opening, hovering, page changes and closing, and every animation SHALL finish within 250 ms. With it off, the wheel SHALL show each state at once in its final layout. Animations SHALL NOT delay input: a segment SHALL be pointable and pickable from the moment the wheel opens, and a release or click SHALL act on the segment under the mouse direction, as without animations.
+
+#### Scenario: Quick flick while opening
+- **WHEN** in HOLD mode the player presses V, flicks towards Library and releases V within 100 ms
+- **THEN** the library opens, even though the opening animation had not finished
+
+#### Scenario: Animations off
+- **WHEN** `wheel.animations` is off and the player opens the wheel and moves between segments
+- **THEN** the wheel appears fully drawn at once and the highlight moves without transition
+
+#### Scenario: Settings survive a restart
+- **WHEN** the player sets `wheel.animations` and `wheel.sounds` to false and restarts the game
+- **THEN** the wheel opens without animations and without sounds

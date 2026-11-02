@@ -454,17 +454,16 @@ class RadialMenuTest {
     private static final RadialMenu.Paste RUNNING = new RadialMenu.Paste(true, true, true);
 
     @Test
-    void pasteComesAfterMaterialsOnAnchoredAndLockedPlacementsInCreative() {
-        assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.MATERIALS, Entry.PASTE, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
-                entries(menu(Mode.HOLD, ANCHORED.with(CREATIVE))));
+    void pasteComesAfterMaterialsOnLockedPlacementsInCreative() {
         assertEquals(List.of(Entry.UNLOCK, Entry.OPTIONS, Entry.LAYERS, Entry.MATERIALS, Entry.PASTE, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
                 entries(menu(Mode.HOLD, LOCKED.with(CREATIVE))));
     }
 
     @Test
-    void noPasteWithoutAvailabilityOrOnFollowingPlacements() {
+    void noPasteWithoutAvailabilityOrOnFollowingAndAnchoredPlacements() {
         assertEquals(-1, index(menu(Mode.HOLD, LOCKED), Entry.PASTE));
         assertEquals(-1, index(menu(Mode.HOLD, FOLLOWING.with(CREATIVE)), Entry.PASTE));
+        assertEquals(-1, index(menu(Mode.HOLD, ANCHORED.with(CREATIVE)), Entry.PASTE));
         assertEquals(-1, index(menu(Mode.HOLD, Selection.NONE.with(CREATIVE)), Entry.PASTE));
         assertEquals(-1, index(menu(Mode.HOLD, LOCKED.with(new RadialMenu.Paste(false, false, true))), Entry.UNDO_PASTE));
     }

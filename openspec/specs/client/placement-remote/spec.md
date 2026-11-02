@@ -85,9 +85,10 @@ For a LOCKED selected placement, the overlay SHALL also show:
 - its progress in percent with matching and counted blocks, or that it is still scanning until every loaded position has been compared once
 - its layer progress, when the layer setting is not off
 - the number of positions per state: wrong block, wrong orientation, wrong water and extra
-- when the crosshair targets a position of the placement in one of those states, the expected and the found block
 
-The crosshair's target SHALL be the ghost target when there is one, and otherwise the real block the crosshair hits.
+A state whose count is 0 SHALL NOT be shown. The progress SHALL also be drawn as a bar of the placement's material list: built in green, carried in blue and short in orange, as the materials screen draws it.
+
+The overlay SHALL NOT name the block under the crosshair, its expected or found block, or what it needs; the targeting HUD shows that.
 
 #### Scenario: Progress and mistakes
 - **WHEN** the selected locked placement has 3104 of 5006 blocks matching, 12 wrong blocks, 4 wrong orientations, 2 wrong water and 3 extra
@@ -97,21 +98,29 @@ The crosshair's target SHALL be the ghost target when there is one, and otherwis
 - **WHEN** the player has just locked a placement and not every loaded position has been compared yet
 - **THEN** the overlay says the placement is scanning instead of showing a percentage
 
-#### Scenario: Looking at a mistake
-- **WHEN** the crosshair targets a position of the selected locked placement that expects oak stairs facing north and holds oak stairs facing east
-- **THEN** the overlay shows the expected and the found stairs with their facing
-
 #### Scenario: Anchored placement shows no progress
 - **WHEN** the selected placement is ANCHORED
 - **THEN** the overlay shows no progress and no counts
 
+#### Scenario: Looking at a mistake
+- **WHEN** the crosshair targets a position of the selected locked placement that expects oak stairs facing north and holds oak stairs facing east
+- **THEN** the overlay's lines stay the same as when looking elsewhere, and the targeting HUD shows the found stairs' facing
+
 #### Scenario: Ghost in front of a mistake
 - **WHEN** a missing ghost of the selected locked placement stands between the player and a wrong block of the same placement
-- **THEN** the overlay shows no expected and found lines, because the target is the missing ghost
+- **THEN** the overlay shows no expected and found lines
 
 #### Scenario: Looking at an extra block
 - **WHEN** the crosshair hits a tall grass plant where the selected locked placement has air
-- **THEN** the overlay shows air as expected and the tall grass as found
+- **THEN** the overlay shows no expected and found lines, and the targeting HUD names the tall grass as extra
+
+#### Scenario: Zero counts left out
+- **WHEN** the selected locked placement has 7 wrong blocks and no wrong orientations, wrong water or extra blocks
+- **THEN** the overlay shows 7 wrong in red and no other mistake count
+
+#### Scenario: Progress bar
+- **WHEN** the selected locked placement plans 214 blocks in its visible layers, 67 are built, the player carries 96 of those still needed and 51 are short
+- **THEN** the overlay's bar shows 67 in green, 96 in blue and 51 in orange
 
 ### Requirement: Overlay key hints
 The overlay SHALL list hints for the actions available in the current state and only those. Each hint SHALL show the key the player currently has bound, not the default. It SHALL always show the wheel key as "menu". An action that is on the wheel SHALL only get a hint when the player has bound a key for it.
@@ -151,7 +160,7 @@ While the overlay shows a placement that has swaps, it SHALL also show how many 
 - **THEN** the overlay shows no swap count
 
 ### Requirement: Finishing in the overlay
-For a LOCKED selected placement, the overlay SHALL also show, in yellow, how many positions in the visible layers need each finishing step, for every step that any visible position needs. These lines SHALL follow the layer setting, while the counts per mistake state stay over the whole placement. When the crosshair targets a position of the placement that needs finishing, the overlay SHALL show the expected and the found block and the step. The crosshair's target SHALL be the ghost target when there is one, and otherwise the real block the crosshair hits.
+For a LOCKED selected placement, the overlay SHALL also show, in yellow, how many positions in the visible layers need each finishing step, for every step that any visible position needs. These lines SHALL follow the layer setting, while the counts per mistake state stay over the whole placement.
 
 #### Scenario: Finishing steps
 - **WHEN** the visible layers of the selected locked placement have 3 dirt paths on dirt and 2 stripped oak logs on oak logs
@@ -167,10 +176,10 @@ For a LOCKED selected placement, the overlay SHALL also show, in yellow, how man
 
 #### Scenario: Looking at a block to finish
 - **WHEN** the crosshair targets a position of the selected locked placement that expects white concrete and holds white concrete powder
-- **THEN** the overlay shows white concrete as expected, white concrete powder as found, and that it needs water
+- **THEN** the overlay shows only its finishing counts, and the targeting HUD says the block needs water
 
 ### Requirement: Amounts in the overlay
-For a LOCKED selected placement, the overlay SHALL count too many positions in orange next to the other mistake counts. When the crosshair targets a position of the placement that is too many, it SHALL show the expected and found block and how many there are instead of how many are planned. When it targets a position that is not enough yet, it SHALL show the expected and found block and how many more are needed.
+For a LOCKED selected placement, the overlay SHALL count too many positions in orange next to the other mistake counts.
 
 #### Scenario: Too many count
 - **WHEN** the selected locked placement has 2 positions with too many candles
@@ -178,11 +187,11 @@ For a LOCKED selected placement, the overlay SHALL count too many positions in o
 
 #### Scenario: Looking at too many candles
 - **WHEN** the crosshair targets a position of the selected locked placement that expects 3 white candles and holds 4
-- **THEN** the overlay shows the expected and found candles and that there are 4 instead of 3
+- **THEN** the overlay shows no line about that position, and the targeting HUD says there are 4 instead of 3
 
 #### Scenario: Looking at one of three candles
 - **WHEN** the crosshair targets a position of the selected locked placement that expects 3 white candles and holds 1
-- **THEN** the overlay shows the expected and found candles and that 2 more are needed
+- **THEN** the overlay shows no line about that position, and the targeting HUD says 2 more are needed
 
 ### Requirement: Unknown blocks in the overlay
 When the selected placement has unknown blocks, the overlay SHALL show, in every placement state, how many block types are unknown and how many positions they cover over the whole placement, and that they are hidden while unknown blocks are hidden. A placement without unknown blocks SHALL show no such line.

@@ -24,7 +24,7 @@ LAN guest, or in survival, adventure or spectator mode.
 - **THEN** paste is not available
 
 ### Requirement: What a paste places
-A paste SHALL place the selected placement, ANCHORED or LOCKED, as its ghost shows it: every position of the
+A paste SHALL place the selected LOCKED placement as its ghost shows it: every position of the
 placement's box with the block the ghost shows there after rotation, mirror and material swaps, including positions in
 hidden layers. Block-entity data in the schematic SHALL be placed with its block, at the pasted position. Blocks the game
 doesn't know SHALL be skipped and leave the world unchanged there. Structure voids SHALL leave the world unchanged.

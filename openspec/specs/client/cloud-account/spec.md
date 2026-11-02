@@ -25,11 +25,15 @@ The client SHALL send the player's Minecraft access token only to Mojang's sessi
 - **THEN** none of them contains the Minecraft access token
 
 ### Requirement: First sign-in is explicit
-The client SHALL contact the Heavymatica Cloud only after the player has signed in at least once on that Minecraft account. Before that, the mod SHALL make no network calls to the cloud.
+Without a stored session, the client SHALL NOT contact the Heavymatica Cloud until the player opens the library. Until the player signs in, the only request SHALL be the anonymous status request of `client/cloud-availability`. With `cloud.access` on `OFF`, the client SHALL contact the cloud not even then.
 
 #### Scenario: Fresh install
-- **WHEN** the mod is installed and the player has never signed in
-- **THEN** the client makes no request to the Heavymatica Cloud until the player chooses "Sign in"
+- **WHEN** the mod is installed, the player has never signed in and plays without opening the library
+- **THEN** the client makes no request to the Heavymatica Cloud
+
+#### Scenario: Library opened before signing in
+- **WHEN** a player who has never signed in opens the library
+- **THEN** the only request to the Heavymatica Cloud is the status request, until the player chooses "Sign in"
 
 ### Requirement: Session survives restarts
 The client SHALL store the cloud session per Minecraft UUID on the local disk and SHALL resume it on the next game start without asking the player again, refreshing tokens as needed.
@@ -68,11 +72,15 @@ The client SHALL let a signed-in player sign out, which SHALL revoke the session
 - **THEN** the local session and stored listing are deleted, and the player is shown as signed out with no cloud entries in the library
 
 ### Requirement: Account status visible
-The client SHALL show, in the library, whether the player is signed in, and when signed in, their name and storage usage against quota.
+While the library shows the cloud parts, the client SHALL show in the library whether the player is signed in, and when signed in, their name and storage usage against quota. While the cloud parts are hidden, the library SHALL show no account status.
 
 #### Scenario: Usage shown
 - **WHEN** a signed-in player opens the library
 - **THEN** it shows their Minecraft name and storage used out of their quota
+
+#### Scenario: Cloud hidden
+- **WHEN** a player without a stored session opens the library while the cloud is not open
+- **THEN** the library shows neither a signed-out state nor a Sign in action
 
 ### Requirement: First sign-in choice
 When the cloud reports that the Minecraft account has no cloud account, the client SHALL ask the player to create a new account or join an existing one, offering join only when the cloud says joining is available. It SHALL create nothing until the player chooses. Without a choice from the cloud, the account is created at once.
