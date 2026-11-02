@@ -38,3 +38,11 @@ displayTest="IGNORE_ALL_VERSION"
     versionRange="[26.1,)"
     ordering="NONE"
     side="CLIENT"
+
+# Draws placement visuals on top of the shaded image while an Iris shader pack is in use.
+[[dependencies.${mod_id}]]
+    modId="iris"
+    type="optional"
+    versionRange="[1.11,)"
+    ordering="NONE"
+    side="CLIENT"

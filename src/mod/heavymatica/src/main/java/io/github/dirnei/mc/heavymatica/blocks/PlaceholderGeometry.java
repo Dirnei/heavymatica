@@ -37,7 +37,7 @@ public final class PlaceholderGeometry {
             if (culled.test(face)) {
                 continue;
             }
-            int color = ARGB.scaleRGB(0xFFFFFFFF, CardinalLighting.DEFAULT.byFace(face));
+            int color = ARGB.scaleRGB(0xFFFFFFFF, FaceShade.of(CardinalLighting.DEFAULT, face));
             float[] c = BlockGeometry.corners(face, x, y, z, x + 1, y + 1, z + 1);
             float[] u = {u0, u0, u1, u1};
             float[] v = {v0, v1, v1, v0};

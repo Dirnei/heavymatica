@@ -77,7 +77,8 @@ public final class PlacementSession {
         NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingIn event) -> joined());
         NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) -> left());
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> tick());
-        NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent.AfterTranslucentBlocks event) -> renderer.render(event));
+        NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent.AfterTranslucentBlocks event) -> renderer.renderInLevel(event.getModelViewMatrix()));
+        NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent.AfterLevel event) -> renderer.renderAfterLevel(event.getModelViewMatrix()));
     }
 
     public Placements placements() {

@@ -166,6 +166,8 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code mistakePointer=<mode>}: set the mistake pointer to that {@code PointerMode}; {@code logPointer}: log the mistake
  *     pointer setting and its HUD text with colours and target, or why it is hidden</li>
  *     <li>{@code layerWindow=<bottom>,<top>}: show only layers bottom to top of the selected locked placement</li>
+ *     <li>{@code shaders=<true|false>}: turn Iris shaders on or off as the Iris screen does; {@code shaderPack=<name>}: select
+ *     a pack of the shaderpacks folder and reload; both do nothing without Iris</li>
  *     <li>{@code quit}: stop the game</li>
  * </ul>
  */
@@ -608,6 +610,8 @@ public final class DevScreens {
                     }
                 }
             }
+            case "shaders" -> io.github.dirnei.mc.heavymatica.shaders.ShaderPacks.setEnabled(Boolean.parseBoolean(argument));
+            case "shaderPack" -> io.github.dirnei.mc.heavymatica.shaders.ShaderPacks.selectPack(argument);
             case "quit" -> minecraft.stop();
             default -> Heavymatica.LOGGER.warn("Unknown dev screen step {}", step);
         }

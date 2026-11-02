@@ -1,11 +1,13 @@
 package io.github.dirnei.mc.heavymatica.placement;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Bounds;
+import io.github.dirnei.mc.heavymatica.shaders.ShaderPacks;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -20,8 +22,9 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix4fStack;
+import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 
 /**
@@ -51,7 +54,32 @@ final class GhostRenderer {
         this.remoteHeld = remoteHeld;
     }
 
-    void render(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    /** Draws the placements after the translucent blocks, unless a shader pack is in use. */
+    void renderInLevel(Matrix4fc modelView) {
+        if (!ShaderPacks.inUse()) {
+            render(modelView);
+        }
+    }
+
+    /**
+     * Draws the placements on top of a shader pack's final image, before the hand clears the depth buffer. The pack
+     * replaces the shaders of everything drawn during the level, which hides the ghosts there.
+     */
+    void renderAfterLevel(Matrix4fc modelView) {
+        if (!ShaderPacks.inUse()) {
+            return;
+        }
+        Matrix4fStack modelViewStack = RenderSystem.getModelViewStack();
+        modelViewStack.pushMatrix();
+        modelViewStack.mul(modelView);
+        try {
+            render(modelView);
+        } finally {
+            modelViewStack.popMatrix();
+        }
+    }
+
+    private void render(Matrix4fc modelView) {
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
         if (level == null) {
@@ -65,7 +93,7 @@ final class GhostRenderer {
         float opacity = HeavymaticaConfig.ghostOpacity();
         float placeholderOpacity = HeavymaticaConfig.ghostShowUnknownBlocks() ? opacity : 0.0F;
         float lineWidth = minecraft.gameRenderer.getGameRenderState().windowRenderState.appropriateLineWidth;
-        PoseStack pose = event.getPoseStack();
+        PoseStack pose = new PoseStack();
         MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
         VertexConsumer lines = buffers.getBuffer(RenderTypes.lines());
         int used = 0;
@@ -96,10 +124,10 @@ final class GhostRenderer {
                     // Boxes go first: the ghosts' depth pass would otherwise hide every box behind a ghost block, and the
                     // boxes should only hide behind real blocks.
                     comparison.boxes().update();
-                    comparison.boxes().draw(event.getModelViewMatrix(), offset, layers.from(), layers.to());
-                    int full = cells.draw(event.getModelViewMatrix(), offset, layers, block -> alpha.applyAsDouble(block) >= opacity ? opacity : 0.0,
+                    comparison.boxes().draw(modelView, offset, layers.from(), layers.to());
+                    int full = cells.draw(modelView, offset, layers, block -> alpha.applyAsDouble(block) >= opacity ? opacity : 0.0,
                             placeholders, mask);
-                    int dimmed = cells.draw(event.getModelViewMatrix(), offset, layers, block -> {
+                    int dimmed = cells.draw(modelView, offset, layers, block -> {
                         double value = alpha.applyAsDouble(block);
                         return value < opacity ? value : 0.0;
                     }, 0.0F, mask);
@@ -107,7 +135,7 @@ final class GhostRenderer {
                     cellsDrawn.append(" ").append(placement.name()).append(" layers ").append(layers.from()).append('-').append(layers.to())
                             .append(": ").append(full).append(" full, ").append(dimmed).append(" dimmed");
                 } else {
-                    mesh.draw(event.getModelViewMatrix(), offset, opacity, placeholderOpacity);
+                    mesh.draw(modelView, offset, opacity, placeholderOpacity);
                 }
             } else {
                 outlinesOnly++;

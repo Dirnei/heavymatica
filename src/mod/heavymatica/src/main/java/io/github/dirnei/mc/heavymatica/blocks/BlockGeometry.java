@@ -15,6 +15,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.LightCoordsUtil;
+import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
@@ -41,9 +42,12 @@ public final class BlockGeometry {
     private TexturedOutput output = (texture, layer) -> {
         throw new IllegalStateException("No output");
     };
+    private CardinalLighting lighting = CardinalLighting.DEFAULT;
     private int modelQuads;
     private final BlockQuadOutput modelOutput = (x, y, z, quad, instance) -> {
-        output.buffer(TextureAtlas.LOCATION_BLOCKS, quad.materialInfo().layer()).putBlockBakedQuad(x, y, z, quad, instance);
+        VertexConsumer buffer = output.buffer(TextureAtlas.LOCATION_BLOCKS, quad.materialInfo().layer());
+        float correction = quad.materialInfo().shade() ? FaceShade.correction(lighting, quad.direction()) : 1.0F;
+        (correction == 1.0F ? buffer : new ScaledColorVertices(buffer, correction)).putBlockBakedQuad(x, y, z, quad, instance);
         modelQuads++;
     };
 
@@ -61,6 +65,7 @@ public final class BlockGeometry {
     /** Writes the block at {@code pos} of {@code view}; returns whether it wrote anything. */
     public boolean emit(BlockAndTintGetter view, BlockPos pos, BlockState state, TexturedOutput out) {
         output = out;
+        lighting = view.cardinalLighting();
         FluidState fluid = state.getFluidState();
         boolean wrote = false;
         if (state.getRenderShape() != RenderShape.INVISIBLE) {
@@ -99,7 +104,7 @@ public final class BlockGeometry {
             float ax = pos.getX() + (float) x0, ay = pos.getY() + (float) y0, az = pos.getZ() + (float) z0;
             float bx = pos.getX() + (float) x1, by = pos.getY() + (float) y1, bz = pos.getZ() + (float) z1;
             for (Direction face : Direction.values()) {
-                int shaded = ARGB.scaleRGB(color, view.cardinalLighting().byFace(face));
+                int shaded = ARGB.scaleRGB(color, FaceShade.of(view.cardinalLighting(), face));
                 float[] c = corners(face, ax, ay, az, bx, by, bz);
                 for (int i = 0; i < 4; i++) {
                     buffer.addVertex(c[i * 3], c[i * 3 + 1], c[i * 3 + 2], shaded, flatU, flatV, OverlayTexture.NO_OVERLAY, LightCoordsUtil.FULL_BRIGHT,
