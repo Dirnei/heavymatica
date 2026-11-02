@@ -165,11 +165,12 @@ public final class MaterialsScreen extends GlassScreen {
         addRenderableWidget(new GlassButton(d.x(), d.y(), d.w(), d.h(), CommonComponents.GUI_DONE, GlassButton.Kind.PRIMARY, button -> onClose()));
     }
 
+    /**
+     * Nothing takes focus on open: the screen is opened from the wheel while its key may still be held, and the vanilla
+     * default would focus the search box after keyboard input, typing that key into it.
+     */
     @Override
     protected void setInitialFocus() {
-        if (search != null) {
-            setInitialFocus(search);
-        }
     }
 
     /**

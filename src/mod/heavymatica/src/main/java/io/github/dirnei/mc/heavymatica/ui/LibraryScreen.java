@@ -105,6 +105,14 @@ public class LibraryScreen extends GlassScreen {
         this.facts = new EntryFacts(library, this::updateDetails);
     }
 
+    /**
+     * Nothing takes focus on open: the library opens on a key (its own or the wheel's), and the vanilla default would
+     * focus the search box after keyboard input, typing that key into it.
+     */
+    @Override
+    protected void setInitialFocus() {
+    }
+
     @Override
     protected void init() {
         subscriptions.forEach(Runnable::run);
