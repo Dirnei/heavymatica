@@ -49,7 +49,7 @@ exists:
   `Heavymatica.Cloud.Contract.Admin`; the admin site generates its types from it. It is not embedded into
   `/openapi/v1.yaml` and not served at all.
 - Operations (tag in brackets, all under `/admin/v1`):
-  - [Session] `GET /session` (the signed-in admin, `passkeyCount`, `needsSecondPasskey`), `POST /sign-in/options`,
+  - [Session] `GET /session` (the signed-in admin and their `passkeyCount`), `POST /sign-in/options`,
     `POST /sign-in`, `POST /sign-out`
   - [Registration] `POST /registration/options` (`{ setupCode | invitationToken, displayName? }`),
     `POST /registration` (the attestation), `POST /passkeys/options` and `POST /passkeys` for an additional passkey of
@@ -59,8 +59,8 @@ exists:
   - [Accounts] `GET /accounts?q=`, `GET /accounts/{accountId}`, `PUT /accounts/{accountId}/quota`
     (`{ quotaBytes, reason }`)
   - [Audit] `GET /audit?cursor=&limit=`
-- Problem codes of its own: `setup_code_invalid`, `invitation_invalid`, `second_passkey_required`,
-  `passkey_required` (would leave fewer than two), `last_admin`, `cannot_remove_self`, `passkey_failed`, plus the
+- Problem codes of its own: `setup_code_invalid`, `invitation_invalid`, `passkey_required` (would remove the admin's
+  last passkey), `last_admin`, `cannot_remove_self`, `passkey_failed`, plus the
   shared `unauthenticated`, `request_forbidden`, `not_found`, `invalid_request`, `rate_limited`.
 
 ### D3. Passkeys on ASP.NET Core Identity
@@ -89,8 +89,10 @@ exists:
 - The authorization policy of the admin group accepts only `AdminSession`. The player fallback policy never accepts
   it. Requests with a player cookie or bearer token on the admin API are unauthenticated.
 - `UseWebRequestCheck` applies to `AdminSession` as to `WebSession`.
-- `second_passkey_required`: an endpoint filter on the group answers 403 for every operation except `GET /session`,
-  `POST /passkeys/options`, `POST /passkeys` and `POST /sign-out` while the admin has fewer than two passkeys.
+- One passkey is enough: an admin can use every operation right after registering their first passkey. More passkeys
+  are optional and can be added at any time; removing an admin's last passkey answers `passkey_required`. A lost
+  passkey is restored with a recovery invitation or a recovery setup code (D5), so a second passkey is a convenience,
+  not a requirement.
 
 ### D5. Setup codes and invitations
 
@@ -132,7 +134,7 @@ the deployment, the same as the player rate limits.
 
 - `src/web/admin`: Astro static with Svelte islands and `openapi-fetch`, styled like the player site but with its
   own layout and an "Admin" banner. Pages: `/` (sign-in or setup code), `/invite/`, `/accounts/` (search),
-  `/account/?id=`, `/admins/`, `/audit/`, `/passkeys/` (add a passkey; the only page while one is missing).
+  `/account/?id=`, `/admins/`, `/audit/`, `/passkeys/` (add a passkey, with a hint that a second one on another device avoids needing a recovery code).
 - WebAuthn in the browser through `navigator.credentials.create` and `get` with the JSON options from the API
   (`PublicKeyCredential.parseCreationOptionsFromJSON` and `toJSON`, with a small fallback for browsers without them).
 - The cloud serves the built site on the admin listener with the same static file rules as the player site
@@ -163,7 +165,7 @@ the deployment, the same as the player rate limits.
 
 1. Deploy with `Admin:Url` and `Admin:Host` set and DNS for the admin host pointing at the proxy; certificates by
    HTTP-01 while public.
-2. Run `admin setup-code` on the server, register the first admin and their second passkey.
+2. Run `admin setup-code` on the server, register the first admin's passkey.
 3. Later, behind WireGuard: point DNS at the VPN address, restrict the proxy or firewall, and switch certificates to
    DNS-01. No code changes.
 

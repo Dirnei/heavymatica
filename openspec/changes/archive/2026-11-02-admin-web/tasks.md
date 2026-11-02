@@ -18,13 +18,13 @@ Cloud tests run with `dotnet test --project src/cloud/Heavymatica.Cloud.Tests`; 
 - [x] 3.1 Add `AdminUser`, the Mongo store (`IUserStore`, `IUserPasskeyStore`) over `admins` and `admin_passkeys` with their indexes, and `AddIdentityCore` with `IdentityPasskeyOptions.ServerDomain` from `Admin:Host` (D3); verify unit tests of the store and a test-only software authenticator (ES256, `none` attestation) that registers and signs in through `SignInManager`
 - [x] 3.2 Add the `AdminSession` cookie scheme, `admin_sessions`, the 30-minute sliding and 8-hour absolute limits, the admin-only policy on the group, and the request check for `AdminSession` (D4); verify tests with a `FakeTimeProvider` for idle and absolute expiry, a player cookie and a player bearer token answering 401 on `/admin/v1/session`, an admin cookie answering 401 on `/v1/me`, and an unsafe request without the header answering 403
 - [x] 3.3 Implement the sign-in and sign-out operations and `GET /session` (D2, D4); verify an integration test that signs in with the software authenticator, reads the session, signs out, and that a passkey of another RP ID fails with `passkey_failed`
-- [x] 3.4 Add the `second_passkey_required` filter and the additional-passkey operations (D4); verify an admin with one passkey gets 403 on `GET /accounts` and can add a second, after which the call succeeds
+- [x] 3.4 Add the additional-passkey operations (D4); verify an admin with one passkey can call `GET /accounts` and can add a second passkey
 
 ## 4. Setup codes, invitations, management
 
 - [x] 4.1 Add the `admin setup-code [--admin <id>]` CLI verb and `admin_setup_codes` (D5); verify tests that the verb prints a code, that a second run invalidates the first, and that the registration operations create the first admin with a valid code, reject an expired or used code with `setup_code_invalid`, and with `--admin` add a passkey to that admin
 - [x] 4.2 Add invitations (create, list, revoke, register from the token for `admin` and `recovery`) (D5); verify tests for use, reuse, expiry after 24 hours, revoke, and a recovery invitation adding a passkey to the named admin
-- [x] 4.3 Add admin management: list admins with passkeys, remove an admin (ending their sessions; `last_admin`, `cannot_remove_self`), remove a passkey (`passkey_required` below two); verify tests for each rule and that a removed admin's cookie answers 401 on its next request
+- [x] 4.3 Add admin management: list admins with passkeys, remove an admin (ending their sessions; `last_admin`, `cannot_remove_self`), remove a passkey (`passkey_required` for the last one); verify tests for each rule and that a removed admin's cookie answers 401 on its next request
 - [x] 4.4 Add the `admin-sign-in` and `admin-code` rate limits (D6); verify the 11th sign-in attempt in a minute and the 6th code attempt in 10 minutes answer 429 `rate_limited` without checking the code
 - [x] 4.5 Add `admin_audit` with the TTL index and entries for every kind of D7, and `GET /audit` with cursor paging; verify a test that a registration, a sign-in, an invitation, a failed setup code and a quota change each write an entry with time, admin, IP and details, read back newest first across two pages
 
@@ -36,14 +36,14 @@ Cloud tests run with `dotnet test --project src/cloud/Heavymatica.Cloud.Tests`; 
 ## 6. Admin site
 
 - [x] 6.1 Scaffold `src/web/admin` (Astro static, Svelte, `openapi-fetch`, Vitest, `npm run check`) with generated types from the admin contract and its own layout (D9); verify `npm run check` and `npm test` pass
-- [ ] 6.2 Add sign-in, setup code registration, the invitation page and the add-passkey page with WebAuthn JSON helpers (D9); verify Vitest tests for the options conversion and the problem-code messages, and **(manual check)** registering the first admin from a CLI setup code, adding a second passkey, signing out and in again, and cancelling the browser prompt
-- [ ] 6.3 Add the account search, account page with the quota form (MiB / GiB input), admins page (invite, recovery invite, revoke, remove admin, remove passkey) and audit page with paging; verify Vitest tests for the quota unit conversion and **(manual check)** each "in the browser" scenario
+- [x] 6.2 Add sign-in, setup code registration, the invitation page and the add-passkey page with WebAuthn JSON helpers (D9); verify Vitest tests for the options conversion and the problem-code messages, and **(manual check)** registering the first admin from a CLI setup code, adding a second passkey on the passkeys page, signing out and in again, and cancelling the browser prompt
+- [x] 6.3 Add the account search, account page with the quota form (MiB / GiB input), admins page (invite, recovery invite, revoke, remove admin, remove passkey) and audit page with paging; verify Vitest tests for the quota unit conversion and **(manual check)** each "in the browser" scenario
 - [x] 6.4 Serve the admin build from the cloud on the admin listener (D9) and add the AppHost settings and the admin dev server on port 4322 proxying `/admin/v1`; document `Admin:*` and the setup command in the cloud README section; verify `AppHostTests` pass with `--Heavymatica:EphemeralStorage=true`, and that under the AppHost `http://localhost:5181/` serves the admin site while `http://localhost:5180/admin/v1/session` is 404
 
 ## 7. Integration
 
-- [ ] 7.1 **(manual check)** End to end on the dev AppHost: setup code, first admin with two passkeys, invite a second admin in another browser profile, look up a player account by Minecraft name, raise its quota, see the change in the audit log, and remove the second admin
-- [ ] 7.2 Update `ROADMAP.md` step 5 to mark `admin-web` done and step 5 complete; verify the file reads consistently
+- [x] 7.1 **(manual check)** End to end on the dev AppHost: setup code, first admin with one passkey, invite a second admin in another browser profile, look up a player account by Minecraft name, raise its quota, see the change in the audit log, and remove the second admin
+- [x] 7.2 Update `ROADMAP.md` step 5 to mark `admin-web` done and step 5 complete; verify the file reads consistently
 
 ## Workflow follow-up
 

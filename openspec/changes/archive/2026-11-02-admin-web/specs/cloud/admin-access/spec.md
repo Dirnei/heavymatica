@@ -54,16 +54,20 @@ An admin SHALL be able to create an invitation link that is valid for 24 hours a
 - **WHEN** an invitation is opened after the inviting admin revoked it
 - **THEN** the service rejects it and no admin is created
 
-### Requirement: Two passkeys per admin
-An admin with fewer than two passkeys SHALL be able to do nothing but register another passkey and sign out. An admin SHALL NOT be able to remove a passkey when that would leave fewer than two.
+### Requirement: At least one passkey per admin
+An admin with one passkey SHALL be able to use every admin operation. An admin SHALL be able to register additional passkeys at any time. An admin SHALL NOT be able to remove a passkey when it is the admin's last one.
 
-#### Scenario: Only one passkey
-- **WHEN** an admin with one passkey tries to look up an account
-- **THEN** the service rejects it and asks for a second passkey
+#### Scenario: One passkey is enough
+- **WHEN** an admin with one passkey looks up an account
+- **THEN** the service answers the lookup
 
-#### Scenario: Removing a needed passkey
-- **WHEN** an admin with two passkeys tries to remove one
-- **THEN** the service rejects it and both passkeys stay
+#### Scenario: Adding another passkey
+- **WHEN** a signed-in admin registers another passkey
+- **THEN** the passkey is added and the admin can sign in with either passkey
+
+#### Scenario: Removing the last passkey
+- **WHEN** an admin tries to remove the only passkey of an admin
+- **THEN** the service rejects it and the passkey stays
 
 ### Requirement: Restoring access
 An admin SHALL be able to create a recovery invitation for another admin, valid for 24 hours and once, that adds a passkey to that admin. A setup code from the server command SHALL also be usable to add a passkey to an existing admin.
@@ -98,7 +102,7 @@ The service SHALL record an audit entry for every admin sign-in, every failed se
 - **THEN** the admin audit log holds an entry with the time, the admin, the client IP address and the new passkey
 
 ### Requirement: Managing admins
-An admin SHALL be able to list all admins with their passkeys, remove another admin, and remove a passkey of any admin within the two-passkey rule. An admin SHALL NOT be able to remove themselves or the last admin. Removing an admin SHALL end their sessions at once.
+An admin SHALL be able to list all admins with their passkeys, remove another admin, and remove a passkey of any admin as long as that admin keeps at least one. An admin SHALL NOT be able to remove themselves or the last admin. Removing an admin SHALL end their sessions at once.
 
 #### Scenario: Removing an admin
 - **WHEN** an admin removes another admin

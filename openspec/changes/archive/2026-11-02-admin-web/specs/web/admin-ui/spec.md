@@ -14,11 +14,11 @@ The admin site SHALL be served by the service on the admin host and SHALL talk o
 - **THEN** the admin site shows the passkey sign-in and a way to enter a setup code
 
 ### Requirement: Passkey sign-in and registration in the browser
-The admin site SHALL sign in with the browser's passkey prompt, register passkeys from a setup code or an invitation link, and register additional passkeys for the signed-in admin. While the admin has fewer than two passkeys, the site SHALL show only the prompt to register another one and sign-out.
+The admin site SHALL sign in with the browser's passkey prompt, register passkeys from a setup code or an invitation link, and register additional passkeys for the signed-in admin at any time. After registering their first passkey, the admin SHALL be able to use every page of the site.
 
 #### Scenario: Register from a setup code
 - **WHEN** a person enters a valid setup code and a display name and completes the browser's passkey prompt
-- **THEN** the site signs in the new admin and asks for a second passkey
+- **THEN** the site signs in the new admin and opens the account search
 
 #### Scenario: Passkey prompt cancelled
 - **WHEN** a person cancels the browser's passkey prompt

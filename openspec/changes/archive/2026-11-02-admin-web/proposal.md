@@ -16,7 +16,8 @@ from the start. `admin-web` is change 5 of 5 in step 5 of `ROADMAP.md`, which re
   - **First admin:** a CLI command on the server prints a one-time setup code (15 minutes, single use). Entering it on
     the admin site registers the first passkey and creates the admin.
   - **Further admins:** an existing admin creates an invitation link (single use, 24 hours).
-  - **Two passkeys:** an admin with only one passkey can do nothing but register a second one.
+  - **Passkeys per admin:** one passkey is enough to use the admin site; an admin may add more at any time and always
+    keeps at least one. A lost passkey is restored with a recovery invitation or code.
   - **Lost access:** another admin's recovery invitation, or a setup code from the CLI, adds a passkey to an existing
     admin.
 - **Admin session:** a cookie bound to the admin host, 30 minutes idle and 8 hours at most, with the same-origin and
@@ -27,7 +28,7 @@ from the start. `admin-web` is change 5 of 5 in step 5 of `ROADMAP.md`, which re
   - find accounts by account ID, Minecraft name or UUID, or GitHub login
   - see an account's identities, usage, quota, schematic count and recent account audit entries
   - change an account's quota, with a required reason
-  - manage admins: list them and their passkeys, invite, remove a passkey (never the last two of an admin), remove an
+  - manage admins: list them and their passkeys, invite, remove a passkey (never the last one of an admin), remove an
     admin (never the last one, never oneself)
   - read the admin audit log
 - **A second website**, `src/web/admin` (Astro and Svelte like the player site), served by the cloud on the admin
@@ -67,6 +68,6 @@ log.
 - **Data:** new collections `admins`, `admin_passkeys`, `admin_setup_codes`, `admin_invitations` and `admin_audit`.
 - **Website:** new `src/web/admin`. The player site is unchanged.
 - **Mod:** unchanged.
-- **Tests:** xUnit integration tests for listener separation, setup codes, invitations, the two-passkey rule, session
+- **Tests:** xUnit integration tests for listener separation, setup codes, invitations, the last-passkey rule, session
   limits, rate limits, audit and quota changes, using a software authenticator for WebAuthn; Vitest tests for the
   admin site's pure logic; a manual passkey check in a browser.
