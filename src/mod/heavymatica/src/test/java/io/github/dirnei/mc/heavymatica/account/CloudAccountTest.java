@@ -61,6 +61,36 @@ class CloudAccountTest {
     }
 
     @Test
+    void the_status_request_carries_no_token_even_when_signed_in() throws Exception {
+        store.save(new SessionStore.StoredSession(PLAYER, "Dirnei", "access-1", java.time.OffsetDateTime.now().plusMinutes(15), "refresh-1"));
+        cloud.answer(200, "{\"signIn\":\"open\",\"minClient\":\"0.3.0\"}");
+        CloudAccount account = account(cloud.uri());
+        account.restore();
+
+        var status = account.fetchStatus().get(10, TimeUnit.SECONDS);
+
+        assertEquals(io.github.dirnei.mc.heavymatica.cloud.model.SignInState.OPEN, status.getSignIn());
+        assertEquals("0.3.0", status.getMinClient());
+        StubCloud.Request request = cloud.requests().getFirst();
+        assertEquals("GET", request.method());
+        assertEquals("/v1/status", request.path());
+        assertEquals(null, request.authorization());
+        assertTrue(request.body().length == 0);
+    }
+
+    @Test
+    void account_calls_fail_without_a_request_while_contact_is_not_allowed() {
+        store.save(new SessionStore.StoredSession(PLAYER, "Dirnei", "access-1", java.time.OffsetDateTime.now().plusMinutes(15), "refresh-1"));
+        CloudAccount account = account(cloud.uri());
+        account.restore();
+        account.contactWhen(() -> false);
+
+        assertThrows(ExecutionException.class, () -> account.refreshAccount().get(10, TimeUnit.SECONDS));
+
+        assertTrue(cloud.requests().isEmpty());
+    }
+
+    @Test
     void sign_in_runs_the_handshake_and_stores_the_session_per_uuid() throws Exception {
         cloud.answer(200, challenge()).answer(200, signedIn("access-1", "refresh-1"));
         CloudAccount account = account(cloud.uri());

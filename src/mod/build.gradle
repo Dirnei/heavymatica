@@ -67,6 +67,8 @@ subprojects {
             client {
                 client()
                 gameDirectory = project.file('runs/client')
+                // Dev clients talk to the local cloud, never to production by accident; HEAVYMATICA_CLOUD_URL picks another one.
+                systemProperty 'heavymatica.cloud.url', System.getenv('HEAVYMATICA_CLOUD_URL') ?: 'http://localhost:5180'
                 // Development aid: join a server straight away, for example HEAVYMATICA_QUICKPLAY=localhost:25599.
                 def quickPlay = System.getenv('HEAVYMATICA_QUICKPLAY')
                 if (quickPlay) {

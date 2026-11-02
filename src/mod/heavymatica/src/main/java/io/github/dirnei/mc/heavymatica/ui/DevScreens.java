@@ -135,6 +135,8 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code controls}: open the key bindings screen; {@code scroll=<rows>}: scroll the open screen down</li>
  *     <li>{@code hideGui=<true|false>}: hide the HUD like F1</li>
  *     <li>{@code logButton=<translation key>}: log whether the button with that label is visible and active</li>
+ *     <li>{@code logCloud}: log the cloud address, the cloud access setting and the status answer</li>
+ *     <li>{@code cloudAccess=<AUTO|ON|OFF>}: change the cloud access setting</li>
  *     <li>{@code checkTransform}: compare the placement mapping with vanilla's structure template transform</li>
  *     <li>{@code logConflicts}: log the bindings the controls screen marks as colliding with Heavymatica's keys</li>
  *     <li>{@code wheelPoint=<entry>[@<n>]}, {@code wheelCentre}: move the mouse cursor onto a segment of the open wheel (for
@@ -352,6 +354,9 @@ public final class DevScreens {
                         .map(child -> (AbstractWidget) child)
                         .forEach(widget -> Heavymatica.LOGGER.info("Dev button {}: visible {}, active {}", label, widget.visible, widget.active));
             }
+            case "logCloud" -> Heavymatica.LOGGER.info("Dev cloud: {}, access {}, answer {}, signed in {}", HeavymaticaConfig.cloudUrl(),
+                    HeavymaticaConfig.cloudAccess(), HeavymaticaClient.availability().answer(), HeavymaticaClient.account().status());
+            case "cloudAccess" -> HeavymaticaConfig.setCloudAccess(io.github.dirnei.mc.heavymatica.account.CloudAccess.valueOf(argument));
             case "hideGui" -> minecraft.options.hideGui = Boolean.parseBoolean(argument);
             case "logConflicts" -> {
                 for (KeyMapping mine : minecraft.options.keyMappings) {

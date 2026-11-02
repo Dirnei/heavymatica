@@ -3,6 +3,7 @@ package io.github.dirnei.mc.heavymatica;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.dirnei.mc.heavymatica.account.CloudAccount;
+import io.github.dirnei.mc.heavymatica.account.CloudAvailability;
 import io.github.dirnei.mc.heavymatica.account.DevSessionJoin;
 import io.github.dirnei.mc.heavymatica.account.GameSessionJoin;
 import io.github.dirnei.mc.heavymatica.account.SessionJoin;
@@ -73,6 +74,8 @@ public final class HeavymaticaClient {
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, CATEGORY);
 
     private static @Nullable CloudAccount account;
+    private static @Nullable CloudAvailability availability;
+    private static String modVersion = "0";
     private static @Nullable Library library;
     private static @Nullable PlacementSession placements;
     private static @Nullable GhostTargeting targeting;
@@ -82,6 +85,7 @@ public final class HeavymaticaClient {
 
     public HeavymaticaClient(IEventBus modEventBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.CLIENT, HeavymaticaConfig.SPEC);
+        modVersion = container.getModInfo().getVersion().toString();
         modEventBus.addListener(HeavymaticaClient::registerKeys);
         modEventBus.addListener(HeavymaticaClient::setup);
         modEventBus.addListener(GhostPipeline::register);
@@ -100,6 +104,14 @@ public final class HeavymaticaClient {
             throw new IllegalStateException("Heavymatica's client services are not set up yet.");
         }
         return account;
+    }
+
+    /** Available after client setup. */
+    public static CloudAvailability availability() {
+        if (availability == null) {
+            throw new IllegalStateException("Heavymatica's client services are not set up yet.");
+        }
+        return availability;
     }
 
     /** Available after client setup. */
@@ -141,7 +153,7 @@ public final class HeavymaticaClient {
     }
 
     public static LibraryScreen libraryScreen() {
-        return new io.github.dirnei.mc.heavymatica.ui.ImportingLibraryScreen(account(), library(), HeavymaticaClient::place);
+        return new io.github.dirnei.mc.heavymatica.ui.ImportingLibraryScreen(account(), availability(), library(), HeavymaticaClient::place);
     }
 
     /** Library Place: a new FOLLOWING placement at the crosshair (or the player's feet), and a hint when no remote is held. */
@@ -195,7 +207,11 @@ public final class HeavymaticaClient {
                             holder[0].signedOut();
                         }
                     });
-            library = new Library(account, HeavymaticaClient::playerId, new LocalLibrary(data.resolve("local"), json, Clock.systemUTC()),
+            CloudAvailability cloud = new CloudAvailability(account::fetchStatus, modVersion, HeavymaticaConfig::cloudAccess, minecraft::execute,
+                    CloudAvailability.TIMEOUT);
+            availability = cloud;
+            account.contactWhen(() -> cloud.mayContact() && !cloud.tooOld());
+            library = new Library(account, cloud, HeavymaticaClient::playerId, new LocalLibrary(data.resolve("local"), json, Clock.systemUTC()),
                     new StoredListing(data.resolve("library"), json),
                     new SchematicCache(data.resolve("cache"), HeavymaticaConfig.cacheSizeBytes(), Clock.systemUTC(), json),
                     minecraft::execute, Util.backgroundExecutor());

@@ -6,6 +6,7 @@ import io.github.dirnei.mc.heavymatica.cloud.model.CompleteSignInRequest;
 import io.github.dirnei.mc.heavymatica.cloud.model.LinkCode;
 import io.github.dirnei.mc.heavymatica.cloud.model.PendingSignIn;
 import io.github.dirnei.mc.heavymatica.cloud.model.RefreshRequest;
+import io.github.dirnei.mc.heavymatica.cloud.model.ServiceStatus;
 import io.github.dirnei.mc.heavymatica.cloud.model.Session;
 import io.github.dirnei.mc.heavymatica.cloud.model.SignInResult;
 import io.github.dirnei.mc.heavymatica.cloud.model.VerifyRequest;
@@ -17,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.jetbrains.annotations.Nullable;
@@ -58,6 +60,7 @@ public final class CloudAccount implements TokenSource {
     private final CloudClient pendingClient;
     private final List<Consumer<CloudAccount>> listeners = new CopyOnWriteArrayList<>();
 
+    private volatile BooleanSupplier contactAllowed = () -> true;
     private volatile Status status = Status.SIGNED_OUT;
     private volatile SessionStore.@Nullable StoredSession session;
     private volatile @Nullable Account account;
@@ -93,6 +96,21 @@ public final class CloudAccount implements TokenSource {
 
     public boolean signedIn() {
         return status == Status.SIGNED_IN;
+    }
+
+    /** Whether this Minecraft account has signed in before: everything but {@link Status#SIGNED_OUT}. */
+    public boolean hasSession() {
+        return status != Status.SIGNED_OUT;
+    }
+
+    /** While {@code allowed} says no, account calls fail at once instead of reaching the cloud. */
+    public void contactWhen(BooleanSupplier allowed) {
+        contactAllowed = allowed;
+    }
+
+    /** The cloud's status, asked without a token or anything else about the player. */
+    public CompletableFuture<ServiceStatus> fetchStatus() {
+        return auth.call(apis -> apis.status().getStatus());
     }
 
     public Optional<Account> account() {
@@ -221,6 +239,9 @@ public final class CloudAccount implements TokenSource {
     }
 
     public CompletableFuture<Account> refreshAccount() {
+        if (!contactAllowed.getAsBoolean()) {
+            return CompletableFuture.failedFuture(new CloudException(0, null, "Heavymatica Cloud is turned off", null));
+        }
         return client.call(apis -> apis.account().getMe()).thenApply(fresh -> {
             account = fresh;
             change(status);

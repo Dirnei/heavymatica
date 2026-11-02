@@ -1,6 +1,7 @@
 package io.github.dirnei.mc.heavymatica.library;
 
 import io.github.dirnei.mc.heavymatica.account.CloudAccount;
+import io.github.dirnei.mc.heavymatica.account.CloudAvailability;
 import io.github.dirnei.mc.heavymatica.account.CloudException;
 import io.github.dirnei.mc.heavymatica.cache.SchematicCache;
 import io.github.dirnei.mc.heavymatica.cloud.model.DownloadLinks;
@@ -49,6 +50,7 @@ public final class Library {
     private static final int PAGE_SIZE = 100;
 
     private final CloudAccount account;
+    private final CloudAvailability availability;
     private final Supplier<UUID> player;
     private final LocalLibrary local;
     private final StoredListing listing;
@@ -63,7 +65,13 @@ public final class Library {
 
     public Library(CloudAccount account, Supplier<UUID> player, LocalLibrary local, StoredListing listing, SchematicCache cache,
                    Executor completion, Executor background) {
+        this(account, CloudAvailability.unrestricted(), player, local, listing, cache, completion, background);
+    }
+
+    public Library(CloudAccount account, CloudAvailability availability, Supplier<UUID> player, LocalLibrary local, StoredListing listing,
+                   SchematicCache cache, Executor completion, Executor background) {
         this.account = account;
+        this.availability = availability;
         this.player = player;
         this.local = local;
         this.listing = listing;
@@ -88,14 +96,15 @@ public final class Library {
 
     /** Shows the stored listing of the current account at once; call {@link #refresh()} to bring it up to date. */
     public void loadStored() {
-        cloud = noSession() ? List.of() : listing.load(player.get());
-        state = cloud.isEmpty() && noSession() ? CloudState.NONE : CloudState.OFFLINE;
+        boolean hidden = noSession() || !availability.mayContact();
+        cloud = hidden ? List.of() : listing.load(player.get());
+        state = cloud.isEmpty() && hidden ? CloudState.NONE : CloudState.OFFLINE;
         changed();
     }
 
-    /** Fetches the whole cloud listing. Signed out, nothing is requested. */
+    /** Fetches the whole cloud listing. Signed out, with the cloud turned off or too old for it, nothing is requested. */
     public CompletableFuture<Void> refresh() {
-        if (!account.signedIn()) {
+        if (!account.signedIn() || !mayDownload()) {
             loadStored();
             return CompletableFuture.completedFuture(null);
         }
@@ -114,6 +123,10 @@ public final class Library {
             changed();
             return null;
         });
+    }
+
+    private boolean mayDownload() {
+        return availability.mayContact() && !availability.tooOld();
     }
 
     /** Signed out, or still choosing an account: no listing to show. Expired keeps the last one. */
@@ -226,6 +239,9 @@ public final class Library {
         if (cached.isPresent()) {
             return CompletableFuture.completedFuture(cached.get());
         }
+        if (!account.signedIn() || !mayDownload()) {
+            return CompletableFuture.failedFuture(new CloudException(0, null, "Not available offline", null));
+        }
         return links(schematicId, version).thenCompose(links -> download(links.getFileUrl().toString()))
                 .thenApplyAsync(stream -> cache.putFile(sha256, stream), background)
                 .thenApplyAsync(path -> path, completion);
@@ -237,7 +253,7 @@ public final class Library {
         if (cached.isPresent()) {
             return CompletableFuture.completedFuture(cached);
         }
-        if (!account.signedIn()) {
+        if (!account.signedIn() || !mayDownload()) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
         return links(schematicId, version).thenCompose(links -> links.getThumbnailUrl() == null

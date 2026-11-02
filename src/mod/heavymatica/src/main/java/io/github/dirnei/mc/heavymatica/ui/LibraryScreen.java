@@ -2,6 +2,7 @@ package io.github.dirnei.mc.heavymatica.ui;
 
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.account.CloudAccount;
+import io.github.dirnei.mc.heavymatica.account.CloudAvailability;
 import io.github.dirnei.mc.heavymatica.account.SignInFailure;
 import io.github.dirnei.mc.heavymatica.cloud.model.Account;
 import io.github.dirnei.mc.heavymatica.cloud.model.OrganizeRequest;
@@ -53,6 +54,7 @@ public class LibraryScreen extends Screen {
     private static final int ACTION_STEP = 72;
 
     private final CloudAccount account;
+    private final CloudAvailability availability;
     private final Library library;
     private final Placer placer;
     private final ThumbnailTextures thumbnails;
@@ -69,6 +71,7 @@ public class LibraryScreen extends Screen {
     private FilterSidebar sidebar;
     private CardGrid grid;
     private DetailsPanel details;
+    private Button refreshButton;
     private Button signInOut;
     private Button accountButton;
     private String folder = "";
@@ -81,9 +84,10 @@ public class LibraryScreen extends Screen {
     private @Nullable Component message;
     private boolean messageIsError;
 
-    public LibraryScreen(CloudAccount account, Library library, Placer placer) {
+    public LibraryScreen(CloudAccount account, CloudAvailability availability, Library library, Placer placer) {
         super(Component.translatable("heavymatica.library.title"));
         this.account = account;
+        this.availability = availability;
         this.library = library;
         this.placer = placer;
         this.thumbnails = new ThumbnailTextures(library);
@@ -95,6 +99,7 @@ public class LibraryScreen extends Screen {
         subscriptions.clear();
         subscriptions.add(library.onChange(changed -> refreshEntries()));
         subscriptions.add(account.onChange(changed -> minecraft.execute(this::refreshAccountWidgets)));
+        subscriptions.add(availability.onChange(changed -> minecraft.execute(this::availabilityChanged)));
         String query = search == null ? "" : search.getValue();
         search = new EditBox(font, MARGIN, MARGIN, 150, 18, Component.translatable("heavymatica.library.search"));
         search.setHint(Component.translatable("heavymatica.library.search"));
@@ -102,7 +107,10 @@ public class LibraryScreen extends Screen {
         search.setResponder(text -> refreshEntries());
         addRenderableWidget(search);
 
-        addRenderableWidget(Button.builder(Component.translatable("heavymatica.library.refresh"), button -> refreshCloud())
+        refreshButton = addRenderableWidget(Button.builder(Component.translatable("heavymatica.library.refresh"), button -> {
+                    availability.refresh();
+                    refreshCloud();
+                })
                 .bounds(MARGIN + 156, MARGIN - 1, 60, 20).build());
         signInOut = addRenderableWidget(Button.builder(Component.empty(), button -> toggleSignIn())
                 .bounds(MARGIN + 220, MARGIN - 1, 70, 20).build());
@@ -146,9 +154,23 @@ public class LibraryScreen extends Screen {
 
         refreshAccountWidgets();
         refreshEntries();
+        availability.libraryOpened();
         if (library.cloudState() == Library.CloudState.NONE || library.cloudState() == Library.CloudState.OFFLINE) {
             refreshCloud();
         }
+    }
+
+    /** The cloud's status arrived or changed: an outdated mod drops back to the stored listing. */
+    private void availabilityChanged() {
+        if (availability.tooOld() || !availability.mayContact()) {
+            library.loadStored();
+        }
+        refreshAccountWidgets();
+    }
+
+    /** Whether the cloud parts of the library show at all. */
+    protected boolean cloudShown() {
+        return availability.showCloud(account.hasSession());
     }
 
     /** Called when the selected entry changes. */
@@ -171,6 +193,10 @@ public class LibraryScreen extends Screen {
         return account;
     }
 
+    protected CloudAvailability availability() {
+        return availability;
+    }
+
     protected @Nullable LibraryEntry selected() {
         return selected;
     }
@@ -191,7 +217,7 @@ public class LibraryScreen extends Screen {
     private void refreshCloud() {
         message = null;
         library.refresh();
-        if (account.signedIn()) {
+        if (account.signedIn() && availability.mayContact() && !availability.tooOld()) {
             account.refreshAccount().exceptionally(error -> null);
         }
     }
@@ -225,7 +251,10 @@ public class LibraryScreen extends Screen {
             default -> "heavymatica.account.sign_in";
         }));
         signInOut.active = account.status() != CloudAccount.Status.SIGNING_IN;
-        accountButton.visible = account.signedIn();
+        boolean shown = cloudShown();
+        signInOut.visible = shown && (account.hasSession() || availability.offerSignIn(false));
+        accountButton.visible = shown && account.signedIn();
+        refreshButton.visible = availability.mayContact();
         boolean local = selected != null && !selected.cloud();
         boolean canOrganize = account.signedIn() && library.cloudState() != Library.CloudState.OFFLINE && selected != null && selected.cloud();
         net.minecraft.client.gui.components.Tooltip signInNeeded = account.signedIn() ? null
@@ -585,6 +614,14 @@ public class LibraryScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partial) {
         super.extractRenderState(graphics, mouseX, mouseY, partial);
         int right = width - MARGIN;
+        if (availability.tooOld()) {
+            Component hint = Component.translatable("heavymatica.cloud.too_old");
+            graphics.text(font, hint, right - font.width(hint), MARGIN + 5, 0xFFE0C040, false);
+        }
+        if (!cloudShown() || availability.tooOld()) {
+            drawInfo(graphics, right);
+            return;
+        }
         Optional<Account> current = account.account();
         String name = account.name().orElse("");
         int dot = switch (account.status()) {
@@ -601,7 +638,11 @@ public class LibraryScreen extends Screen {
             case SIGNED_OUT -> Component.translatable("heavymatica.account.signed_out").getString();
         };
         graphics.text(font, status, right - 12 - font.width(status), MARGIN + 5, 0xFFFFFFFF, false);
+        drawInfo(graphics, right);
+    }
 
+    /** The cloud listing's state, the last message, the folder path and the empty-library hint. */
+    private void drawInfo(GuiGraphicsExtractor graphics, int right) {
         Component state = switch (library.cloudState()) {
             case LOADING -> Component.translatable("heavymatica.library.loading");
             case OFFLINE -> Component.translatable("heavymatica.library.offline");

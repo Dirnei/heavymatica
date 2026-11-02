@@ -3,9 +3,12 @@ package io.github.dirnei.mc.heavymatica.library;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.dirnei.mc.heavymatica.account.CloudAccess;
 import io.github.dirnei.mc.heavymatica.account.CloudAccount;
+import io.github.dirnei.mc.heavymatica.account.CloudAvailability;
 import io.github.dirnei.mc.heavymatica.account.SessionStore;
 import io.github.dirnei.mc.heavymatica.account.StubCloudAccess;
 import io.github.dirnei.mc.heavymatica.cache.SchematicCache;
@@ -226,6 +229,57 @@ class LibraryTest {
         assertEquals(first, second);
         assertEquals(requests, cloud.stub().requests().size());
         assertTrue(library.cached(sha));
+    }
+
+    @Test
+    void an_uncached_file_without_a_session_reaches_nothing() {
+        Library library = new Library(cloud.account(directory, false), availability(CloudAccess.AUTO), () -> PLAYER, local(), listing(), cache(),
+                Runnable::run, Runnable::run);
+
+        assertThrows(java.util.concurrent.ExecutionException.class, () -> library.file("s1", 1, "ab").get(5, TimeUnit.SECONDS));
+
+        assertTrue(cloud.stub().requests().isEmpty());
+    }
+
+    @Test
+    void with_the_cloud_off_nothing_reaches_it_and_the_cache_still_serves() throws Exception {
+        SchematicCache cache = cache();
+        byte[] file = Files.readAllBytes(fixture("house.nbt"));
+        String sha = LocalLibrary.sha256(file);
+        cache.putFile(sha, new java.io.ByteArrayInputStream(file));
+        Library library = new Library(cloud.account(directory, true), availability(CloudAccess.OFF), () -> PLAYER, local(), listing(), cache,
+                Runnable::run, Runnable::run);
+
+        library.refresh().get(5, TimeUnit.SECONDS);
+        Path cached = library.file("s1", 1, sha).get(5, TimeUnit.SECONDS);
+        assertThrows(java.util.concurrent.ExecutionException.class, () -> library.file("s2", 1, "cd").get(5, TimeUnit.SECONDS));
+        assertTrue(library.thumbnail("s2", 1, "cd").get(5, TimeUnit.SECONDS).isEmpty());
+
+        assertArrayEquals(file, Files.readAllBytes(cached));
+        assertEquals(Library.CloudState.NONE, library.cloudState());
+        assertTrue(library.entries().isEmpty());
+        assertTrue(cloud.stub().requests().isEmpty());
+    }
+
+    @Test
+    void starting_the_game_with_a_stored_session_asks_nothing() {
+        int[] fetches = {0};
+        CloudAvailability availability = new CloudAvailability(() -> {
+            fetches[0]++;
+            return new java.util.concurrent.CompletableFuture<>();
+        }, "0.2.0", () -> CloudAccess.AUTO, Runnable::run, CloudAvailability.TIMEOUT);
+        Library library = new Library(cloud.account(directory, true), availability, () -> PLAYER, local(), listing(), cache(), Runnable::run,
+                Runnable::run);
+
+        library.loadStored();
+
+        assertEquals(0, fetches[0]);
+        assertTrue(cloud.stub().requests().isEmpty());
+    }
+
+    private static CloudAvailability availability(CloudAccess access) {
+        return new CloudAvailability(() -> java.util.concurrent.CompletableFuture.failedFuture(new IllegalStateException("not asked")), "0.2.0",
+                () -> access, Runnable::run, CloudAvailability.TIMEOUT);
     }
 
     private Library signedInLibrary() throws Exception {

@@ -55,6 +55,12 @@ Every push and pull request is built and tested by `.github/workflows/build.yml`
    `devSessionJoinUrl = "http://localhost:5180/dev/mojang"`.
 3. Start the client: `./gradlew :heavymatica:runClient` from `src/mod`, then open the library with `H` in a world.
 
+Dev client runs always talk to `http://localhost:5180`, whatever the config file says: released mods default to
+`https://api.heavymatica.com`, and the dev run overrides it so it never reaches production by accident. Set
+`HEAVYMATICA_CLOUD_URL` to use another local address. The game asks the cloud whether it is open only when the library
+opens; the local cloud always says open. To test against a cloud that says closed, set `access = "ON"` in the `[cloud]`
+section of the client config.
+
 ### Player website
 
 The AppHost also runs the website's dev server (`src/web/player`, Astro) on http://localhost:4321. It forwards `/v1`
@@ -133,6 +139,7 @@ The dev client runs take a few environment variables, so screens can be checked 
 
 | Variable | Effect |
 |---|---|
+| `HEAVYMATICA_CLOUD_URL` | The cloud address of the dev client, `http://localhost:5180` when unset. |
 | `HEAVYMATICA_DEV_SCREEN` | A `;`-separated script of UI steps (`signin`, `library`, `search=...`, `clickCard=0`, `clickButton=<translation key>`, `drop=<dir>`, `screenshot=<name>`, `quit`, ...; see `DevScreens`). Screenshots land in `runs/client/screenshots/`. |
 | `HEAVYMATICA_THUMBNAIL_SPIKE` | Renders the thumbnail of the named schematic file once the game has loaded and writes `<file>.png` next to it. |
 | `HEAVYMATICA_QUICKPLAY` | Joins this server on start, for example `localhost:25565`. |

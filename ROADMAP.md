@@ -86,6 +86,7 @@ easy to copy) and payouts / tax / moderation before investing.
 
 ## Open before a public release
 
-- Production hosting, domain and the mod's default `cloudUrl` (currently `http://localhost:5180`).
+- Production hosting. The domain and the mod's default address are settled: the mod talks to `https://api.heavymatica.com`.
+- Refusing new sign-ups while the cloud is closed: today "closed" only hides sign-in in the game.
 - Free quota (currently 100 MiB per account) and sign-in rate limits.
 - Disclose the mod's network access on its distribution pages.

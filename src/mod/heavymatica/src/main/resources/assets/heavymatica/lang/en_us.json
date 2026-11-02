@@ -50,6 +50,7 @@
   "heavymatica.account.sign_out": "Sign out",
   "heavymatica.account.signing_in": "Signing in...",
   "heavymatica.account.signed_out": "Signed out",
+  "heavymatica.cloud.too_old": "This Heavymatica is too old for the cloud. Please update the mod.",
   "heavymatica.account.expired": "Signed out, sign in again",
   "heavymatica.account.choosing": "Choose an account",
   "heavymatica.account.button": "Account",

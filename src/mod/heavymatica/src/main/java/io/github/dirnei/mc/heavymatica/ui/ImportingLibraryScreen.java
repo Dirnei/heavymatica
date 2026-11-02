@@ -1,6 +1,7 @@
 package io.github.dirnei.mc.heavymatica.ui;
 
 import io.github.dirnei.mc.heavymatica.account.CloudAccount;
+import io.github.dirnei.mc.heavymatica.account.CloudAvailability;
 import io.github.dirnei.mc.heavymatica.account.CloudException;
 import io.github.dirnei.mc.heavymatica.cloud.model.ProblemCode;
 import io.github.dirnei.mc.heavymatica.formats.SchematicReader;
@@ -30,8 +31,8 @@ public final class ImportingLibraryScreen extends LibraryScreen {
     private final Uploader uploader;
     private @Nullable Button upload;
 
-    public ImportingLibraryScreen(CloudAccount account, Library library, Placer placer) {
-        super(account, library, placer);
+    public ImportingLibraryScreen(CloudAccount account, CloudAvailability availability, Library library, Placer placer) {
+        super(account, availability, library, placer);
         this.importer = new Importer(library.local(), library::entries);
         this.uploader = new Uploader(account.client(), library.local(), ImportingLibraryScreen::renderThumbnail);
     }
@@ -62,7 +63,7 @@ public final class ImportingLibraryScreen extends LibraryScreen {
         if (upload != null) {
             LibraryEntry entry = selected();
             boolean local = entry != null && !entry.cloud();
-            upload.visible = local;
+            upload.visible = local && cloudShown() && !availability().tooOld();
             upload.active = local && account().signedIn();
             upload.setTooltip(local && !account().signedIn()
                     ? net.minecraft.client.gui.components.Tooltip.create(Component.translatable("heavymatica.upload.sign_in_needed")) : null);

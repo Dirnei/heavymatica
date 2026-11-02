@@ -1,5 +1,7 @@
 package io.github.dirnei.mc.heavymatica;
 
+import io.github.dirnei.mc.heavymatica.account.CloudAccess;
+import io.github.dirnei.mc.heavymatica.account.CloudAddress;
 import io.github.dirnei.mc.heavymatica.placement.OpacitySteps;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu;
 import io.github.dirnei.mc.heavymatica.targeting.PointerMode;
@@ -17,12 +19,17 @@ public final class HeavymaticaConfig {
     private static final ModConfigSpec.ConfigValue<String> CLOUD_URL = BUILDER
             .comment("Address of the Heavymatica Cloud.")
             .push("cloud")
-            .define("cloudUrl", "http://localhost:5180", HeavymaticaConfig::isHttpUrl);
+            .define("cloudUrl", "https://api.heavymatica.com", HeavymaticaConfig::isHttpUrl);
 
     private static final ModConfigSpec.ConfigValue<String> DEV_SESSION_JOIN_URL = BUILDER
             .comment("Development only: sign in through the cloud's DevMojang at this address instead of Mojang,",
                     "for example http://localhost:5180/dev/mojang. Leave empty to sign in with your Minecraft account.")
             .define("devSessionJoinUrl", "", value -> value instanceof String text && (text.isEmpty() || isHttpUrl(text)));
+
+    private static final ModConfigSpec.EnumValue<CloudAccess> CLOUD_ACCESS = BUILDER
+            .comment("Heavymatica Cloud: AUTO asks the cloud whether it is open when you open the library, ON always shows it,",
+                    "OFF never contacts it.")
+            .defineEnum("access", CloudAccess.AUTO);
 
     private static final ModConfigSpec.IntValue CACHE_SIZE_MIB = BUILDER
             .pop()
@@ -134,8 +141,18 @@ public final class HeavymaticaConfig {
     private HeavymaticaConfig() {
     }
 
+    /** Dev runs set a system property that wins over the config, so they never reach the production cloud by accident. */
     public static URI cloudUrl() {
-        return URI.create(CLOUD_URL.get());
+        return CloudAddress.choose(System.getProperty(CloudAddress.PROPERTY), CLOUD_URL.get());
+    }
+
+    public static CloudAccess cloudAccess() {
+        return CLOUD_ACCESS.get();
+    }
+
+    public static void setCloudAccess(CloudAccess access) {
+        CLOUD_ACCESS.set(access);
+        CLOUD_ACCESS.save();
     }
 
     public static Optional<URI> devSessionJoinUrl() {

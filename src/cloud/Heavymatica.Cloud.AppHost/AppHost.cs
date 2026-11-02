@@ -54,6 +54,8 @@ cloud
     .WithEnvironment("Admin__Url", "http://localhost:" + adminPort)
     .WithEnvironment("Admin__Host", "localhost")
     .WithEnvironment("Admin__SiteUrl", "http://localhost:" + adminSitePort)
+    // The service reports itself closed unless configured; the local cloud is always open to sign-ins.
+    .WithEnvironment("Status__SignIn", "open")
     .WithHttpHealthCheck("/health");
 
 if (withWebsite)

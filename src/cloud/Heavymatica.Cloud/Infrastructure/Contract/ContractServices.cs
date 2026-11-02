@@ -6,6 +6,7 @@ using Heavymatica.Cloud.Features.Links;
 using Heavymatica.Cloud.Features.Schematics;
 using Heavymatica.Cloud.Features.Schematics.Folders;
 using Heavymatica.Cloud.Features.Schematics.Tags;
+using Heavymatica.Cloud.Features.CloudStatus;
 using Heavymatica.Cloud.Features.Web;
 
 namespace Heavymatica.Cloud.Infrastructure.Contract;
@@ -24,6 +25,7 @@ internal static class ContractServices
         services.AddScoped<ITagsController, TagsApi>();
         services.AddScoped<IWebController, WebApi>();
         services.AddScoped<ILinksController, LinksApi>();
+        services.AddScoped<IStatusController, StatusApi>();
         return services;
     }
 
@@ -34,6 +36,7 @@ internal static class ContractServices
         controllers.Add(IdentityServices.ConfigureAuthEndpoint);
         controllers.Add(LinkServices.ConfigureLinksEndpoint);
         controllers.Add(AdminServices.ConfigureAdminEndpoint);
+        controllers.Add(StatusServices.ConfigureStatusEndpoint);
         app.MapGet("/openapi/v1.yaml", () =>
         {
             var contract = typeof(ContractServices).Assembly.GetManifestResourceStream(ContractResource)

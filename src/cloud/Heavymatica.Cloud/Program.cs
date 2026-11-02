@@ -3,6 +3,7 @@ using Heavymatica.Cloud.Features.Admin;
 using Heavymatica.Cloud.Features.Identity;
 using Heavymatica.Cloud.Features.Links;
 using Heavymatica.Cloud.Features.Schematics;
+using Heavymatica.Cloud.Features.CloudStatus;
 using Heavymatica.Cloud.Features.Web;
 using Heavymatica.Cloud.Infrastructure;
 using Heavymatica.Cloud.Infrastructure.Contract;
@@ -25,6 +26,7 @@ builder.AddSchematics();
 builder.AddWeb();
 builder.AddLinks();
 builder.AddAdmin();
+builder.AddStatus();
 builder.Services.AddContract();
 
 var app = builder.Build();

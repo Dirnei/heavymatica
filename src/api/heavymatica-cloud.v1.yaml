@@ -27,11 +27,32 @@ tags:
     description: Sign-in and sign-out of the website session.
   - name: Links
     description: Link codes that join an identity to an account.
+  - name: Status
+    description: Whether the service is open to new sign-ins, asked anonymously by the game.
 security:
   - bearerAuth: []
   - cookieAuth: []
 
 paths:
+  /v1/status:
+    get:
+      tags: [Status]
+      operationId: getStatus
+      summary: Service status
+      description: |
+        Tells the game whether to offer sign-in and which mod version it needs at least. Needs no sign-in and reads
+        nothing from the request.
+      security: []
+      responses:
+        '200':
+          description: The service's status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceStatus'
+        default:
+          $ref: '#/components/responses/Problem'
+
   /v1/auth/challenge:
     post:
       tags: [Auth]
@@ -1044,6 +1065,22 @@ components:
         - invalid_request
         - rate_limited
         - unexpected
+
+    ServiceStatus:
+      type: object
+      required: [signIn]
+      properties:
+        signIn:
+          $ref: '#/components/schemas/SignInState'
+        minClient:
+          type: string
+          pattern: '^\d+(\.\d+)*$'
+          description: The oldest mod version that may use the service, such as 0.3.0. Absent when there is no minimum.
+
+    SignInState:
+      type: string
+      description: open offers sign-in to players without a session; closed hides it from them.
+      enum: [open, closed]
 
     Challenge:
       type: object

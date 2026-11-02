@@ -69,6 +69,25 @@ public sealed class AppHostTests
     }
 
     [Fact]
+    public async Task AppHost_opens_the_local_cloud_to_sign_ins()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Heavymatica_Cloud_AppHost>(
+            ["--Heavymatica:EphemeralStorage=true", "--Heavymatica:WithWebsite=false"], cancellationToken);
+
+        var cloud = Assert.Single(appHost.Resources, resource => resource.Name == "cloud");
+        var context = new Aspire.Hosting.ApplicationModel.EnvironmentCallbackContext(
+            new DistributedApplicationExecutionContext(DistributedApplicationOperation.Run), cancellationToken: cancellationToken);
+        foreach (var callback in cloud.Annotations.OfType<Aspire.Hosting.ApplicationModel.EnvironmentCallbackAnnotation>())
+        {
+            await callback.Callback(context);
+        }
+
+        Assert.Equal("open", context.EnvironmentVariables["Status__SignIn"]);
+        await appHost.DisposeAsync();
+    }
+
+    [Fact]
     public async Task AppHost_runs_the_website_and_admin_dev_servers_on_their_fixed_ports_unless_disabled()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
