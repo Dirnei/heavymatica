@@ -238,6 +238,7 @@ internal sealed partial class AccountMigration(
                 .SetOnInsert(identity => identity.Id, AccountDocument.NewId())
                 .SetOnInsert(identity => identity.AccountId, accountId)
                 .SetOnInsert(identity => identity.Name, legacy.Name)
+                .SetOnInsert(identity => identity.NameLower, Accounts.LowerName(legacy.Name))
                 .SetOnInsert(identity => identity.LinkedAt, legacy.CreatedAt.UtcDateTime)
                 .SetOnInsert(identity => identity.LastSignInAt, now),
             new UpdateOptions { IsUpsert = true },

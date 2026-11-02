@@ -1,0 +1,8 @@
+---
+import Base from '../layouts/Base.astro';
+import Audit from '../components/Audit.svelte';
+---
+
+<Base title="Audit log" signedIn current="/audit/">
+  <Audit client:only="svelte" />
+</Base>

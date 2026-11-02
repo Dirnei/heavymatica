@@ -5,6 +5,7 @@
     <UserSecretsId>heavymatica-cloud</UserSecretsId>
     <ContractDirectory>$(MSBuildThisFileDirectory)..\..\api\</ContractDirectory>
     <ContractFile>$(ContractDirectory)heavymatica-cloud.v1.yaml</ContractFile>
+    <AdminContractFile>$(ContractDirectory)heavymatica-admin.v1.yaml</AdminContractFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -39,7 +40,7 @@
     Contract lint (Spectral). Runs before compiling whenever the contract or ruleset changed.
     Skip with -p:SkipContractLint=true when Node.js is not available.
   -->
-  <Target Name="LintContract" BeforeTargets="BeforeBuild" Condition="'$(SkipContractLint)' != 'true'" Inputs="$(ContractFile);$(ContractDirectory).spectral.yaml;$(ContractDirectory)package.json" Outputs="$(IntermediateOutputPath)contract-lint.stamp">
+  <Target Name="LintContract" BeforeTargets="BeforeBuild" Condition="'$(SkipContractLint)' != 'true'" Inputs="$(ContractFile);$(AdminContractFile);$(ContractDirectory).spectral.yaml;$(ContractDirectory)package.json" Outputs="$(IntermediateOutputPath)contract-lint.stamp">
     <Exec Command="npm ci --no-audit --no-fund" WorkingDirectory="$(ContractDirectory)" Condition="!Exists('$(ContractDirectory)node_modules')" />
     <Exec Command="npm run --silent lint" WorkingDirectory="$(ContractDirectory)" />
     <MakeDir Directories="$(IntermediateOutputPath)" />
@@ -53,12 +54,22 @@
   <PropertyGroup>
     <!-- Defined after the SDK has set IntermediateOutputPath. -->
     <ContractOutput>$(BaseIntermediateOutputPath)Contract\Controllers.g.cs</ContractOutput>
+    <AdminContractOutput>$(BaseIntermediateOutputPath)Contract\AdminControllers.g.cs</AdminContractOutput>
   </PropertyGroup>
 
   <Target Name="GenerateContract" BeforeTargets="CoreCompile" DependsOnTargets="LintContract" Inputs="$(ContractFile);$(MSBuildThisFileFullPath)" Outputs="$(ContractOutput)">
     <Exec Command="$(NSwagExe_Net100) openapi2cscontroller /input:&quot;$(ContractFile)&quot; /output:&quot;$(ContractOutput)&quot; /namespace:Heavymatica.Cloud.Contract /ControllerStyle:Partial /ControllerTarget:AspNetCore /OperationGenerationMode:MultipleClientsFromFirstTagAndOperationId /ClassName:{controller} /UseCancellationToken:true /UseActionResultType:true /GenerateModelValidationAttributes:true /RouteNamingStrategy:OperationId /JsonLibrary:SystemTextJson /GenerateNullableReferenceTypes:true /GenerateOptionalPropertiesAsNullable:true /RequiredPropertiesMustBeDefined:true /GenerateDataAnnotations:true" />
     <!-- Enums travel by their wire value; JsonStringEnumConverter would write member names. -->
     <ReplaceInFile File="$(ContractOutput)" Find="System.Text.Json.Serialization.JsonStringEnumConverter&lt;" Replace="Heavymatica.Cloud.Infrastructure.Contract.WireEnumConverter&lt;" />
+  </Target>
+
+  <!--
+    The admin contract's controllers, in their own namespace; the admin contract is never embedded or served. Its routes
+    carry no names, which would clash with the player contract's operation IDs.
+  -->
+  <Target Name="GenerateAdminContract" BeforeTargets="CoreCompile" DependsOnTargets="LintContract" Inputs="$(AdminContractFile);$(MSBuildThisFileFullPath)" Outputs="$(AdminContractOutput)">
+    <Exec Command="$(NSwagExe_Net100) openapi2cscontroller /input:&quot;$(AdminContractFile)&quot; /output:&quot;$(AdminContractOutput)&quot; /namespace:Heavymatica.Cloud.Contract.Admin /ControllerStyle:Partial /ControllerTarget:AspNetCore /OperationGenerationMode:MultipleClientsFromFirstTagAndOperationId /ClassName:Admin{controller} /UseCancellationToken:true /UseActionResultType:true /GenerateModelValidationAttributes:true /RouteNamingStrategy:None /JsonLibrary:SystemTextJson /GenerateNullableReferenceTypes:true /GenerateOptionalPropertiesAsNullable:true /RequiredPropertiesMustBeDefined:true /GenerateDataAnnotations:true" />
+    <ReplaceInFile File="$(AdminContractOutput)" Find="System.Text.Json.Serialization.JsonStringEnumConverter&lt;" Replace="Heavymatica.Cloud.Infrastructure.Contract.WireEnumConverter&lt;" />
   </Target>
 
   <!--
@@ -81,6 +92,23 @@
     </ItemGroup>
   </Target>
 
+  <!-- The admin site, built the same way into wwwroot-admin and served only on the admin listener. -->
+  <PropertyGroup>
+    <AdminSiteDirectory>$(MSBuildThisFileDirectory)..\..\web\admin\</AdminSiteDirectory>
+  </PropertyGroup>
+
+  <Target Name="BuildAdminSite" BeforeTargets="PrepareForPublish" Condition="'$(SkipWebsite)' != 'true'">
+    <Exec Command="npm ci --no-audit --no-fund" WorkingDirectory="$(AdminSiteDirectory)" />
+    <Exec Command="npm run build" WorkingDirectory="$(AdminSiteDirectory)" />
+  </Target>
+
+  <Target Name="IncludeAdminSite" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(SkipWebsite)' != 'true'">
+    <ItemGroup>
+      <AdminSiteFile Include="$(AdminSiteDirectory)dist\**\*" />
+      <ResolvedFileToPublish Include="@(AdminSiteFile)" RelativePath="wwwroot-admin\%(RecursiveDir)%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
   <UsingTask TaskName="ReplaceInFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <File ParameterType="System.String" Required="true" />
@@ -94,9 +122,10 @@
     </Task>
   </UsingTask>
 
-  <Target Name="IncludeContract" BeforeTargets="CoreCompile" AfterTargets="GenerateContract">
+  <Target Name="IncludeContract" BeforeTargets="CoreCompile" AfterTargets="GenerateContract;GenerateAdminContract">
     <ItemGroup>
       <Compile Include="$(ContractOutput)" />
+      <Compile Include="$(AdminContractOutput)" />
     </ItemGroup>
   </Target>
 

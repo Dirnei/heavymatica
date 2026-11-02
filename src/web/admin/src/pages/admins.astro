@@ -1,0 +1,8 @@
+---
+import Base from '../layouts/Base.astro';
+import Admins from '../components/Admins.svelte';
+---
+
+<Base title="Admins" signedIn current="/admins/">
+  <Admins client:only="svelte" />
+</Base>

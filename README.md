@@ -81,6 +81,30 @@ are rendered in the background, newest first. The `Thumbnails` section configure
 | `Thumbnails:MaxAttempts` | `3` | Failed attempts before a version is left without a thumbnail. |
 | `Thumbnails:MaxDrawnBlocks` | `2000000` | Above this many blocks only every k-th block per axis is drawn. |
 
+### Admin site
+
+Admins work on a separate admin host: the cloud opens a second listener for the admin API (`/admin/v1`) and the admin
+site, and answers there only for the admin host name. The public listener never routes to admin paths, and the admin
+listener serves nothing of the player site or API. Admins have no player account; they sign in with passkeys only and
+need two of them before they can do anything else. The AppHost runs the admin site's dev server
+(`src/web/admin`) on http://localhost:4322; it forwards `/admin/v1` to the admin listener on port 5181.
+
+| Setting | Effect |
+|---|---|
+| `Admin:Url` | The admin listener, for example `http://localhost:5181`. Without it and `Admin:Host`, nothing admin exists. |
+| `Admin:Host` | The only host name the admin listener answers for, and the passkeys' relying party ID. |
+| `Admin:SiteUrl` | Where admins open the site, for invitation links and the setup command; defaults to `https://<Admin:Host>/`. |
+| `Admin:SiteRoot` | The built admin site the cloud serves on the admin listener (`wwwroot-admin`, filled on publish). |
+
+The first admin registers with a setup code from the server, valid for 15 minutes and once. A new code replaces the
+previous one; `--admin <id>` makes it a recovery code that adds a passkey to that admin. From `src/cloud`:
+```
+dotnet run --project Heavymatica.Cloud -- admin setup-code
+```
+It reads the same configuration as the service, so run it where the service's connection string is set (with the
+AppHost running, copy `ConnectionStrings__heavymatica` from the dashboard's cloud resource). Further admins are
+invited from the admin site with a link valid for 24 hours and once.
+
 Website commands run in `src/web/player`: `npm run dev`, `npm run build`, `npm run check` and `npm test`.
 
 ### Development aids

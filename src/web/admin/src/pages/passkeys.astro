@@ -1,0 +1,8 @@
+---
+import Base from '../layouts/Base.astro';
+import Passkeys from '../components/Passkeys.svelte';
+---
+
+<Base title="Passkeys" signedIn current="/passkeys/">
+  <Passkeys client:only="svelte" />
+</Base>

@@ -53,7 +53,8 @@ internal sealed class Accounts(IMongoDatabase database, AccountAudit audit, Time
     {
         var identity = await identities.FindOneAndUpdateAsync(
             Builders<IdentityDocument>.Filter.Eq(candidate => candidate.Provider, provider) & Builders<IdentityDocument>.Filter.Eq(candidate => candidate.Subject, subject),
-            Builders<IdentityDocument>.Update.Set(candidate => candidate.Name, name).Set(candidate => candidate.LastSignInAt, time.GetUtcNow().UtcDateTime),
+            Builders<IdentityDocument>.Update.Set(candidate => candidate.Name, name).Set(candidate => candidate.NameLower, LowerName(name))
+                .Set(candidate => candidate.LastSignInAt, time.GetUtcNow().UtcDateTime),
             new FindOneAndUpdateOptions<IdentityDocument> { ReturnDocument = ReturnDocument.After },
             cancellationToken);
         return identity is null ? null : await WithAccountAsync(identity, cancellationToken);
@@ -173,9 +174,12 @@ internal sealed class Accounts(IMongoDatabase database, AccountAudit audit, Time
         Provider = provider,
         Subject = subject,
         Name = name,
+        NameLower = LowerName(name),
         LinkedAt = now,
         LastSignInAt = now,
     };
+
+    public static string? LowerName(string? name) => name?.ToLowerInvariant();
 
     private async Task<SignedInIdentity?> WithAccountAsync(IdentityDocument identity, CancellationToken cancellationToken) =>
         await FindAsync(identity.AccountId, cancellationToken) is { } account ? new SignedInIdentity(account, identity) : null;

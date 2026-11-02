@@ -5,6 +5,9 @@ var persistent = !string.Equals(builder.Configuration["Heavymatica:EphemeralStor
 var withWebsite = !string.Equals(builder.Configuration["Heavymatica:WithWebsite"], "false", StringComparison.OrdinalIgnoreCase);
 // GitHub's OAuth app matches the callback host and port exactly, so the website's dev port is fixed.
 var websitePort = int.TryParse(builder.Configuration["Heavymatica:WebsitePort"], out var port) ? port : 4321;
+// The admin listener and the admin site's dev server; passkeys for localhost need no TLS.
+var adminPort = int.TryParse(builder.Configuration["Heavymatica:AdminPort"], out var configuredAdminPort) ? configuredAdminPort : 5181;
+var adminSitePort = int.TryParse(builder.Configuration["Heavymatica:AdminSitePort"], out var configuredAdminSitePort) ? configuredAdminSitePort : 4322;
 
 var mongo = builder.AddMongoDB("mongo");
 var database = mongo.AddDatabase("heavymatica");
@@ -46,6 +49,9 @@ cloud
     .WithEnvironment("GitHub__ClientSecret", gitHubClientSecret)
     // Link codes point at the website's dev server; setting it turns on linking and pending sign-ins.
     .WithEnvironment("Accounts__LinkBaseUrl", "http://localhost:" + websitePort)
+    .WithEnvironment("Admin__Url", "http://localhost:" + adminPort)
+    .WithEnvironment("Admin__Host", "localhost")
+    .WithEnvironment("Admin__SiteUrl", "http://localhost:" + adminSitePort)
     .WithHttpHealthCheck("/health");
 
 if (withWebsite)
@@ -54,6 +60,12 @@ if (withWebsite)
     builder.AddJavaScriptApp("website", "../../web/player", "dev")
         .WithHttpEndpoint(port: websitePort, env: "PORT", isProxied: false)
         .WithEnvironment("HEAVYMATICA_CLOUD_URL", cloud.GetEndpoint("http"))
+        .WaitFor(cloud);
+
+    // Proxies /admin/v1 to the admin listener with the browser's Host header, so passkeys see one origin.
+    builder.AddJavaScriptApp("admin-website", "../../web/admin", "dev")
+        .WithHttpEndpoint(port: adminSitePort, env: "PORT", isProxied: false)
+        .WithEnvironment("HEAVYMATICA_ADMIN_URL", "http://localhost:" + adminPort)
         .WaitFor(cloud);
 }
 

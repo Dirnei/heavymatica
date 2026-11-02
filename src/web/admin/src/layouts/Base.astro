@@ -1,0 +1,39 @@
+---
+import AdminBar from '../components/AdminBar.svelte';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  signedIn?: boolean;
+  current?: string;
+}
+
+const { title, signedIn = false, current = '' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} · Heavymatica Admin</title>
+  </head>
+  <body>
+    <div class="admin-banner" role="note">Admin · Heavymatica Cloud administration</div>
+    <header class="site-header">
+      <a class="brand" href={signedIn ? '/accounts/' : '/'}>
+        <img src="/favicon.svg" alt="" width="24" height="24" />
+        Heavymatica <span class="badge">Admin</span>
+      </a>
+      {signedIn && <AdminBar client:only="svelte" current={current} />}
+    </header>
+    <main>
+      <slot />
+      <noscript><p class="notice warning">The Heavymatica admin site needs JavaScript.</p></noscript>
+    </main>
+  </body>
+</html>

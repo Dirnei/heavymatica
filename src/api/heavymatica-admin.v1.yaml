@@ -1,0 +1,850 @@
+openapi: 3.0.3
+info:
+  title: Heavymatica Admin
+  version: 1.0.0
+  description: |
+    The admin API of the Heavymatica cloud. It answers only on the admin listener, for the configured admin host, under
+    the `/admin` prefix; the public listener never routes here. Admins sign in with passkeys only.
+    This document is the source of truth: the service's admin controllers and the admin site's types are generated
+    from it. It is never served.
+  contact:
+    name: Dirnei
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:5181/admin
+    description: Local development (Aspire AppHost)
+tags:
+  - name: Session
+    description: Passkey sign-in, the current admin session and sign-out.
+  - name: Registration
+    description: Registering passkeys, from a setup code, an invitation or the signed-in admin.
+  - name: Admins
+    description: The admins, their passkeys and invitations.
+  - name: Accounts
+    description: Finding player accounts, their overview and their quota.
+  - name: Audit
+    description: The admin audit log.
+security:
+  - adminCookieAuth: []
+
+paths:
+  /v1/session:
+    get:
+      tags: [Session]
+      operationId: getSession
+      summary: The signed-in admin
+      description: Answers 401 once the session ended, so the admin site knows to show the sign-in.
+      responses:
+        '200':
+          description: The signed-in admin and whether a second passkey is still needed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSession'
+        '401':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/sign-in/options:
+    post:
+      tags: [Session]
+      operationId: createSignInOptions
+      summary: Start a passkey sign-in
+      description: WebAuthn request options for any passkey registered for the admin host.
+      security: []
+      responses:
+        '200':
+          description: The options to pass to `navigator.credentials.get`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasskeyOptions'
+        '429':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/sign-in:
+    post:
+      tags: [Session]
+      operationId: signIn
+      summary: Finish a passkey sign-in
+      description: Verifies the assertion against the options of the same browser and starts an admin session.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyCredential'
+      responses:
+        '200':
+          description: Signed in; the admin session cookie is set.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSession'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/sign-out:
+    post:
+      tags: [Session]
+      operationId: signOut
+      summary: End the admin session
+      description: Ends the session on the server too, so the cookie no longer works anywhere.
+      responses:
+        '204':
+          description: Signed out.
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/registration/options:
+    post:
+      tags: [Registration]
+      operationId: createRegistrationOptions
+      summary: Start registering a passkey from a setup code or an invitation
+      description: |
+        Checks the setup code or invitation token without using it up. A code or invitation for a new admin needs a
+        display name; one for an existing admin adds a passkey to that admin.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+      responses:
+        '200':
+          description: The options to pass to `navigator.credentials.create`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasskeyOptions'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/registration:
+    post:
+      tags: [Registration]
+      operationId: register
+      summary: Finish registering a passkey from a setup code or an invitation
+      description: Stores the passkey, uses up the code or invitation and starts an admin session.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyCredential'
+      responses:
+        '200':
+          description: Registered and signed in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSession'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/passkeys/options:
+    post:
+      tags: [Registration]
+      operationId: createPasskeyOptions
+      summary: Start adding a passkey to the signed-in admin
+      description: Allowed while the admin has only one passkey; it is how they get their second.
+      responses:
+        '200':
+          description: The options to pass to `navigator.credentials.create`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasskeyOptions'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/passkeys:
+    post:
+      tags: [Registration]
+      operationId: addPasskey
+      summary: Finish adding a passkey to the signed-in admin
+      description: Verifies the attestation against the options of the same browser and stores the passkey.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyCredential'
+      responses:
+        '200':
+          description: The passkey was added.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSession'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/admins:
+    get:
+      tags: [Admins]
+      operationId: listAdmins
+      summary: Every admin with their passkeys
+      description: Includes the caller, marked as such.
+      responses:
+        '200':
+          description: The admins, oldest first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminList'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/admins/{adminId}:
+    parameters:
+      - $ref: '#/components/parameters/AdminId'
+    delete:
+      tags: [Admins]
+      operationId: removeAdmin
+      summary: Remove an admin
+      description: Ends the admin's sessions at once. Never the last admin, and never the caller.
+      responses:
+        '204':
+          description: Removed.
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/admins/{adminId}/passkeys/{passkeyId}:
+    parameters:
+      - $ref: '#/components/parameters/AdminId'
+      - name: passkeyId
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 256
+    delete:
+      tags: [Admins]
+      operationId: removePasskey
+      summary: Remove a passkey of an admin
+      description: Refused when it would leave the admin with fewer than two passkeys.
+      responses:
+        '204':
+          description: Removed.
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/invitations:
+    get:
+      tags: [Admins]
+      operationId: listInvitations
+      summary: Open invitations
+      description: Their links are not included; a link is only shown when it is created.
+      responses:
+        '200':
+          description: Invitations neither used, revoked nor expired, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationList'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+    post:
+      tags: [Admins]
+      operationId: createInvitation
+      summary: Invite a new admin, or let an existing admin add a passkey
+      description: The link is valid for 24 hours and once. It is only ever returned here.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationRequest'
+      responses:
+        '201':
+          description: The invitation, with its link.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/invitations/{invitationId}:
+    parameters:
+      - name: invitationId
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+    delete:
+      tags: [Admins]
+      operationId: revokeInvitation
+      summary: Revoke an unused invitation
+      description: A revoked invitation answers like an unknown one when used.
+      responses:
+        '204':
+          description: Revoked.
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/accounts:
+    get:
+      tags: [Accounts]
+      operationId: findAccounts
+      summary: Find player accounts
+      description: |
+        By account ID (32 hex characters), Minecraft UUID, or an identity name (Minecraft name or GitHub login, any
+        letter case). At most 50 accounts.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      responses:
+        '200':
+          description: The matching accounts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountSearch'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/accounts/{accountId}:
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+    get:
+      tags: [Accounts]
+      operationId: getAccount
+      summary: An account's overview
+      description: Identities, usage, quota, schematic count and the newest account audit entries; no schematic content.
+      responses:
+        '200':
+          description: The overview.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountOverview'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/accounts/{accountId}/quota:
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+    put:
+      tags: [Accounts]
+      operationId: setQuota
+      summary: Set an account's storage quota
+      description: A quota below the usage is allowed; the account keeps its schematics and further uploads are refused.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuotaChange'
+      responses:
+        '200':
+          description: The account with its new quota.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountOverview'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+  /v1/audit:
+    get:
+      tags: [Audit]
+      operationId: listAudit
+      summary: The admin audit log, newest first
+      description: Entries are kept for 400 days. Pass the previous page's nextCursor to read further.
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 128
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: One page of entries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditPage'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+
+components:
+  securitySchemes:
+    adminCookieAuth:
+      type: apiKey
+      in: cookie
+      name: heavymatica-admin
+      description: |
+        The admin session, set by a passkey sign-in on the admin host. HttpOnly and SameSite=Strict; outside
+        development the cookie is named __Host-heavymatica-admin. It ends after 30 minutes without requests and 8 hours
+        after sign-in. Requests that change data also need the header X-Heavymatica-Request: 1 and must come from the
+        admin host's own origin.
+
+  parameters:
+    AdminId:
+      name: adminId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+
+  responses:
+    Problem:
+      description: Error, as RFC 7807 problem details.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+  schemas:
+    Problem:
+      type: object
+      required: [code, title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        code:
+          $ref: '#/components/schemas/ProblemCode'
+
+    ProblemCode:
+      type: string
+      description: Stable reason code. The admin site maps it to a message.
+      enum:
+        - unauthenticated
+        - request_forbidden
+        - not_found
+        - invalid_request
+        - rate_limited
+        - internal_error
+        - setup_code_invalid
+        - invitation_invalid
+        - second_passkey_required
+        - passkey_required
+        - last_admin
+        - cannot_remove_self
+        - passkey_failed
+
+    PasskeyOptions:
+      type: object
+      required: [options]
+      properties:
+        options:
+          type: object
+          additionalProperties: true
+          description: WebAuthn options in their JSON form (PublicKeyCredentialCreationOptionsJSON or PublicKeyCredentialRequestOptionsJSON).
+
+    PasskeyCredential:
+      type: object
+      required: [credential]
+      properties:
+        credential:
+          type: object
+          additionalProperties: true
+          description: The browser's PublicKeyCredential in its JSON form.
+        name:
+          type: string
+          maxLength: 60
+          description: A name for a new passkey, for example the device it lives on.
+
+    RegistrationRequest:
+      type: object
+      properties:
+        setupCode:
+          type: string
+          maxLength: 32
+        invitationToken:
+          type: string
+          maxLength: 128
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: Required when the code or invitation creates a new admin.
+
+    AdminSession:
+      type: object
+      required: [adminId, displayName, passkeyCount, needsSecondPasskey, expiresAt]
+      properties:
+        adminId:
+          type: string
+        displayName:
+          type: string
+        passkeyCount:
+          type: integer
+          format: int32
+        needsSecondPasskey:
+          type: boolean
+          description: True while the admin has fewer than two passkeys; until then only adding a passkey and signing out work.
+        expiresAt:
+          type: string
+          format: date-time
+          description: When the session ends at the latest, whatever the activity.
+
+    Passkey:
+      type: object
+      required: [id, createdAt]
+      properties:
+        id:
+          type: string
+          description: The credential ID, base64url.
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+
+    Admin:
+      type: object
+      required: [id, displayName, createdAt, passkeys, isYou]
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        passkeys:
+          type: array
+          items:
+            $ref: '#/components/schemas/Passkey'
+        isYou:
+          type: boolean
+
+    AdminList:
+      type: object
+      required: [admins]
+      properties:
+        admins:
+          type: array
+          items:
+            $ref: '#/components/schemas/Admin'
+
+    InvitationKind:
+      type: string
+      enum: [admin, recovery]
+      description: An invitation for a new admin, or a recovery invitation that adds a passkey to an existing one.
+
+    InvitationRequest:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          $ref: '#/components/schemas/InvitationKind'
+        adminId:
+          type: string
+          maxLength: 64
+          description: The admin a recovery invitation is for.
+
+    Invitation:
+      type: object
+      required: [id, kind, createdBy, createdAt, expiresAt]
+      properties:
+        id:
+          type: string
+        kind:
+          $ref: '#/components/schemas/InvitationKind'
+        adminId:
+          type: string
+        adminName:
+          type: string
+        createdBy:
+          type: string
+          description: The display name of the admin who created it.
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        url:
+          type: string
+          format: uri
+          description: The invitation link; only in the answer that creates it.
+
+    InvitationList:
+      type: object
+      required: [invitations]
+      properties:
+        invitations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invitation'
+
+    AccountIdentity:
+      type: object
+      required: [id, provider, subject]
+      properties:
+        id:
+          type: string
+        provider:
+          type: string
+          description: minecraft or github.
+        subject:
+          type: string
+          description: The Minecraft UUID or the GitHub user ID.
+        name:
+          type: string
+        linkedAt:
+          type: string
+          format: date-time
+        lastSignInAt:
+          type: string
+          format: date-time
+
+    AccountSummary:
+      type: object
+      required: [id, createdAt, identities, usedBytes, quotaBytes]
+      properties:
+        id:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        identities:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountIdentity'
+        usedBytes:
+          type: integer
+          format: int64
+        quotaBytes:
+          type: integer
+          format: int64
+
+    AccountSearch:
+      type: object
+      required: [accounts]
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountSummary'
+
+    AccountAuditEntry:
+      type: object
+      required: [at, kind]
+      properties:
+        at:
+          type: string
+          format: date-time
+        kind:
+          type: string
+        identityId:
+          type: string
+        actor:
+          type: string
+          description: Who acted, as provider:subject.
+
+    AccountOverview:
+      type: object
+      required: [id, createdAt, identities, usedBytes, quotaBytes, schematicCount, audit]
+      properties:
+        id:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        identities:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountIdentity'
+        usedBytes:
+          type: integer
+          format: int64
+        quotaBytes:
+          type: integer
+          format: int64
+        schematicCount:
+          type: integer
+          format: int64
+        audit:
+          type: array
+          description: The 20 newest account audit entries, newest first.
+          items:
+            $ref: '#/components/schemas/AccountAuditEntry'
+
+    QuotaChange:
+      type: object
+      required: [quotaBytes, reason]
+      properties:
+        quotaBytes:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 107374182400
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 200
+
+    AdminAuditEntry:
+      type: object
+      required: [id, at, ip, kind, details]
+      properties:
+        id:
+          type: string
+        at:
+          type: string
+          format: date-time
+        adminId:
+          type: string
+        adminName:
+          type: string
+        ip:
+          type: string
+        kind:
+          type: string
+          description: admin_signed_in, admin_sign_in_failed, setup_code_failed, invitation_failed, admin_created, admin_removed, passkey_added, passkey_removed, invitation_created, invitation_revoked or quota_changed.
+        target:
+          type: string
+        details:
+          type: object
+          additionalProperties:
+            type: string
+
+    AuditPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminAuditEntry'
+        nextCursor:
+          type: string
+          nullable: true

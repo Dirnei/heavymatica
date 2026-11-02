@@ -12,11 +12,14 @@ public sealed class AppHostTests
     public async Task AppHost_starts_mongo_minio_and_a_healthy_service_with_github_sign_in_linking_and_thumbnails()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
+        // A free port: a running development AppHost holds the default admin port.
+        var adminPort = FreePort();
         // Ephemeral storage: a running development AppHost keeps its data volumes locked.
         var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Heavymatica_Cloud_AppHost>(
         [
             "--Heavymatica:EphemeralStorage=true",
             "--Heavymatica:WithWebsite=false",
+            "--Heavymatica:AdminPort=" + adminPort,
             "--Parameters:github-client-id=dummy-client-id",
             "--Parameters:github-client-secret=dummy-client-secret",
         ], cancellationToken);
@@ -33,6 +36,9 @@ public sealed class AppHostTests
         using var response = await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);
         using var browser = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = app.GetEndpoint("cloud", "http") };
         using var signIn = await browser.GetAsync(new Uri("/v1/web/sign-in/github?intent=login", UriKind.Relative), cancellationToken);
+        using var adminListener = new HttpClient { BaseAddress = new Uri("http://localhost:" + adminPort) };
+        using var adminSession = await adminListener.GetAsync(new Uri("/admin/v1/session", UriKind.Relative), cancellationToken);
+        using var adminOnPublic = await client.GetAsync(new Uri("/admin/v1/session", UriKind.Relative), cancellationToken);
         using var player = app.CreateHttpClient("cloud");
         var session = await SignIn.AsAsync(player, Guid.NewGuid(), "AppHostPlayer");
         player.Authorize(session.AccessToken);
@@ -56,12 +62,14 @@ public sealed class AppHostTests
         Assert.Equal("github.com", signIn.Headers.Location?.Host);
         Assert.Contains("client_id=dummy-client-id", signIn.Headers.Location?.Query, StringComparison.Ordinal);
         Assert.True(me!.LinkingAvailable);
+        Assert.Equal(HttpStatusCode.Unauthorized, adminSession.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, adminOnPublic.StatusCode);
         Assert.Equal(HttpStatusCode.Created, upload.StatusCode);
         Assert.True(rendered, "The worker rendered no thumbnail within two minutes.");
     }
 
     [Fact]
-    public async Task AppHost_runs_the_website_dev_server_on_its_fixed_port_unless_disabled()
+    public async Task AppHost_runs_the_website_and_admin_dev_servers_on_their_fixed_ports_unless_disabled()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
 
@@ -74,7 +82,17 @@ public sealed class AppHostTests
         var endpoints = website.Annotations.OfType<Aspire.Hosting.ApplicationModel.EndpointAnnotation>();
         Assert.Contains(endpoints, endpoint => endpoint.Port == 4321 && !endpoint.IsProxied);
         Assert.DoesNotContain(withoutWebsite.Resources, resource => resource.Name == "website");
+        var adminWebsite = Assert.Single(withWebsite.Resources, resource => resource.Name == "admin-website");
+        Assert.Contains(adminWebsite.Annotations.OfType<Aspire.Hosting.ApplicationModel.EndpointAnnotation>(), endpoint => endpoint.Port == 4322 && !endpoint.IsProxied);
+        Assert.DoesNotContain(withoutWebsite.Resources, resource => resource.Name == "admin-website");
         await withWebsite.DisposeAsync();
         await withoutWebsite.DisposeAsync();
+    }
+
+    private static int FreePort()
+    {
+        using var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        return ((IPEndPoint)listener.LocalEndpoint).Port;
     }
 }

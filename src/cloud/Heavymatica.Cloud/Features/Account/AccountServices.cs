@@ -17,6 +17,7 @@ internal static class AccountServices
         services.TryAddSingleton<IMigrationObserver, NoMigrationObserver>();
         // Hosted services start in registration order: after the indexes and the bucket, before anything that serves data.
         services.AddHostedService<AccountMigration>();
+        services.AddHostedService<NameBackfill>();
         return builder;
     }
 }

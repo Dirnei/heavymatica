@@ -1,0 +1,8 @@
+---
+import Base from '../layouts/Base.astro';
+import Invite from '../components/Invite.svelte';
+---
+
+<Base title="Invitation">
+  <Invite client:only="svelte" />
+</Base>

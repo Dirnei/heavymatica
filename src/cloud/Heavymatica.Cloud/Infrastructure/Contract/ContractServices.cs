@@ -1,5 +1,6 @@
 using Heavymatica.Cloud.Contract;
 using Heavymatica.Cloud.Features.Account;
+using Heavymatica.Cloud.Features.Admin;
 using Heavymatica.Cloud.Features.Identity;
 using Heavymatica.Cloud.Features.Links;
 using Heavymatica.Cloud.Features.Schematics;
@@ -32,6 +33,7 @@ internal static class ContractServices
         var controllers = app.MapControllers();
         controllers.Add(IdentityServices.ConfigureAuthEndpoint);
         controllers.Add(LinkServices.ConfigureLinksEndpoint);
+        controllers.Add(AdminServices.ConfigureAdminEndpoint);
         app.MapGet("/openapi/v1.yaml", () =>
         {
             var contract = typeof(ContractServices).Assembly.GetManifestResourceStream(ContractResource)

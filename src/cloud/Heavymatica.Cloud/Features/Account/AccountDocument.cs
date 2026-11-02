@@ -43,6 +43,9 @@ internal sealed class IdentityDocument
     /// <summary>Last known Minecraft name or provider login, for display only.</summary>
     public string? Name { get; set; }
 
+    /// <summary>The name in lower case, for case-insensitive lookups; written with every name.</summary>
+    public string? NameLower { get; set; }
+
     public DateTime LinkedAt { get; init; }
 
     public DateTime LastSignInAt { get; set; }
@@ -69,6 +72,9 @@ internal sealed class AccountIndexes : IMongoIndexes
             new CreateIndexModel<IdentityDocument>(
                 keys.Ascending(identity => identity.AccountId),
                 new CreateIndexOptions { Name = "accountId" }),
+            new CreateIndexModel<IdentityDocument>(
+                keys.Ascending(identity => identity.NameLower),
+                new CreateIndexOptions { Name = "nameLower" }),
         ], cancellationToken);
 
         var audit = Builders<AuditEntryDocument>.IndexKeys;

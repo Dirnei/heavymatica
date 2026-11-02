@@ -52,5 +52,21 @@ public sealed class ContractTests(CloudInfrastructure infrastructure) : IDisposa
         var served = await client.GetByteArrayAsync(new Uri("/openapi/v1.yaml", UriKind.Relative), TestContext.Current.CancellationToken);
 
         Assert.Equal(await File.ReadAllBytesAsync(RepositoryFiles.Contract, TestContext.Current.CancellationToken), served);
+        Assert.DoesNotContain("/admin", System.Text.Encoding.UTF8.GetString(served), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Every_generated_admin_controller_interface_has_an_implementation()
+    {
+        var interfaces = ServiceCode.GetTypes()
+            .Where(type => type.IsInterface && type.Namespace == "Heavymatica.Cloud.Contract.Admin" && type.Name.EndsWith("Controller", StringComparison.Ordinal))
+            .ToList();
+
+        using var scope = factory.Services.CreateScope();
+        var missing = interfaces.Where(type => scope.ServiceProvider.GetService(type) is null).Select(type => type.Name).ToList();
+
+        Assert.Equal(["IAdminAccountsController", "IAdminAdminsController", "IAdminAuditController", "IAdminRegistrationController", "IAdminSessionController"],
+            interfaces.Select(type => type.Name).Order());
+        Assert.Empty(missing);
     }
 }

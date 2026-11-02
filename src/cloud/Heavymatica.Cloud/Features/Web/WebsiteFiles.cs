@@ -1,3 +1,4 @@
+using Heavymatica.Cloud.Features.Admin;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
@@ -33,7 +34,8 @@ internal static class WebsiteFiles
         }
 
         var files = new PhysicalFileProvider(root);
-        app.UseWhen(context => !IsApiPath(context.Request.Path), website => website
+        var admin = app.Services.GetRequiredService<AdminListener>();
+        app.UseWhen(context => !IsApiPath(context.Request.Path) && !admin.IsAdminListener(context), website => website
             .UseDefaultFiles(new DefaultFilesOptions { FileProvider = files })
             .UseStaticFiles(new StaticFileOptions
             {

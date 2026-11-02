@@ -1,11 +1,12 @@
 using Heavymatica.Cloud.Contract;
+using Heavymatica.Cloud.Features.Admin;
 using Heavymatica.Cloud.Infrastructure.Contract;
 using Microsoft.AspNetCore.Authentication;
 
 namespace Heavymatica.Cloud.Features.Identity;
 
 /// <summary>
-/// Rejects data-changing requests that a website session or pending cookie authenticates unless they come from the
+/// Rejects data-changing requests that a website session, pending cookie or admin session authenticates unless they come from the
 /// service's own origin and carry the website's request marker. The service sends no CORS headers, so another site
 /// cannot add the marker. Requests with an access or pending token carry no ambient credential and pass unchecked.
 /// </summary>
@@ -16,7 +17,22 @@ internal static class RequestCheck
     public static IApplicationBuilder UseWebRequestCheck(this IApplicationBuilder app) =>
         app.Use(async (context, next) =>
         {
-            if (!IsSafe(context.Request.Method) && !IsFromWebsite(context.Request) && await IsCookieAuthenticatedAsync(context))
+            if (IsSafe(context.Request.Method) || IsFromWebsite(context.Request))
+            {
+                await next(context);
+                return;
+            }
+
+            if (AdminListener.IsAdminEndpoint(context))
+            {
+                if ((await context.AuthenticateAsync(AdminSessions.Scheme)).Succeeded)
+                {
+                    await AdminProblems.WriteAsync(context.Response, StatusCodes.Status403Forbidden, Contract.Admin.ProblemCode.Request_forbidden,
+                        "This request did not come from the admin site.");
+                    return;
+                }
+            }
+            else if (await IsCookieAuthenticatedAsync(context))
             {
                 await Problems.WriteAsync(context.Response, StatusCodes.Status403Forbidden, ProblemCode.Request_forbidden,
                     "This request did not come from the Heavymatica website.");

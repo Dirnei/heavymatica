@@ -62,6 +62,38 @@ public class CloudFactory : WebApplicationFactory<ServiceAssembly>
 
     public IMongoDatabase Database => Services.GetRequiredService<IMongoDatabase>();
 
+    /// <summary>The admin host name of a factory with <see cref="WithAdmin"/>.</summary>
+    public const string AdminHost = "localhost";
+
+    /// <summary>The public listener of a factory with <see cref="WithAdmin"/>, on Kestrel.</summary>
+    public Uri? PublicAddress { get; private set; }
+
+    /// <summary>The admin listener of a factory with <see cref="WithAdmin"/>, on Kestrel.</summary>
+    public Uri? AdminAddress { get; private set; }
+
+    /// <summary>
+    /// Hosts the service on Kestrel with a public and an admin listener on free ports, since the test server has no
+    /// local ports to tell them apart. Clients are then plain HTTP clients to <see cref="PublicAddress"/> and
+    /// <see cref="AdminAddress"/>; <see cref="WebApplicationFactory{TEntryPoint}.Server"/> is not available.
+    /// </summary>
+    public CloudFactory WithAdmin()
+    {
+        PublicAddress = new Uri($"http://{AdminHost}:{FreePort()}");
+        AdminAddress = new Uri($"http://{AdminHost}:{FreePort()}");
+        With("urls", PublicAddress.GetLeftPart(UriPartial.Authority));
+        With("Admin:Url", AdminAddress.GetLeftPart(UriPartial.Authority));
+        With("Admin:Host", AdminHost);
+        UseKestrel();
+        return this;
+    }
+
+    private static int FreePort()
+    {
+        using var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        return ((IPEndPoint)listener.LocalEndpoint).Port;
+    }
+
     /// <summary>The client address every in-process request comes from, unless it names another in <see cref="ClientAddressHeader"/>.</summary>
     public const string DefaultClientAddress = "203.0.113.10";
 
@@ -96,10 +128,14 @@ public class CloudFactory : WebApplicationFactory<ServiceAssembly>
         builder.UseSetting("S3:SecretKey", infrastructure.MinioPassword);
         builder.UseSetting("S3:Bucket", BucketFor(DatabaseName));
 
-        var inProcessMojang = !settings.ContainsKey(MojangUrlKey);
+        var inProcessMojang = !settings.ContainsKey(MojangUrlKey) && PublicAddress is null;
         if (inProcessMojang)
         {
             builder.UseSetting(MojangUrlKey, "http://localhost" + DevMojang.BasePath);
+        }
+        else if (PublicAddress is not null && !settings.ContainsKey(MojangUrlKey))
+        {
+            builder.UseSetting(MojangUrlKey, PublicAddress.GetLeftPart(UriPartial.Authority) + DevMojang.BasePath);
         }
 
         // Tests drive the thumbnail worker themselves; its timer would render behind their backs.
