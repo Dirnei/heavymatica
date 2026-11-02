@@ -95,7 +95,7 @@ While a remote is held and the selected LOCKED placement is in follow feet, nump
 - **THEN** the offset is 0 and the shown layers end at the layer the player stands on
 
 ### Requirement: In-hand filter
-While the selected placement is LOCKED and a remote is held, the In-hand filter wheel segment or the bound in-hand filter key SHALL toggle its filter. With it on, the placement SHALL show blocks matching the held item at normal opacity, blocks matching other hotbar items at a configurable lower opacity (default one third), and no others. An item SHALL match a block it places in any state and every planned block whose have it counts toward under `client/block-equivalents`.
+While the selected placement is LOCKED and a remote is held, the In-hand filter segment of the wheel's Options sub-wheel or the bound in-hand filter key SHALL toggle its filter. With it on, the placement SHALL show blocks matching the held item at normal opacity, blocks matching other hotbar items at a configurable lower opacity (default one third), and no others. An item SHALL match a block it places in any state and every planned block whose have it counts toward under `client/block-equivalents`.
 
 #### Scenario: Holding oak planks
 - **WHEN** the in-hand filter is on, the player holds oak planks, and oak stairs are in the hotbar
@@ -106,7 +106,7 @@ While the selected placement is LOCKED and a remote is held, the In-hand filter 
 - **THEN** only the blocks matching the hotbar's block items show, all dimmed
 
 #### Scenario: Toggle from the wheel
-- **WHEN** the selected locked placement's in-hand filter is off and the player picks In-hand filter on the wheel
+- **WHEN** the selected locked placement's in-hand filter is off and the player picks Options, then In-hand filter, on the wheel
 - **THEN** its in-hand filter is on
 
 #### Scenario: Holding dirt

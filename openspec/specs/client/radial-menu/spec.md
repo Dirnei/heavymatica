@@ -52,11 +52,11 @@ The wheel SHALL show these segments for the selected placement's state and no ot
 - no placement selected: Materials, greyed out, and Library
 - FOLLOWING: Cancel, Materials and Library
 - ANCHORED: Lock, Remove, Materials and Library
-- LOCKED: Unlock, In-hand filter, Layers, Materials and Library
+- LOCKED: Unlock, Options, Layers, Materials and Library
 
 #### Scenario: Locked placement
 - **WHEN** the selected placement is LOCKED and the player opens the wheel
-- **THEN** it shows Unlock, In-hand filter, Layers, Materials and Library, and no Lock, Remove or Material list
+- **THEN** it shows Unlock, Options, Layers, Materials and Library, and no Lock, Remove, In-hand filter or Material list
 
 #### Scenario: Nothing selected
 - **WHEN** no placement is selected and the player opens the wheel
@@ -67,7 +67,7 @@ The wheel SHALL show these segments for the selected placement's state and no ot
 - **THEN** it shows Lock, Remove, Materials and Library
 
 ### Requirement: What the segments do
-Library SHALL open the library. Cancel SHALL remove the following placement at once. Lock SHALL lock the anchored placement. In-hand filter SHALL toggle the locked placement's in-hand filter. Materials SHALL open the materials screen of the selected placement; greyed out, it SHALL do nothing and the wheel SHALL stay open. Remove, Unlock and Layers SHALL first ask, as their own requirements say.
+Library SHALL open the library. Cancel SHALL remove the following placement at once. Lock SHALL lock the anchored placement. Options SHALL open the Options sub-wheel. Materials SHALL open the materials screen of the selected placement; greyed out, it SHALL do nothing and the wheel SHALL stay open. Remove, Unlock and Layers SHALL first ask, as their own requirements say.
 
 #### Scenario: Cancel a following placement
 - **WHEN** the selected placement is FOLLOWING and the player picks Cancel
@@ -188,3 +188,98 @@ When the selected placement has unknown blocks, the wheel SHALL also show an Unk
 #### Scenario: Nothing selected
 - **WHEN** no placement is selected
 - **THEN** the wheel shows no Unknown blocks segment
+
+### Requirement: Options sub-wheel
+Picking Options SHALL swap the wheel's segments to In-hand filter, Easy Place and Placement restriction, each marked
+while it is on: the selected locked placement's in-hand filter, and the Easy Place and placement restriction client
+settings. Picking one SHALL toggle it and close the wheel. Esc or the centre SHALL close the wheel and change nothing. In
+HOLD mode, releasing the wheel key on Options SHALL leave the sub-wheel open, and a click SHALL pick.
+
+#### Scenario: Turn Easy Place on
+- **WHEN** Easy Place is off and the player picks Options, then Easy Place
+- **THEN** Easy Place is on, the wheel is closed and the action bar says Easy Place is on
+
+#### Scenario: Toggle the in-hand filter
+- **WHEN** the selected locked placement's in-hand filter is off and the player picks Options, then In-hand filter
+- **THEN** its in-hand filter is on
+
+#### Scenario: Marks show the current settings
+- **WHEN** placement restriction is on, Easy Place is off, the in-hand filter is off, and the player picks Options
+- **THEN** only Placement restriction is marked
+
+#### Scenario: Close without a change
+- **WHEN** the player picks Options and then presses Esc
+- **THEN** the wheel closes and no setting changes
+
+### Requirement: Paste segment
+While paste is available, the wheel SHALL show a Paste segment after Materials when the selected placement is ANCHORED
+or LOCKED. It SHALL be greyed out while a paste or undo is running; a greyed-out Paste SHALL do nothing and keep the
+wheel open. Picking it SHALL swap the wheel's segments to the paste sub-wheel. In HOLD mode, releasing the wheel key on
+Paste SHALL leave the sub-wheel open, and a click SHALL pick.
+
+#### Scenario: Locked placement in creative
+- **WHEN** the player is in creative single player with a locked placement selected and opens the wheel
+- **THEN** it shows Paste after Materials
+
+#### Scenario: Survival
+- **WHEN** the player is in survival single player with a locked placement selected and opens the wheel
+- **THEN** it shows no Paste
+
+#### Scenario: Following placement
+- **WHEN** the player is in creative single player with a following placement selected and opens the wheel
+- **THEN** it shows no Paste
+
+### Requirement: Paste sub-wheel
+The paste sub-wheel SHALL show Replace all, Only into air and Skip air. Picking one SHALL start a paste of the selected
+placement in that mode and close the wheel. Esc or the centre SHALL close the wheel and paste nothing.
+
+#### Scenario: Paste only into air
+- **WHEN** the player picks Paste, then Only into air
+- **THEN** a paste in that mode starts and the wheel closes
+
+#### Scenario: Close without pasting
+- **WHEN** the player picks Paste and then presses Esc
+- **THEN** the wheel closes and nothing is pasted
+
+### Requirement: Undo paste segment
+While paste is available and a paste can be undone, the wheel SHALL show an Undo paste segment as its last segment, in
+every placement state, also with no placement selected. It SHALL be greyed out while a paste or undo is running. Picking
+it SHALL undo the last paste and close the wheel.
+
+#### Scenario: After a paste
+- **WHEN** the player has pasted and opens the wheel with nothing selected
+- **THEN** it shows Undo paste as its last segment
+
+#### Scenario: Nothing to undo
+- **WHEN** the player has not pasted since joining the world and opens the wheel
+- **THEN** it shows no Undo paste
+
+### Requirement: Mistakes segment
+The Options sub-wheel SHALL show a Mistakes segment after its other segments, marked while the mistake pointer is not
+off. Picking it SHALL swap the wheel's segments to the Mistakes sub-wheel. In HOLD mode, releasing the wheel key on
+Mistakes SHALL leave the sub-wheel open, and a click SHALL pick.
+
+#### Scenario: Options shows Mistakes
+- **WHEN** the selected placement is LOCKED and the player picks Options
+- **THEN** the sub-wheel shows Mistakes as its last segment
+
+#### Scenario: Marked while on
+- **WHEN** the mistake pointer is set to mistakes and the player picks Options
+- **THEN** Mistakes is marked
+
+### Requirement: Mistakes sub-wheel
+The Mistakes sub-wheel SHALL show Off, Mistakes, and Mistakes and missing, with the current mistake pointer setting
+marked. Picking one SHALL set the mistake pointer to it and close the wheel. Esc or the centre SHALL close the wheel and
+change nothing.
+
+#### Scenario: Turn on with missing blocks
+- **WHEN** the mistake pointer is off and the player picks Options, then Mistakes, then Mistakes and missing
+- **THEN** the mistake pointer is set to mistakes and missing and the wheel is closed
+
+#### Scenario: Turn off
+- **WHEN** the mistake pointer is set to mistakes and the player picks Options, then Mistakes, then Off
+- **THEN** the mistake pointer is off
+
+#### Scenario: Close without a change
+- **WHEN** the player opens the Mistakes sub-wheel and presses Esc
+- **THEN** the wheel closes and the mistake pointer setting is unchanged
