@@ -8,6 +8,13 @@ corner blocks, then move the active corner with the arrows and numpad + / - (Shi
 Shift + scroll. Capture on the wheel saves the area as a local `.litematic` library entry, ready to upload. Export in
 the library writes any entry into `.minecraft/schematics/` for other tools.
 
+## License
+
+- The cloud (`src/cloud`) and the websites (`src/web`) are licensed under the
+  [GNU AGPL v3.0](src/cloud/LICENSE).
+- Everything else, including the mod (`src/mod`) and the contract (`src/api`), is licensed under the
+  [GNU LGPL v3.0](LICENSE), which builds on the [GNU GPL v3.0](COPYING).
+
 ## Layout
 
 ```
