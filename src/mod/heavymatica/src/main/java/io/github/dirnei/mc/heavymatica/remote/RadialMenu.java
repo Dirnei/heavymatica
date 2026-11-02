@@ -263,7 +263,7 @@ public final class RadialMenu {
         return switch (page) {
             case MAIN -> capture.on() ? List.of(new Segment(Entry.CAPTURE, capture.corners() == 2, false),
                     new Segment(Entry.SWAP_CORNER, capture.corners() == 2, false), new Segment(Entry.RESET_CORNERS, capture.corners() > 0, false),
-                    segment(Entry.CANCEL_CAPTURE)) : withUndoPaste(withBringBack(withPaste(withUnknownBlocks(switch (selection.state()) {
+                    segment(Entry.CANCEL_CAPTURE)) : withUndoPaste(withBringBack(withPaste(withOptionsForUnknownBlocks(switch (selection.state()) {
                 case NONE -> List.of(new Segment(Entry.MATERIALS, false, false), segment(Entry.OPACITY), segment(Entry.LIBRARY),
                         segment(Entry.START_CAPTURE));
                 case FOLLOWING -> List.of(segment(Entry.CANCEL), segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY));
@@ -278,8 +278,7 @@ public final class RadialMenu {
             case LAYERS -> List.of(layer(Entry.LAYERS_OFF, Layers.Mode.OFF), layer(Entry.LAYERS_FROM_TO, Layers.Mode.FROM_TO),
                     layer(Entry.LAYERS_FOLLOW, Layers.Mode.FOLLOW));
             case PASTE -> List.of(segment(Entry.PASTE_REPLACE_ALL), segment(Entry.PASTE_ONLY_AIR), segment(Entry.PASTE_SKIP_AIR));
-            case OPTIONS -> List.of(new Segment(Entry.IN_HAND, true, selection.inHand()), new Segment(Entry.EASY_PLACE, true, selection.easyPlace()),
-                    new Segment(Entry.RESTRICTION, true, selection.restriction()), new Segment(Entry.MISTAKES, true, selection.pointer() != PointerMode.OFF));
+            case OPTIONS -> optionsSegments();
             case MISTAKES -> List.of(pointer(Entry.MISTAKES_OFF, PointerMode.OFF), pointer(Entry.MISTAKES_ONLY, PointerMode.MISTAKES),
                     pointer(Entry.MISTAKES_AND_MISSING, PointerMode.MISTAKES_AND_MISSING));
             case CONFIRM_REMOVE, CONFIRM_UNLOCK -> List.of(segment(Entry.YES), segment(Entry.NO));
@@ -312,17 +311,38 @@ public final class RadialMenu {
         return List.copyOf(segments);
     }
 
-    /** Adds the unknown blocks toggle after Opacity when the selected placement has unknown blocks. */
-    private List<Segment> withUnknownBlocks(List<Segment> main) {
-        if (selection.state() == State.NONE || !selection.unknownBlocks()) {
+    /**
+     * A following or anchored placement only has options when it has unknown blocks, so Options goes after Opacity then;
+     * a locked placement always has Options.
+     */
+    private List<Segment> withOptionsForUnknownBlocks(List<Segment> main) {
+        if (selection.state() == State.NONE || selection.state() == State.LOCKED || !selection.unknownBlocks()) {
             return main;
         }
         List<Segment> segments = new ArrayList<>(main.size() + 1);
         for (Segment segment : main) {
             segments.add(segment);
             if (segment.entry() == Entry.OPACITY) {
-                segments.add(new Segment(Entry.UNKNOWN_BLOCKS, true, selection.unknownShown()));
+                segments.add(segment(Entry.OPTIONS));
             }
+        }
+        return List.copyOf(segments);
+    }
+
+    /** The locked placement's build options, then Unknown blocks when it has some, with Mistakes always last. */
+    private List<Segment> optionsSegments() {
+        List<Segment> segments = new ArrayList<>(5);
+        boolean locked = selection.state() == State.LOCKED;
+        if (locked) {
+            segments.add(new Segment(Entry.IN_HAND, true, selection.inHand()));
+            segments.add(new Segment(Entry.EASY_PLACE, true, selection.easyPlace()));
+            segments.add(new Segment(Entry.RESTRICTION, true, selection.restriction()));
+        }
+        if (selection.unknownBlocks()) {
+            segments.add(new Segment(Entry.UNKNOWN_BLOCKS, true, selection.unknownShown()));
+        }
+        if (locked) {
+            segments.add(new Segment(Entry.MISTAKES, true, selection.pointer() != PointerMode.OFF));
         }
         return List.copyOf(segments);
     }

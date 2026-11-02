@@ -373,7 +373,7 @@
   "heavymatica.wheel.hint.remove": "Asks first, then removes the placement.",
   "heavymatica.wheel.hint.unlock": "Asks first, then lets it move again.",
   "heavymatica.wheel.hint.in_hand": "Shows only ghosts of the block in your hand.",
-  "heavymatica.wheel.hint.options": "Easy Place, restriction and the mistake pointer.",
+  "heavymatica.wheel.hint.options": "Switches such as Easy Place, the mistake pointer and unknown blocks.",
   "heavymatica.wheel.hint.easy_place": "Right-click places the planned block for you.",
   "heavymatica.wheel.hint.restriction": "Refuses blocks that don't match the plan.",
   "heavymatica.wheel.hint.mistakes": "Points the HUD at the nearest mistake.",
