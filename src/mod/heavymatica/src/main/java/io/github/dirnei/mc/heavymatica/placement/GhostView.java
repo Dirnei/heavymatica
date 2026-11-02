@@ -30,7 +30,7 @@ import org.jetbrains.annotations.Nullable;
  * rotated, like vanilla structure templates. Fully lit and block-only, for ghost meshes. Blocks the game does not
  * know read as air and are flagged.
  */
-final class GhostView implements BlockAndTintGetter {
+public final class GhostView implements BlockAndTintGetter {
 
     private final SchematicModel model;
     private final Turn rotation;
@@ -65,15 +65,20 @@ final class GhostView implements BlockAndTintGetter {
         this.sizeZ = rotation.swapsAxes() ? model.width() : model.length();
     }
 
-    int sizeX() {
+    /** The placement's schematic as the placement shows it. */
+    public static GhostView of(SchematicModel model, Placement placement) {
+        return new GhostView(model, placement.rotation(), placement.mirror(), placement.swaps());
+    }
+
+    public int sizeX() {
         return sizeX;
     }
 
-    int sizeY() {
+    public int sizeY() {
         return model.height();
     }
 
-    int sizeZ() {
+    public int sizeZ() {
         return sizeZ;
     }
 
@@ -86,18 +91,18 @@ final class GhostView implements BlockAndTintGetter {
     }
 
     /** The schematic palette index at a position inside the view; {@code scratch} holds two ints. */
-    int paletteIndex(int x, int y, int z, int[] scratch) {
+    public int paletteIndex(int x, int y, int z, int[] scratch) {
         PlacementTransform.toSchematic(rotation, mirror, model.width(), model.length(), x, z, scratch);
         return model.blocks()[SchematicModel.index(scratch[0], y, scratch[1], model.width(), model.length())];
     }
 
     /** A palette entry's state string as shown: upgraded, swapped and reduced to what the block accepts. */
-    String entry(int paletteIndex) {
+    public String entry(int paletteIndex) {
         return entries[paletteIndex];
     }
 
     /** A palette entry as placed: swapped, mirrored and rotated, air when the game does not know it. */
-    BlockState placed(int paletteIndex) {
+    public BlockState placed(int paletteIndex) {
         return palette[paletteIndex];
     }
 

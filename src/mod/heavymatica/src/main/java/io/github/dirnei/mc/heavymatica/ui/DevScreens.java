@@ -16,6 +16,8 @@ import io.github.dirnei.mc.heavymatica.blocks.BlockResolver;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.formats.SchematicReader;
 import io.github.dirnei.mc.heavymatica.library.LocalLibrary;
+import io.github.dirnei.mc.heavymatica.paste.CreativePaste;
+import io.github.dirnei.mc.heavymatica.paste.PasteMode;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
 import io.github.dirnei.mc.heavymatica.placement.ComparisonState;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
@@ -135,6 +137,14 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code logPlayer}: log the player's position, yaw and pitch</li>
  *     <li>{@code swap=<block>,<target>}, {@code swap=<block>}: swap a block of the selected placement, or reset its swap</li>
  *     <li>{@code logResolve=<file>}: log how every palette entry of a schematic file resolves: upgraded, known or unknown</li>
+ *     <li>{@code paste=<mode>}: paste the selected placement in that {@code PasteMode}; {@code undoPaste}: undo the last paste</li>
+ *     <li>{@code creativeItem=<item>}: put the item into the selected hotbar slot through the creative inventory, which works on
+ *     any server while in creative mode</li>
+ *     <li>{@code leaveWorld}: leave the world like the pause menu does; {@code openWorld=<folder>}: open a singleplayer world</li>
+ *     <li>{@code placeLocal=<name>}: start a following placement of the local entry with that name at the player's feet</li>
+ *     <li>{@code logPaste}: log whether paste is available, running and undoable, and the progress</li>
+ *     <li>{@code waitPaste}: wait until no paste or undo runs, logging progress, frame rate and server tick time</li>
+ *     <li>{@code logBlock=<x>,<y>,<z>}: log the integrated server's block state and block-entity data at a position</li>
  *     <li>{@code quit}: stop the game</li>
  * </ul>
  */
@@ -456,9 +466,72 @@ public final class DevScreens {
                 alignSelected(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
             }
             case "lockSelected" -> HeavymaticaClient.placements().controller().lock();
+            case "paste" -> {
+                PlacementSession session = HeavymaticaClient.placements();
+                Placement placement = session.placements().selected().orElse(null);
+                SchematicModel model = placement == null ? null : session.model(placement);
+                if (model == null) {
+                    Heavymatica.LOGGER.warn("Dev paste: no loaded placement selected");
+                } else {
+                    HeavymaticaClient.paste().paste(placement, model, PasteMode.valueOf(argument));
+                }
+            }
+            case "undoPaste" -> HeavymaticaClient.paste().undo();
+            case "creativeItem" -> {
+                ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.getValue(net.minecraft.resources.Identifier.parse(argument)));
+                int slot = minecraft.player.getInventory().getSelectedSlot();
+                minecraft.player.getInventory().setItem(slot, stack);
+                minecraft.gameMode.handleCreativeModeItemAdd(stack, 36 + slot);
+                Heavymatica.LOGGER.info("Dev creative item: {} in slot {}, game mode {}", argument, slot, minecraft.gameMode.getPlayerMode());
+            }
+            case "leaveWorld" -> minecraft.disconnectFromWorld(net.minecraft.client.multiplayer.ClientLevel.DEFAULT_QUIT_MESSAGE);
+            case "openWorld" -> minecraft.createWorldOpenFlows().openWorld(argument, () -> minecraft.setScreen(null));
+            case "placeLocal" -> HeavymaticaClient.library().local().entries().stream().filter(entry -> entry.name().equals(argument)).findFirst()
+                    .ifPresent(entry -> {
+                        LocalLibrary local = HeavymaticaClient.library().local();
+                        net.minecraft.core.BlockPos feet = minecraft.player.blockPosition();
+                        HeavymaticaClient.placements().start(new io.github.dirnei.mc.heavymatica.placement.PlacementSource.Local(entry.sha256()), entry.name(),
+                                SchematicReader.read(local.file(entry)), RemoteInput.dimension(),
+                                new io.github.dirnei.mc.heavymatica.placement.PlacementController.Target(feet.getX(), feet.getY(), feet.getZ()));
+                    });
+            case "logPaste" -> logPaste(minecraft);
+            case "waitPaste" -> {
+                if (HeavymaticaClient.paste().running()) {
+                    logPaste(minecraft);
+                    STEPS.addFirst(step);
+                    waiting = 10;
+                }
+            }
+            case "logBlock" -> {
+                String[] parts = argument.split(",");
+                logBlock(minecraft, new net.minecraft.core.BlockPos(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2])));
+            }
             case "quit" -> minecraft.stop();
             default -> Heavymatica.LOGGER.warn("Unknown dev screen step {}", step);
         }
+    }
+
+    private static void logPaste(Minecraft minecraft) {
+        CreativePaste paste = HeavymaticaClient.paste();
+        var server = minecraft.getSingleplayerServer();
+        Heavymatica.LOGGER.info("Dev paste: available {}, running {}, undoable {}, progress {}, {} fps, server tick {} us", CreativePaste.available(),
+                paste.running(), paste.undoable(), paste.progress().map(progress -> (progress.undo() ? "undo " : "paste ")
+                        + String.format(Locale.ROOT, "%.1f%%", progress.share() * 100)).orElse("-"), minecraft.getFps(),
+                server == null ? -1 : server.getAverageTickTimeNanos() / 1000);
+    }
+
+    private static void logBlock(Minecraft minecraft, net.minecraft.core.BlockPos pos) {
+        var server = minecraft.getSingleplayerServer();
+        if (server == null || minecraft.level == null) {
+            Heavymatica.LOGGER.info("Dev block {}: no singleplayer server", pos.toShortString());
+            return;
+        }
+        var dimension = minecraft.level.dimension();
+        server.submit(() -> {
+            var level = server.getLevel(dimension);
+            var blockEntity = level.getBlockEntity(pos);
+            return level.getBlockState(pos) + (blockEntity == null ? "" : " " + blockEntity.saveWithoutMetadata(level.registryAccess()));
+        }).thenAccept(text -> Heavymatica.LOGGER.info("Dev block {}: {}", pos.toShortString(), text));
     }
 
     /** Scrolls through the mouse handler's own scroll callback, as the mouse wheel does. */

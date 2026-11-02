@@ -2,6 +2,7 @@ package io.github.dirnei.mc.heavymatica.remote;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.github.dirnei.mc.heavymatica.paste.PasteMode;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Command;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Entry;
@@ -321,5 +322,91 @@ class RadialMenuTest {
     @Test
     void captureWheelHasItsOwnLabel() {
         assertEquals(new Label("heavymatica.wheel.capture", ""), capturing(Mode.HOLD, 1).label());
+    }
+
+    private static final RadialMenu.Paste CREATIVE = new RadialMenu.Paste(true, false, false);
+    private static final RadialMenu.Paste UNDOABLE = new RadialMenu.Paste(true, false, true);
+    private static final RadialMenu.Paste RUNNING = new RadialMenu.Paste(true, true, true);
+
+    @Test
+    void pasteComesAfterMaterialsOnAnchoredAndLockedPlacementsInCreative() {
+        assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.MATERIALS, Entry.PASTE, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
+                entries(menu(Mode.HOLD, ANCHORED.with(CREATIVE))));
+        assertEquals(List.of(Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIALS, Entry.PASTE, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
+                entries(menu(Mode.HOLD, LOCKED.with(CREATIVE))));
+    }
+
+    @Test
+    void noPasteWithoutAvailabilityOrOnFollowingPlacements() {
+        assertEquals(-1, index(menu(Mode.HOLD, LOCKED), Entry.PASTE));
+        assertEquals(-1, index(menu(Mode.HOLD, FOLLOWING.with(CREATIVE)), Entry.PASTE));
+        assertEquals(-1, index(menu(Mode.HOLD, Selection.NONE.with(CREATIVE)), Entry.PASTE));
+        assertEquals(-1, index(menu(Mode.HOLD, LOCKED.with(new RadialMenu.Paste(false, false, true))), Entry.UNDO_PASTE));
+    }
+
+    @Test
+    void pasteOpensTheModeSubWheel() {
+        RadialMenu menu = menu(Mode.TOGGLE, LOCKED.with(CREATIVE));
+        assertEquals(Outcome.STAY, menu.click(index(menu, Entry.PASTE)));
+        assertEquals(Page.PASTE, menu.page());
+        assertEquals(List.of(Entry.PASTE_REPLACE_ALL, Entry.PASTE_ONLY_AIR, Entry.PASTE_SKIP_AIR), entries(menu));
+        assertEquals(new Label("heavymatica.wheel.paste", "Castle Gate"), menu.label());
+        assertEquals(Outcome.Run.paste(PasteMode.ONLY_INTO_AIR), menu.click(1));
+        assertEquals(new Outcome.Run(Command.PASTE, 0, PasteMode.REPLACE_ALL), menu.click(0));
+        assertEquals(Outcome.Run.paste(PasteMode.SKIP_AIR), menu.click(2));
+    }
+
+    @Test
+    void holdReleaseOnPasteLeavesTheSubWheelOpen() {
+        RadialMenu menu = menu(Mode.HOLD, ANCHORED.with(CREATIVE));
+        assertEquals(Outcome.STAY, menu.release(index(menu, Entry.PASTE)));
+        assertEquals(Page.PASTE, menu.page());
+        assertEquals(Outcome.STAY, menu.release(0));
+        assertEquals(Outcome.Run.paste(PasteMode.REPLACE_ALL), menu.click(0));
+    }
+
+    @Test
+    void pasteSubWheelClosesFromEscapeAndTheCentre() {
+        RadialMenu escape = menu(Mode.TOGGLE, LOCKED.with(CREATIVE));
+        escape.click(index(escape, Entry.PASTE));
+        assertEquals(Outcome.CLOSE, escape.escape());
+        RadialMenu centre = menu(Mode.TOGGLE, LOCKED.with(CREATIVE));
+        centre.click(index(centre, Entry.PASTE));
+        assertEquals(Outcome.CLOSE, centre.click(-1));
+    }
+
+    @Test
+    void undoPasteIsLastInEveryStateWhileUndoable() {
+        for (Selection selection : List.of(Selection.NONE, FOLLOWING, ANCHORED, LOCKED)) {
+            List<Entry> entries = entries(menu(Mode.HOLD, selection.with(UNDOABLE)));
+            assertEquals(Entry.UNDO_PASTE, entries.getLast());
+            assertEquals(-1, index(menu(Mode.HOLD, selection.with(CREATIVE)), Entry.UNDO_PASTE));
+        }
+        assertEquals(Entry.UNDO_PASTE, entries(new RadialMenu(Mode.HOLD, Selection.NONE.with(UNDOABLE), OPACITY, true)).getLast());
+        RadialMenu menu = menu(Mode.TOGGLE, Selection.NONE.with(UNDOABLE));
+        assertEquals(run(Command.UNDO_PASTE), menu.click(index(menu, Entry.UNDO_PASTE)));
+        RadialMenu hold = menu(Mode.HOLD, ANCHORED.with(UNDOABLE));
+        assertEquals(run(Command.UNDO_PASTE), hold.release(index(hold, Entry.UNDO_PASTE)));
+    }
+
+    @Test
+    void pasteAndUndoAreGreyedOutWhileAJobRuns() {
+        RadialMenu toggle = menu(Mode.TOGGLE, LOCKED.with(RUNNING));
+        Segment paste = toggle.segments().get(index(toggle, Entry.PASTE));
+        Segment undo = toggle.segments().get(index(toggle, Entry.UNDO_PASTE));
+        assertEquals(false, paste.enabled());
+        assertEquals(false, undo.enabled());
+        assertEquals(Outcome.STAY, toggle.click(index(toggle, Entry.PASTE)));
+        assertEquals(Page.MAIN, toggle.page());
+        assertEquals(Outcome.STAY, toggle.click(index(toggle, Entry.UNDO_PASTE)));
+        RadialMenu hold = menu(Mode.HOLD, LOCKED.with(RUNNING));
+        assertEquals(Outcome.STAY, hold.release(index(hold, Entry.PASTE)));
+        assertEquals(Page.MAIN, hold.page());
+    }
+
+    @Test
+    void captureWheelHasNoPasteSegments() {
+        RadialMenu menu = new RadialMenu(Mode.HOLD, ANCHORED.with(UNDOABLE), OPACITY, false, new RadialMenu.Capture(true, 2));
+        assertEquals(List.of(Entry.CAPTURE, Entry.SWAP_CORNER, Entry.RESET_CORNERS, Entry.CANCEL_CAPTURE), entries(menu));
     }
 }

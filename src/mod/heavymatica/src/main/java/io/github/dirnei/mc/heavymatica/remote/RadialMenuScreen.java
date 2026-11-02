@@ -267,6 +267,11 @@ public final class RadialMenuScreen extends Screen {
             case IN_HAND -> Items.SPYGLASS;
             case LAYERS -> Items.LADDER;
             case MATERIALS -> Items.BRUSH;
+            case PASTE -> Items.PISTON;
+            case PASTE_REPLACE_ALL -> Items.TNT;
+            case PASTE_ONLY_AIR -> Items.FEATHER;
+            case PASTE_SKIP_AIR -> Items.GRASS_BLOCK;
+            case UNDO_PASTE -> Items.RECOVERY_COMPASS;
             case OPACITY -> Items.TINTED_GLASS;
             case OPACITY_STEP -> Items.GLASS_PANE;
             case UNKNOWN_BLOCKS -> Items.PURPLE_STAINED_GLASS;

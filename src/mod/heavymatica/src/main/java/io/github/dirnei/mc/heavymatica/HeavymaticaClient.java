@@ -15,6 +15,7 @@ import io.github.dirnei.mc.heavymatica.library.Library;
 import io.github.dirnei.mc.heavymatica.library.LocalLibrary;
 import io.github.dirnei.mc.heavymatica.library.StoredListing;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
+import io.github.dirnei.mc.heavymatica.paste.CreativePaste;
 import io.github.dirnei.mc.heavymatica.placement.GhostPipeline;
 import io.github.dirnei.mc.heavymatica.placement.PlacementController;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
@@ -71,6 +72,7 @@ public final class HeavymaticaClient {
     private static @Nullable PlacementSession placements;
     private static @Nullable GhostTargeting targeting;
     private static @Nullable CaptureController capture;
+    private static @Nullable CreativePaste paste;
 
     public HeavymaticaClient(IEventBus modEventBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.CLIENT, HeavymaticaConfig.SPEC);
@@ -108,6 +110,11 @@ public final class HeavymaticaClient {
     /** Capture mode; null before client setup. */
     public static @Nullable CaptureController capture() {
         return capture;
+    }
+
+    /** Creative paste; null before client setup. */
+    public static @Nullable CreativePaste paste() {
+        return paste;
     }
 
     /** The ghost under the crosshair; null before client setup. */
@@ -186,7 +193,9 @@ public final class HeavymaticaClient {
             targeting.register();
             new GhostPick(placements, targeting).register();
             capture = new CaptureController(placements.capture(), HeavymaticaClient::library);
-            new RemoteInput(placements, HeavymaticaClient::openLibrary, HeavymaticaClient::openMaterials, capture).register();
+            paste = new CreativePaste();
+            paste.register();
+            new RemoteInput(placements, HeavymaticaClient::openLibrary, HeavymaticaClient::openMaterials, capture, paste).register();
             new CaptureRenderer(placements.capture()).register();
             account.restore();
             library.loadStored();

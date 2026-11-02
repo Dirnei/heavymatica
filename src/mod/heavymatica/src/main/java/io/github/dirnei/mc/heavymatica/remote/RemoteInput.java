@@ -2,6 +2,8 @@ package io.github.dirnei.mc.heavymatica.remote;
 
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.capture.CaptureController;
+import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
+import io.github.dirnei.mc.heavymatica.paste.CreativePaste;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementController;
 import io.github.dirnei.mc.heavymatica.placement.PlacementController.Target;
@@ -40,15 +42,17 @@ public final class RemoteInput {
     private final Runnable openLibrary;
     private final Runnable openMaterials;
     private final CaptureController capture;
+    private final CreativePaste paste;
     private final Map<KeyMapping, Integer> heldTicks = new HashMap<>();
     private boolean useHandled;
     private static boolean shiftHeldForDevelopment;
 
-    public RemoteInput(PlacementSession session, Runnable openLibrary, Runnable openMaterials, CaptureController capture) {
+    public RemoteInput(PlacementSession session, Runnable openLibrary, Runnable openMaterials, CaptureController capture, CreativePaste paste) {
         this.session = session;
         this.openLibrary = openLibrary;
         this.openMaterials = openMaterials;
         this.capture = capture;
+        this.paste = paste;
     }
 
     public void register() {
@@ -286,6 +290,7 @@ public final class RemoteInput {
                     case LOCKED -> RadialMenu.State.LOCKED;
                 }, selected.name(), selected.layers().mode(), selected.inHand(), session.unknownBlocks(selected).any(),
                         HeavymaticaConfig.ghostShowUnknownBlocks());
+        selection = selection.with(new RadialMenu.Paste(CreativePaste.available(), paste.running(), paste.undoable()));
         RadialMenu.Capture captureState = capture.session().box()
                 .map(box -> new RadialMenu.Capture(true, capture.session().capturing() ? 0 : box.corners())).orElse(RadialMenu.Capture.OFF);
         Minecraft.getInstance().setScreen(new RadialMenuScreen(new RadialMenu(HeavymaticaConfig.wheelMode(), selection,
@@ -314,6 +319,15 @@ public final class RemoteInput {
             case SWAP_CORNER -> capture.swap();
             case RESET_CORNERS -> capture.reset();
             case CANCEL_CAPTURE -> capture.cancel();
+            case PASTE -> session.placements().selected().ifPresent(placement -> {
+                SchematicModel model = session.model(placement);
+                if (model == null) {
+                    Minecraft.getInstance().player.sendOverlayMessage(Component.translatable("heavymatica.paste.not_loaded"));
+                } else {
+                    paste.paste(placement, model, run.paste());
+                }
+            });
+            case UNDO_PASTE -> paste.undo();
         }
     }
 

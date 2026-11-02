@@ -1,9 +1,11 @@
 package io.github.dirnei.mc.heavymatica.remote;
 
+import io.github.dirnei.mc.heavymatica.paste.PasteMode;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
 import io.github.dirnei.mc.heavymatica.placement.OpacitySteps;
 import java.util.ArrayList;
 import java.util.List;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * The open wheel, free of the game: which segments show for the selection it was opened on, which page is up, and
@@ -24,18 +26,36 @@ public final class RadialMenu {
     }
 
     /**
-     * The selected placement as the wheel opened.
+     * The selected placement and what paste allows as the wheel opened.
      *
      * @param unknownBlocks whether it has blocks the game does not know
      * @param unknownShown  whether unknown blocks are shown
      */
-    public record Selection(State state, String name, Layers.Mode layers, boolean inHand, boolean unknownBlocks, boolean unknownShown) {
+    public record Selection(State state, String name, Layers.Mode layers, boolean inHand, boolean unknownBlocks, boolean unknownShown, Paste paste) {
 
         public static final Selection NONE = new Selection(State.NONE, "", Layers.Mode.OFF, false);
 
         public Selection(State state, String name, Layers.Mode layers, boolean inHand) {
-            this(state, name, layers, inHand, false, true);
+            this(state, name, layers, inHand, false, true, Paste.NONE);
         }
+
+        public Selection(State state, String name, Layers.Mode layers, boolean inHand, boolean unknownBlocks, boolean unknownShown) {
+            this(state, name, layers, inHand, unknownBlocks, unknownShown, Paste.NONE);
+        }
+
+        public Selection with(Paste paste) {
+            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste);
+        }
+    }
+
+    /**
+     * @param available whether paste is available at all: creative mode in the player's own world
+     * @param running   whether a paste or undo runs
+     * @param undoable  whether the last paste can be undone
+     */
+    public record Paste(boolean available, boolean running, boolean undoable) {
+
+        public static final Paste NONE = new Paste(false, false, false);
     }
 
     /** Whether capture mode was on as the wheel opened, and how many corners were set. */
@@ -54,6 +74,7 @@ public final class RadialMenu {
         CONFIRM_REMOVE,
         CONFIRM_UNLOCK,
         OPACITY,
+        PASTE,
     }
 
     public enum Entry {
@@ -66,6 +87,7 @@ public final class RadialMenu {
         IN_HAND,
         LAYERS,
         MATERIALS,
+        PASTE,
         OPACITY,
         UNKNOWN_BLOCKS,
         START_CAPTURE,
@@ -77,6 +99,10 @@ public final class RadialMenu {
         LAYERS_FROM_TO,
         LAYERS_FOLLOW,
         OPACITY_STEP,
+        PASTE_REPLACE_ALL,
+        PASTE_ONLY_AIR,
+        PASTE_SKIP_AIR,
+        UNDO_PASTE,
         YES,
         NO,
     }
@@ -111,7 +137,9 @@ public final class RadialMenu {
         CAPTURE,
         SWAP_CORNER,
         RESET_CORNERS,
-        CANCEL_CAPTURE;
+        CANCEL_CAPTURE,
+        PASTE,
+        UNDO_PASTE;
 
         /** The layer mode a layers command sets, or null for other commands. */
         public Layers.Mode layerMode() {
@@ -135,11 +163,22 @@ public final class RadialMenu {
         record Close() implements Outcome {
         }
 
-        /** @param value the opacity to set, 0 for other commands */
-        record Run(Command command, double value) implements Outcome {
+        /**
+         * @param value the opacity to set, 0 for other commands
+         * @param paste the mode of a paste, null for other commands
+         */
+        record Run(Command command, double value, @Nullable PasteMode paste) implements Outcome {
 
             public Run(Command command) {
                 this(command, 0);
+            }
+
+            public Run(Command command, double value) {
+                this(command, value, null);
+            }
+
+            public static Run paste(PasteMode mode) {
+                return new Run(Command.PASTE, 0, mode);
             }
         }
     }
@@ -184,7 +223,7 @@ public final class RadialMenu {
         return switch (page) {
             case MAIN -> capture.on() ? List.of(new Segment(Entry.CAPTURE, capture.corners() == 2, false),
                     new Segment(Entry.SWAP_CORNER, capture.corners() == 2, false), new Segment(Entry.RESET_CORNERS, capture.corners() > 0, false),
-                    segment(Entry.CANCEL_CAPTURE)) : withBringBack(withUnknownBlocks(switch (selection.state()) {
+                    segment(Entry.CANCEL_CAPTURE)) : withUndoPaste(withBringBack(withPaste(withUnknownBlocks(switch (selection.state()) {
                 case NONE -> List.of(new Segment(Entry.MATERIALS, false, false), segment(Entry.OPACITY), segment(Entry.LIBRARY),
                         segment(Entry.START_CAPTURE));
                 case FOLLOWING -> List.of(segment(Entry.CANCEL), segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY));
@@ -192,14 +231,41 @@ public final class RadialMenu {
                         segment(Entry.LIBRARY), segment(Entry.START_CAPTURE));
                 case LOCKED -> List.of(segment(Entry.UNLOCK), new Segment(Entry.IN_HAND, true, selection.inHand()), segment(Entry.LAYERS),
                         segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY), segment(Entry.START_CAPTURE));
-            }));
+            }))));
             case OPACITY -> opacity.steps().stream()
                     .map(step -> new Segment(Entry.OPACITY_STEP, true, OpacitySteps.matches(step, opacity.current()), step))
                     .toList();
             case LAYERS -> List.of(layer(Entry.LAYERS_OFF, Layers.Mode.OFF), layer(Entry.LAYERS_FROM_TO, Layers.Mode.FROM_TO),
                     layer(Entry.LAYERS_FOLLOW, Layers.Mode.FOLLOW));
+            case PASTE -> List.of(segment(Entry.PASTE_REPLACE_ALL), segment(Entry.PASTE_ONLY_AIR), segment(Entry.PASTE_SKIP_AIR));
             case CONFIRM_REMOVE, CONFIRM_UNLOCK -> List.of(segment(Entry.YES), segment(Entry.NO));
         };
+    }
+
+    /** Paste goes after Materials on an anchored or locked placement. */
+    private List<Segment> withPaste(List<Segment> main) {
+        Paste paste = selection.paste();
+        if (!paste.available() || selection.state() != State.ANCHORED && selection.state() != State.LOCKED) {
+            return main;
+        }
+        List<Segment> segments = new ArrayList<>(main.size() + 1);
+        for (Segment segment : main) {
+            segments.add(segment);
+            if (segment.entry() == Entry.MATERIALS) {
+                segments.add(new Segment(Entry.PASTE, !paste.running(), false));
+            }
+        }
+        return List.copyOf(segments);
+    }
+
+    private List<Segment> withUndoPaste(List<Segment> main) {
+        Paste paste = selection.paste();
+        if (!paste.available() || !paste.undoable()) {
+            return main;
+        }
+        List<Segment> segments = new ArrayList<>(main);
+        segments.add(new Segment(Entry.UNDO_PASTE, !paste.running(), false));
+        return List.copyOf(segments);
     }
 
     /** Adds the unknown blocks toggle after Opacity when the selected placement has unknown blocks. */
@@ -233,6 +299,7 @@ public final class RadialMenu {
                     : selection.state() == State.NONE ? new Label("heavymatica.wheel.none", "") : new Label("heavymatica.wheel.title", selection.name());
             case LAYERS -> new Label("heavymatica.wheel.layers", selection.name());
             case OPACITY -> new Label("heavymatica.wheel.opacity", "");
+            case PASTE -> new Label("heavymatica.wheel.paste", selection.name());
             case CONFIRM_REMOVE -> new Label("heavymatica.wheel.confirm.remove", selection.name());
             case CONFIRM_UNLOCK -> new Label("heavymatica.wheel.confirm.unlock", selection.name());
         };
@@ -247,6 +314,9 @@ public final class RadialMenu {
             return Outcome.STAY;
         }
         Segment segment = at(index);
+        if (segment != null && !segment.enabled() && segment.entry() == Entry.PASTE) {
+            return Outcome.STAY;
+        }
         return segment == null || !segment.enabled() ? Outcome.CLOSE : pick(segment);
     }
 
@@ -278,6 +348,11 @@ public final class RadialMenu {
             case IN_HAND -> run(Command.TOGGLE_IN_HAND);
             case LAYERS -> turnTo(Page.LAYERS);
             case MATERIALS -> run(Command.OPEN_MATERIALS);
+            case PASTE -> turnTo(Page.PASTE);
+            case PASTE_REPLACE_ALL -> Outcome.Run.paste(PasteMode.REPLACE_ALL);
+            case PASTE_ONLY_AIR -> Outcome.Run.paste(PasteMode.ONLY_INTO_AIR);
+            case PASTE_SKIP_AIR -> Outcome.Run.paste(PasteMode.SKIP_AIR);
+            case UNDO_PASTE -> run(Command.UNDO_PASTE);
             case OPACITY -> turnTo(Page.OPACITY);
             case UNKNOWN_BLOCKS -> run(Command.TOGGLE_UNKNOWN_BLOCKS);
             case START_CAPTURE -> run(Command.START_CAPTURE);

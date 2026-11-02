@@ -6,6 +6,7 @@ import io.github.dirnei.mc.heavymatica.HeavymaticaClient;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.capture.CaptureBox;
 import io.github.dirnei.mc.heavymatica.capture.CaptureSession;
+import io.github.dirnei.mc.heavymatica.paste.CreativePaste;
 import io.github.dirnei.mc.heavymatica.placement.BlockEquivalents;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
 import io.github.dirnei.mc.heavymatica.placement.ComparisonState;
@@ -128,6 +129,11 @@ public final class PlacementOverlay {
 
     static List<Line> lines(Minecraft minecraft, PlacementSession session) {
         List<Line> lines = new ArrayList<>();
+        CreativePaste paste = HeavymaticaClient.paste();
+        if (paste != null) {
+            paste.progress().ifPresent(progress -> lines.add(Line.text(Component.translatable(progress.undo() ? "heavymatica.overlay.undoing"
+                    : "heavymatica.overlay.pasting", (int) Math.floor(progress.share() * 100)), CAPTURE)));
+        }
         if (session.capture().on()) {
             captureLines(minecraft, session.capture(), lines);
             return lines;
