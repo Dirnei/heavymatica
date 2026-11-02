@@ -247,10 +247,6 @@ final class DetailsPanel extends AbstractWidget {
         DetailBlockCounts counts = facts.counts();
         String label = Component.translatable("heavymatica.library.details.types", counts.rows().size()).getString().toUpperCase(java.util.Locale.ROOT);
         Glass.text(graphics, font, label, x, y, GlassStyle.HINT, inner);
-        if (counts.unknownTypes() > 0) {
-            Glass.textRight(graphics, font, Component.translatable("heavymatica.library.details.unknown", counts.unknownTypes()).getString(), x + inner, y,
-                    GlassStyle.DANGER_TEXT);
-        }
         y += 12;
         listArea = new Rect(x, y, inner, Math.max(0, listBottom - y));
         blockList(graphics, font, counts, listArea, mouseX, mouseY);

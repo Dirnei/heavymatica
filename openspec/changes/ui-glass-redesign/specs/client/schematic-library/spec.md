@@ -1,3 +1,20 @@
+## MODIFIED Requirements
+
+### Requirement: Resolved names in the details
+The block counts in the entry details SHALL name each block as the game resolves it for that version, upgraded to the game's version, and SHALL mark block IDs the game doesn't know as unknown. When the chosen version has unknown blocks, the details page SHALL say how many block types are unknown; the details panel beside the grid SHALL only mark the rows.
+
+#### Scenario: Old schematic
+- **WHEN** a player opens the details of a version saved in Minecraft 1.20.2 that contains `minecraft:grass`
+- **THEN** its block counts list short grass, not marked unknown
+
+#### Scenario: Missing mod
+- **WHEN** a player opens the details page of a version with `create:shaft` and `create:cogwheel` while Create is not installed
+- **THEN** both rows are marked unknown and the details page says 2 block types are unknown
+
+#### Scenario: Panel marks rows only
+- **WHEN** a player selects that version's entry in the library
+- **THEN** the details panel marks both rows as unknown and shows no count of unknown block types
+
 ## ADDED Requirements
 
 ### Requirement: Details beside the grid
