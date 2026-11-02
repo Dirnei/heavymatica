@@ -105,7 +105,7 @@ While there is a ghost target and no screen is open, the client SHALL show a sma
 - **THEN** no targeting HUD shows
 
 ### Requirement: Target state in the HUD
-The HUD SHALL show the target's state on its own line, in the comparison colours: missing; wrong block in red, naming the found block; wrong orientation in orange, with the found block's orientation; too many in orange, with the found and the planned amount; wrong water in cyan, saying whether water is needed or must go; needs finishing in yellow, naming the step; not enough yet, with how many more are needed; and not compared yet, muted, while the position is unknown.
+The HUD SHALL show the target's state on its own line, in the comparison colours: missing; wrong block in red, naming the found block; wrong orientation in orange, with the found block's orientation; too many in orange, with the found and the planned amount; extra in magenta, for a two-item block on a planned empty base, naming the content to remove; wrong water in cyan, saying whether water is needed or must go; needs finishing in yellow, naming the step; not enough yet, with how many more are needed, or, for a two-item block on its empty base, naming the content to add; and not compared yet, muted, while the position is unknown.
 
 #### Scenario: Wrong block
 - **WHEN** the target expects oak planks and the world has dirt there
@@ -130,6 +130,14 @@ The HUD SHALL show the target's state on its own line, in the comparison colours
 #### Scenario: Half a double slab
 - **WHEN** the target expects a double stone slab and the world has a bottom stone slab there
 - **THEN** the HUD shows that 1 more is needed, 1 of 2
+
+#### Scenario: Pot without its plant
+- **WHEN** the target expects a potted dead bush and the world has an empty flower pot there
+- **THEN** the HUD shows a line saying a dead bush is still needed, in the same colour as the line for missing candles
+
+#### Scenario: Plant in a planned empty pot
+- **WHEN** the target expects an empty flower pot and the world has a potted dead bush there
+- **THEN** the HUD shows a magenta line saying the dead bush must go
 
 ### Requirement: Other placements in the HUD
 When the target belongs to a placement that is not selected, the HUD SHALL also show that placement's name.
@@ -188,7 +196,7 @@ Pick block SHALL pick the ghost target, on the client and on any server, when th
 - **THEN** vanilla's pick block runs
 
 ### Requirement: Which item is picked
-The candidate items for a planned block SHALL be, in this order: its own item, the item that places it, then the items the equivalents table accepts for it, in the order the material list takes them. The first candidate the player carries in the hotbar or main inventory SHALL be picked.
+The candidate items for a planned block SHALL be, in this order: its own item, the item that places it, then the items the equivalents table accepts for it, in the order the material list takes them. For a two-item block the candidates SHALL be its base item while the position is missing, wrong block or not compared yet, and its content item while the position is not enough yet. The first candidate the player carries in the hotbar or main inventory SHALL be picked.
 
 #### Scenario: Grass from dirt
 - **WHEN** the player middle-clicks a grass block ghost, carrying dirt and no grass blocks
@@ -201,6 +209,18 @@ The candidate items for a planned block SHALL be, in this order: its own item, t
 #### Scenario: Swapped block
 - **WHEN** a placement swaps oak planks to spruce planks and the player middle-clicks one of them, carrying both
 - **THEN** spruce planks are picked
+
+#### Scenario: Pot first
+- **WHEN** the player middle-clicks a missing potted dead bush ghost, carrying flower pots and dead bushes
+- **THEN** a flower pot is picked
+
+#### Scenario: Plant once the pot stands
+- **WHEN** the player middle-clicks a potted dead bush ghost over an empty flower pot, carrying flower pots and dead bushes
+- **THEN** a dead bush is picked
+
+#### Scenario: No plant carried
+- **WHEN** a survival player without dead bushes middle-clicks a potted dead bush ghost over an empty flower pot
+- **THEN** the action bar says `You have no Dead Bush` and the selected slot stays the same
 
 ### Requirement: Picking from the inventory
 When the picked item is in the hotbar, its slot SHALL be selected, the selected slot first and then the lowest. Otherwise it SHALL be swapped from the main inventory into the hotbar slot vanilla's pick block would use, and that slot selected. No item SHALL be lost or duplicated.

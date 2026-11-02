@@ -29,7 +29,7 @@ A position of a locked placement SHALL be ignored when its schematic block is `s
 - **THEN** that position is ignored
 
 ### Requirement: Cell states
-Every other position SHALL be in exactly one state, decided by the schematic block as placed (rotated and mirrored) and the world block there: matching (same block, or one the equivalents table accepts in its place, with the same orientation, amount and waterlogging, or air in both), missing (a block in the schematic, air in the world), extra (air in the schematic, a block in the world), not enough yet, needs finishing, or one of the mistakes below.
+Every other position SHALL be in exactly one state, decided by the schematic block as placed (rotated and mirrored) and the world block there: matching (same block, or one the equivalents table accepts in its place, with the same orientation, amount and waterlogging, or air in both), missing (a block in the schematic, air in the world), extra (air in the schematic and a block in the world, or a planned empty base holding a content), not enough yet, needs finishing, or one of the mistakes below.
 
 #### Scenario: Missing
 - **WHEN** a locked placement expects oak planks at a position where the world has air
@@ -40,7 +40,7 @@ Every other position SHALL be in exactly one state, decided by the schematic blo
 - **THEN** that position is matching
 
 ### Requirement: Mistake states
-A position with a block in both the schematic and the world SHALL be wrong block when the blocks differ and the equivalents table neither accepts the world block in place of the planned block nor lists it as needing a finishing step, wrong orientation when only the orientation differs, too many when the world block has a larger amount than planned, and wrong water when only the waterlogging differs.
+A position with a block in both the schematic and the world SHALL be wrong block when the blocks differ and the equivalents table neither accepts the world block in place of the planned block nor lists it as needing a finishing step, and the world block is neither the empty base of a planned two-item block nor a two-item block on the planned empty base. It SHALL be wrong orientation when only the orientation differs, too many when the world block has a larger amount than planned, and wrong water when only the waterlogging differs.
 
 #### Scenario: Wrong block
 - **WHEN** a locked placement expects oak planks at a position where the world has dirt
@@ -49,6 +49,10 @@ A position with a block in both the schematic and the world SHALL be wrong block
 #### Scenario: Too many candles
 - **WHEN** a locked placement expects white candles with 3 candles and the world has white candles with 4 candles
 - **THEN** that position is too many
+
+#### Scenario: Other plant in the pot
+- **WHEN** a locked placement expects a potted dead bush and the world has a potted poppy there
+- **THEN** that position is wrong block
 
 ### Requirement: Orientation properties
 A block's orientation SHALL be its values for these block-state properties: facing (all variants), axis, rotation, half, door hinge and attach face, and for a single slab whether it is the top or the bottom slab. Amount and waterlogging SHALL be compared on their own. Differences in any other property, such as connections, power, lit, age or stair shape, SHALL NOT make a position wrong.
@@ -89,7 +93,7 @@ For a locked placement:
 - Matching and ignored positions SHALL NOT show a ghost.
 - Missing, not enough yet and unknown positions SHALL show the normal ghost.
 - Boxes around the block SHALL show: red for wrong block, orange for wrong orientation, too many and not enough yet, cyan for wrong water, yellow for needs finishing, magenta for extra. Only not enough yet SHALL keep its ghost.
-- Boxes SHALL be hidden by real blocks in front of them, like ghosts.
+- Boxes SHALL show through real blocks in front of them, weaker than where nothing is in front, so a box behind a wall is still found and a box in plain sight stands out.
 
 #### Scenario: Extra block in the footprint
 - **WHEN** a tall grass plant stands where a locked placement has air
@@ -101,7 +105,7 @@ For a locked placement:
 
 #### Scenario: Box behind a wall
 - **WHEN** a red box is on the far side of a solid wall from the player
-- **THEN** the box does not show through the wall
+- **THEN** the box shows through the wall, weaker than the same box seen without the wall
 
 #### Scenario: Yellow box
 - **WHEN** a locked placement expects a dirt path and the world has dirt there
@@ -122,6 +126,10 @@ For a locked placement:
 #### Scenario: Four of three candles
 - **WHEN** a locked placement expects white candles with 3 candles and the world has 4 there
 - **THEN** an orange box shows around the candles and no ghost shows there
+
+#### Scenario: Empty pot
+- **WHEN** a locked placement expects a potted dead bush and the world has an empty flower pot there
+- **THEN** the ghost of the potted dead bush shows there with an orange box around the pot
 
 ### Requirement: Comparison combines with layers
 Ghosts and boxes SHALL show only in the layers the placement's layer setting makes visible. The in-hand filter SHALL apply to ghosts only; boxes SHALL show whatever the player holds.
@@ -239,3 +247,34 @@ For 10 seconds after a finish the player SHALL be able to bring the placement ba
 #### Scenario: Finishes again after a repair
 - **WHEN** a brought-back placement has a block broken, so its progress drops below 100%, and the player places it again
 - **THEN** the placement finishes again
+
+### Requirement: Two-item blocks in the comparison
+A position whose planned block is a two-item block SHALL be not enough yet when the world holds the empty base block there, in the planned orientation. A position whose planned block is the empty base of a two-item block SHALL be extra when the world holds a two-item block on that base. A two-item block with a different content than planned SHALL be wrong block. The water level of a cauldron SHALL NOT be compared. Not enough yet SHALL NOT count as done for progress.
+
+#### Scenario: Empty pot under a planned potted plant
+- **WHEN** a locked placement expects a potted dead bush and the world has an empty flower pot there
+- **THEN** that position is not enough yet
+
+#### Scenario: Cake without its candle
+- **WHEN** a locked placement expects a red candle cake and the world has an uneaten cake there
+- **THEN** that position is not enough yet
+
+#### Scenario: Eaten cake
+- **WHEN** a locked placement expects a red candle cake and the world has a cake with a slice eaten there
+- **THEN** that position is wrong block
+
+#### Scenario: Empty cauldron
+- **WHEN** a locked placement expects a water cauldron and the world has an empty cauldron there
+- **THEN** that position is not enough yet
+
+#### Scenario: Water level
+- **WHEN** a locked placement expects a full water cauldron and the world has a water cauldron at level 1 there
+- **THEN** that position is matching
+
+#### Scenario: Plant in a planned empty pot
+- **WHEN** a locked placement expects an empty flower pot and the world has a potted dead bush there
+- **THEN** that position is extra and a magenta box shows around the pot
+
+#### Scenario: Pot only
+- **WHEN** a placement has 10 counted blocks, 9 match and the tenth is a potted dead bush with only its empty pot placed
+- **THEN** its progress is 90%

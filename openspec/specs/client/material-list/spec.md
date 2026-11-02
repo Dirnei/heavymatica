@@ -18,7 +18,7 @@ The client SHALL keep a material list for the selected placement while it is LOC
 - **THEN** it has no material list
 
 ### Requirement: Positions that need an item
-A position SHALL need its item when it is missing, wrong block or not compared yet. A position that is not enough yet SHALL need only the rest: its planned amount minus the amount in the world, in the same items. Matching, wrong orientation, too many, wrong water, needs finishing, extra and ignored positions SHALL NOT need an item.
+A position SHALL need its item when it is missing, wrong block or not compared yet. A position that is not enough yet SHALL need only the rest: its planned amount minus the amount in the world, in the same items, or, for a two-item block on its empty base, only the content item. Matching, wrong orientation, too many, wrong water, needs finishing, extra and ignored positions SHALL NOT need an item.
 
 #### Scenario: Wrong block needs the item
 - **WHEN** a locked placement expects oak planks at a position where the world has dirt
@@ -52,6 +52,14 @@ A position SHALL need its item when it is missing, wrong block or not compared y
 - **WHEN** a position expects white candles with 3 candles, holds 1, and the player adds a second candle
 - **THEN** that position needs one white candle instead of two
 
+#### Scenario: Pot placed, plant missing
+- **WHEN** a position expects a potted dead bush and holds an empty flower pot
+- **THEN** that position needs one dead bush and no flower pot
+
+#### Scenario: Other plant in the pot
+- **WHEN** a position expects a potted dead bush and holds a potted poppy
+- **THEN** that position needs one flower pot and one dead bush
+
 ### Requirement: The list follows the layer setting
 Only positions in the layers the placement's layer setting makes visible SHALL count. The in-hand filter SHALL NOT change the list.
 
@@ -72,6 +80,7 @@ A needed position SHALL count as the item that places its block, or as the item 
 - a block made of two positions (doors, beds, tall plants) SHALL count once, at its lower or foot position
 - a double slab SHALL count as two of its slab
 - candles, sea pickles and snow layers SHALL count as many items as the block state says
+- a two-item block SHALL count as one item of its base and one of its content, each adding up with the same item elsewhere in the placement; it SHALL NOT be listed under "can't carry"
 
 #### Scenario: Door
 - **WHEN** a locked placement still needs an oak door (lower and upper half)
@@ -88,6 +97,14 @@ A needed position SHALL count as the item that places its block, or as the item 
 #### Scenario: Paths and farmland
 - **WHEN** a locked placement still needs 6 dirt paths, 4 farmland and 2 grass blocks
 - **THEN** its material list needs 12 dirt
+
+#### Scenario: Potted plants
+- **WHEN** a locked placement still needs 2 potted dead bushes, 1 potted poppy and 1 empty flower pot
+- **THEN** its material list needs 4 flower pots, 2 dead bushes and 1 poppy, and nothing under "can't carry"
+
+#### Scenario: Water cauldrons
+- **WHEN** a locked placement still needs 3 water cauldrons
+- **THEN** its material list needs 3 cauldrons and 3 water buckets
 
 ### Requirement: Can't carry
 Needed positions whose block no item places (such as water, lava, fire, portals or piston heads) SHALL be listed in a separate "can't carry" part with their block and count. They SHALL NOT show as shortages.
