@@ -28,6 +28,7 @@ final class CardGrid extends AbstractWidget {
     private final ThumbnailTextures thumbnails;
     private final Consumer<LibraryEntry> onSelect;
     private final Consumer<String> onOpen;
+    private final Consumer<LibraryEntry> onDetails;
     private final Predicate<LibraryEntry> available;
     private List<LibraryItem> items = List.of();
     private @Nullable String selected;
@@ -39,9 +40,10 @@ final class CardGrid extends AbstractWidget {
     /**
      * @param available false for cloud entries that cannot be opened right now (offline and not cached)
      * @param onOpen    receives the folder to open, {@code ""} for the top level
+     * @param onDetails receives an entry that was double-clicked, after it was selected
      */
     CardGrid(int x, int y, int width, int height, int columns, int cardWidth, ThumbnailTextures thumbnails, Predicate<LibraryEntry> available,
-             Consumer<LibraryEntry> onSelect, Consumer<String> onOpen) {
+             Consumer<LibraryEntry> onSelect, Consumer<String> onOpen, Consumer<LibraryEntry> onDetails) {
         super(x, y, width, height, Component.translatable("heavymatica.library.cards"));
         this.columns = columns;
         this.cardWidth = cardWidth;
@@ -49,6 +51,7 @@ final class CardGrid extends AbstractWidget {
         this.available = available;
         this.onSelect = onSelect;
         this.onOpen = onOpen;
+        this.onDetails = onDetails;
     }
 
     void setItems(List<LibraryItem> items) {
@@ -213,7 +216,12 @@ final class CardGrid extends AbstractWidget {
                 switch (items.get(i)) {
                     case LibraryItem.Up up -> onOpen.accept(up.parent());
                     case LibraryItem.Folder folder -> onOpen.accept(folder.path());
-                    case LibraryItem.Entry entry -> onSelect.accept(entry.entry());
+                    case LibraryItem.Entry entry -> {
+                        onSelect.accept(entry.entry());
+                        if (doubleClick) {
+                            onDetails.accept(entry.entry());
+                        }
+                    }
                 }
                 return;
             }

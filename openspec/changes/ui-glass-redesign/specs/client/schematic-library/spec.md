@@ -30,11 +30,15 @@ The details panel SHALL offer the entry's actions: Place as the main action, the
 - **THEN** Place and Export work, and Rename, Move, Tags and Delete are disabled with a hover text saying signing in is needed
 
 ### Requirement: Details page
-The details panel SHALL offer "All details", which opens a page for that entry showing a large preview with its width, height and depth, its format, its Minecraft version when the file records one, its block count and number of block types, when it was added or uploaded, and the same actions as the panel. Back SHALL return to the library with the entry still selected.
+The details panel SHALL offer "All details", which opens a page for that entry showing a large preview with its width, height and depth, its format, its Minecraft version when the file records one, its block count and number of block types, when it was added or uploaded, and the same actions as the panel. Double-clicking an entry's card SHALL open the same page. Back SHALL return to the library with the entry still selected.
 
 #### Scenario: Open and return
 - **WHEN** a player selects `Starter Hut`, opens All details and goes back
 - **THEN** the details page showed `Starter Hut`'s facts, and the library is shown again with `Starter Hut` selected
+
+#### Scenario: Double-click a card
+- **WHEN** a player double-clicks the `Starter Hut` card
+- **THEN** `Starter Hut` is selected and its details page opens
 
 #### Scenario: File without a game version
 - **WHEN** the chosen version's file records no Minecraft version

@@ -149,7 +149,7 @@ public class LibraryScreen extends GlassScreen {
         chips = addRenderableWidget(new ChipRow(c.x(), c.y(), c.w() - refreshWidth - 6, c.h()));
         Rect cards = layout.cards();
         grid = addRenderableWidget(new CardGrid(cards.x(), cards.y(), cards.w(), cards.h(), layout.columns(), layout.cardWidth(), thumbnails,
-                this::available, this::select, this::openFolder));
+                this::available, this::select, this::openFolder, entry -> openDetailsPage()));
 
         details = addRenderableWidget(new DetailsPanel(layout.details(), thumbnails, this::chooseVersion));
         allDetailsButton = addRenderableWidget(new GlassButton(0, 0, 10, 14, Component.translatable("heavymatica.library.all_details"),
