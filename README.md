@@ -17,6 +17,7 @@ src/
   web/player/    the player website (Astro with Svelte islands), served by the cloud
   mod/           Gradle build of the NeoForge mods
   conformance/   schematic sample files and expected results, shared by the cloud and mod tests
+  branding/      the logo source and its exports (`python src/branding/generate.py`)
 openspec/        specs and changes
 ```
 
@@ -25,6 +26,25 @@ openspec/        specs and changes
 - Cloud: `dotnet build src/cloud/Heavymatica.slnx`, run locally with `aspire run` from `src/cloud`.
 - Mod: `./gradlew build` from `src/mod`.
 - Contract lint: `npx @stoplight/spectral-cli lint src/api/heavymatica-cloud.v1.yaml` from the repository root.
+
+## Releasing
+
+The mod is released with [Release Please](https://github.com/googleapis/release-please) from Conventional Commits:
+
+- Every push to `main` updates a release PR for `heavymatica`. It lists the `feat` and `fix` commits that touch
+  `src/mod/heavymatica`, bumps `mod_version` in its `gradle.properties` and adds the notes to its `CHANGELOG.md`.
+  Before 1.0, `feat` raises the minor version and `fix` the patch version.
+- Merging the release PR tags `heavymatica-v<version>`, creates the GitHub release, builds the jar at that version and
+  uploads it to the GitHub release, CurseForge and Modrinth (`.github/workflows/release.yml`). Versions 0.x are
+  published as alpha; from 1.0 a version containing `alpha` or `beta` is published as that, anything else as release.
+- Repository settings: Actions may create pull requests; variables `CURSEFORGE_ID_HEAVYMATICA` and
+  `MODRINTH_ID_HEAVYMATICA` with secrets `CURSEFORGE_TOKEN` and `MODRINTH_TOKEN`. A platform without its project ID
+  variable is skipped.
+- A change that alters the jar but lies outside `src/mod/heavymatica`, such as `src/mod/build.gradle`,
+  `src/mod/gradle.properties` or the contract in `src/api`, does not count for a release on its own. Add a
+  `Release-As: x.y.z` footer to its commit to release it.
+
+Every push and pull request is built and tested by `.github/workflows/build.yml`.
 
 ## Local development
 
