@@ -18,8 +18,6 @@ import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
 import io.github.dirnei.mc.heavymatica.placement.UnknownBlocks;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
-import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting;
-import io.github.dirnei.mc.heavymatica.targeting.TargetHud;
 import io.github.dirnei.mc.heavymatica.ui.glass.Glass;
 import io.github.dirnei.mc.heavymatica.ui.glass.GlassStyle;
 import java.util.ArrayList;
@@ -32,15 +30,10 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jetbrains.annotations.Nullable;
@@ -436,35 +429,6 @@ public final class PlacementOverlay {
             lines.add(new Line(Kind.CHIPS, Component.empty(), Component.empty(), TEXT, List.copyOf(counts), new long[0]));
         }
         finishingLines(placement, comparison, lines);
-        BlockPos targeted = crosshairTarget(minecraft, placement);
-        if (targeted != null && minecraft.level != null) {
-            CellState target = comparison.stateAt(targeted);
-            if (target != null && target.boxed()) {
-                BlockState expected = comparison.expectedAt(targeted);
-                BlockState found = minecraft.level.getBlockState(targeted);
-                lines.add(Line.text(Component.translatable("heavymatica.overlay.expected", block(expected)), MUTED));
-                lines.add(Line.text(Component.translatable("heavymatica.overlay.found", block(found)), MUTED));
-                if ((target == CellState.INCOMPLETE || target == CellState.TOO_MANY) && !found.isAir()) {
-                    lines.add(Line.text(TargetHud.amountText(target, expected, found), target == CellState.TOO_MANY ? MISTAKE_ORANGE : TEXT));
-                } else if (target == CellState.EXTRA && !expected.isAir() && !found.isAir()) {
-                    lines.add(Line.text(TargetHud.contentMustGo(found), MISTAKE_MAGENTA));
-                }
-                BlockEquivalents.Finish finish = comparison.finishAt(targeted);
-                if (target == CellState.NEEDS_FINISHING && finish != null) {
-                    lines.add(Line.text(Component.translatable("heavymatica.overlay.finish_target." + stepName(finish)), FINISHING_YELLOW));
-                }
-            }
-        }
-    }
-
-    /** The ghost target when it belongs to the placement, otherwise the real block the crosshair hits, or null. */
-    private static @Nullable BlockPos crosshairTarget(Minecraft minecraft, Placement placement) {
-        GhostTargeting targeting = HeavymaticaClient.targeting();
-        GhostTargeting.GhostTarget ghost = targeting == null ? null : targeting.current();
-        if (ghost != null && ghost.placement().id().equals(placement.id())) {
-            return ghost.pos();
-        }
-        return minecraft.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK ? hit.getBlockPos() : null;
     }
 
     /** One line per finishing step that positions in the visible layers need. */
@@ -525,12 +489,6 @@ public final class PlacementOverlay {
         if (total > 0) {
             chips.add(new Chip(Component.translatable("heavymatica.overlay.count." + name, total), color));
         }
-    }
-
-    private static Component block(BlockState state) {
-        String details = WorldComparison.details(state);
-        MutableComponent name = state.getBlock().getName().copy();
-        return details.isEmpty() ? name : name.append(" (" + details + ")");
     }
 
     private static Component inHandText(Placement placement) {

@@ -136,8 +136,9 @@ the scroll list.
 
 - `PlacementOverlay` draws one glass panel: title row (name, version or "local", swap count, state badge),
   percentage and bar, layer line, mistake chips with counts above 0, finishing chips, the top shortages, the unknown
-  line, the expected and found lines when looking at a mistake, then keycap hints and the small position line. The
-  compact overlay is the title row alone.
+  line, then keycap hints and the small position line. It never names the block under the crosshair: that changes
+  with every look and made the panel flicker, and the targeting HUD already shows it. The compact overlay is the title
+  row alone.
 - `TargetHud` and `PointerHud` become pills under the crosshair. Where the pointer goes depends on the target HUD's
   height that frame, so they never overlap. The overlay sits at the side and never reaches the centre column: its
   width is capped at a third of the screen.

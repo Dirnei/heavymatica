@@ -36,7 +36,8 @@ the HUD, so they need to match the wheel and work at every GUI scale before anyt
 - **HUD:**
   - The placement overlay becomes a glass panel: name, version and state badge; a progress bar; one chip per mistake
     state; finishing chips; the top shortages; keycap hints; position and rotation on one small line.
-  - Mistake counts at 0 are no longer shown.
+  - Mistake counts at 0 are no longer shown, and the overlay no longer lists the expected and found block under the
+    crosshair: that line flickered with every look, and the targeting HUD shows it.
   - The targeting HUD and the mistake pointer become separate glass pills under the crosshair.
 - **Settings screen:** a new in-game screen for every client setting, in six sections, with a short explanation for
   each. It opens from the mods list and from the library. "Use held item" sets the remote item. The cloud address and
@@ -61,7 +62,8 @@ the HUD, so they need to match the wheel and work at every GUI scale before anyt
   showing the import view, and thumbnails for local entries.
 - `client/material-swaps`: the merged block column with click-to-swap and undo, the combined bars, unknown blocks in
   their own part, and the block picker dialog with carried counts and Keep original.
-- `client/placement-remote`: the overlay's progress bar and mistake chips, with counts of 0 left out.
+- `client/placement-remote`: the overlay's progress bar and mistake chips, with counts of 0 left out, and no expected
+  or found lines for the block under the crosshair, which the targeting HUD shows.
 
 ## Impact
 
