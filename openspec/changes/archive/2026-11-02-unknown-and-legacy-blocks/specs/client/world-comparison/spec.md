@@ -27,7 +27,7 @@ For a locked placement:
 - Missing, not enough yet and unknown positions SHALL show the normal ghost.
 - Can't check positions SHALL show the unknown-block placeholder while unknown blocks are shown, and no box.
 - Boxes around the block SHALL show: red for wrong block, orange for wrong orientation, too many and not enough yet, cyan for wrong water, yellow for needs finishing, magenta for extra. Only not enough yet SHALL keep its ghost.
-- Boxes SHALL be hidden by real blocks in front of them, like ghosts.
+- Boxes SHALL show through real blocks in front of them, weaker than where nothing is in front, so a box behind a wall is still found and a box in plain sight stands out.
 
 #### Scenario: Extra block in the footprint
 - **WHEN** a tall grass plant stands where a locked placement has air
@@ -39,7 +39,7 @@ For a locked placement:
 
 #### Scenario: Box behind a wall
 - **WHEN** a red box is on the far side of a solid wall from the player
-- **THEN** the box does not show through the wall
+- **THEN** the box shows through the wall, weaker than the same box seen without the wall
 
 #### Scenario: Yellow box
 - **WHEN** a locked placement expects a dirt path and the world has dirt there
@@ -60,6 +60,10 @@ For a locked placement:
 #### Scenario: Four of three candles
 - **WHEN** a locked placement expects white candles with 3 candles and the world has 4 there
 - **THEN** an orange box shows around the candles and no ghost shows there
+
+#### Scenario: Empty pot
+- **WHEN** a locked placement expects a potted dead bush and the world has an empty flower pot there
+- **THEN** the ghost of the potted dead bush shows there with an orange box around the pot
 
 #### Scenario: Can't check
 - **WHEN** a locked placement has `create:shaft` at a position, Create is not installed and the world has stone there

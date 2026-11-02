@@ -81,7 +81,6 @@ Library SHALL open the library. Cancel SHALL remove the following placement at o
 - **WHEN** no placement is selected and the player opens the wheel and clicks Materials
 - **THEN** no screen opens and the wheel stays open
 
-
 ### Requirement: Bring back segment
 While a finished placement can be brought back, the wheel SHALL show Bring back first, in every state. Bring back SHALL bring the most recently finished placement back at once and close the wheel; when the time to bring it back runs out while the wheel is open, picking it SHALL do nothing.
 
@@ -166,3 +165,26 @@ In capture mode, the wheel SHALL show only Capture, Swap corner, Reset and Cance
 #### Scenario: Cancel
 - **WHEN** the player picks Cancel in capture mode
 - **THEN** capture mode is off and the remote's keys work on placements again
+
+### Requirement: Unknown blocks segment
+When the selected placement has unknown blocks, the wheel SHALL also show an Unknown blocks segment in every placement state, labelled with whether unknown blocks are shown or hidden. Picking it SHALL switch between shown and hidden, write the choice to `ghost.showUnknownBlocks` in the client config file, save the file and close the wheel. Without unknown blocks, the segment SHALL NOT show.
+
+#### Scenario: Hide from the wheel
+- **WHEN** the selected anchored placement has unknown blocks that are shown and the player picks Unknown blocks
+- **THEN** the wheel closes, the placeholders disappear from every placement, and the client config holds `ghost.showUnknownBlocks = false`
+
+#### Scenario: Show again
+- **WHEN** unknown blocks are hidden and the player picks Unknown blocks on a placement that has some
+- **THEN** the placeholders show again on every placement
+
+#### Scenario: Kept after a restart
+- **WHEN** the player hides unknown blocks and restarts the game
+- **THEN** unknown blocks are still hidden
+
+#### Scenario: No unknown blocks
+- **WHEN** the selected placement's blocks are all known
+- **THEN** the wheel shows no Unknown blocks segment
+
+#### Scenario: Nothing selected
+- **WHEN** no placement is selected
+- **THEN** the wheel shows no Unknown blocks segment

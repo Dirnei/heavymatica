@@ -18,7 +18,7 @@ The client SHALL compare a placement with the world only while the placement is 
 - **THEN** the whole ghost shows again, including the bottom layer, and no colour marks show
 
 ### Requirement: Positions that are not compared
-A position of a locked placement SHALL be ignored when its schematic block is `structure_void` or a block the game does not know, and unknown while it is in a chunk that is not loaded or has not been compared yet.
+A position of a locked placement SHALL be ignored when its schematic block is `structure_void`, can't check when the block it shows is a block the game does not know, and unknown while it is in a chunk that is not loaded or has not been compared yet.
 
 #### Scenario: Unloaded chunk
 - **WHEN** part of a locked placement lies in a chunk that is not loaded
@@ -27,6 +27,14 @@ A position of a locked placement SHALL be ignored when its schematic block is `s
 #### Scenario: Structure void
 - **WHEN** the schematic has `structure_void` at a position where the world has grass
 - **THEN** that position is ignored
+
+#### Scenario: Block from a missing mod
+- **WHEN** the schematic has `create:shaft` at a position, Create is not installed and the world has stone there
+- **THEN** that position is can't check
+
+#### Scenario: Upgraded block is compared
+- **WHEN** a schematic from Minecraft 1.20.2 has `minecraft:grass` at a position where the world has short grass
+- **THEN** that position is matching
 
 ### Requirement: Cell states
 Every other position SHALL be in exactly one state, decided by the schematic block as placed (rotated and mirrored) and the world block there: matching (same block, or one the equivalents table accepts in its place, with the same orientation, amount and waterlogging, or air in both), missing (a block in the schematic, air in the world), extra (air in the schematic and a block in the world, or a planned empty base holding a content), not enough yet, needs finishing, or one of the mistakes below.
@@ -92,6 +100,7 @@ When a world block differs in several ways, its state SHALL be the first that ap
 For a locked placement:
 - Matching and ignored positions SHALL NOT show a ghost.
 - Missing, not enough yet and unknown positions SHALL show the normal ghost.
+- Can't check positions SHALL show the unknown-block placeholder while unknown blocks are shown, and no box.
 - Boxes around the block SHALL show: red for wrong block, orange for wrong orientation, too many and not enough yet, cyan for wrong water, yellow for needs finishing, magenta for extra. Only not enough yet SHALL keep its ghost.
 - Boxes SHALL show through real blocks in front of them, weaker than where nothing is in front, so a box behind a wall is still found and a box in plain sight stands out.
 
@@ -131,6 +140,10 @@ For a locked placement:
 - **WHEN** a locked placement expects a potted dead bush and the world has an empty flower pot there
 - **THEN** the ghost of the potted dead bush shows there with an orange box around the pot
 
+#### Scenario: Can't check
+- **WHEN** a locked placement has `create:shaft` at a position, Create is not installed and the world has stone there
+- **THEN** the missing-texture placeholder shows there and no box
+
 ### Requirement: Comparison combines with layers
 Ghosts and boxes SHALL show only in the layers the placement's layer setting makes visible. The in-hand filter SHALL apply to ghosts only; boxes SHALL show whatever the player holds.
 
@@ -169,7 +182,7 @@ The client SHALL keep comparing every loaded position of a locked placement agai
 - **THEN** that part is compared after the chunk loads and its ghosts and boxes update
 
 ### Requirement: Progress
-A locked placement's progress SHALL be the number of matching positions whose schematic block is not air, divided by the number of positions that are neither air nor ignored in the schematic. Extra blocks SHALL NOT lower the progress. Unknown positions SHALL count as not done. Layer progress SHALL count the same way over the visible layers only.
+A locked placement's progress SHALL be the number of matching positions whose schematic block is not air, divided by the number of positions that are neither air, ignored nor can't check in the schematic. Extra blocks SHALL NOT lower the progress. Unknown positions SHALL count as not done. Layer progress SHALL count the same way over the visible layers only.
 
 #### Scenario: Half built
 - **WHEN** a placement has 5006 non-air, non-ignored blocks and 3104 of them match
@@ -182,6 +195,10 @@ A locked placement's progress SHALL be the number of matching positions whose sc
 #### Scenario: Visible layers
 - **WHEN** the placement is in follow feet showing layers 0 to 4 and those layers have 500 counted blocks of which 440 match
 - **THEN** its layer progress is 88%
+
+#### Scenario: Can't check does not count
+- **WHEN** a placement has 1000 non-air blocks, 40 of them can't check, and 480 of the rest match
+- **THEN** its progress is 50% (480 / 960)
 
 ### Requirement: Block amounts
 A block's amount SHALL be its number of candles, sea pickles or snow layers, 1 for a single slab, 2 for a double slab, and 1 for any other block. A position whose block matches in all else SHALL be not enough yet when the world block's amount is smaller than planned. A single slab, top or bottom, where a double slab is planned SHALL be not enough yet. Not enough yet SHALL NOT count as done for progress.
@@ -207,7 +224,7 @@ A block's amount SHALL be its number of candles, sea pickles or snow layers, 1 f
 - **THEN** its progress is 60%
 
 ### Requirement: Finishing a placement
-A locked placement SHALL finish when its progress becomes 100% while it has at least one counted position. On finishing, the client SHALL play a short success sound, show a toast with the placement's name that says how to bring it back, and remove the placement; when it was selected, no placement SHALL be selected afterwards.
+A locked placement SHALL finish when its progress becomes 100% while it has at least one counted position. On finishing, the client SHALL play a short success sound, show a toast with the placement's name that says how to bring it back, and remove the placement; when it was selected, no placement SHALL be selected afterwards. When the placement has can't check positions, the toast SHALL also say how many.
 
 #### Scenario: Last block placed
 - **WHEN** a locked placement has 200 counted positions, 199 match, and the player places the last right block
@@ -227,6 +244,14 @@ A locked placement SHALL finish when its progress becomes 100% while it has at l
 
 #### Scenario: Empty schematic
 - **WHEN** a locked placement has no counted positions
+- **THEN** it does not finish
+
+#### Scenario: Finished with blocks it can't check
+- **WHEN** every counted position of a locked placement matches and 40 of its positions can't check
+- **THEN** the success sound plays and the toast names the placement and says 40 blocks couldn't be checked
+
+#### Scenario: Only blocks it can't check
+- **WHEN** every non-air position of a locked placement can't check
 - **THEN** it does not finish
 
 ### Requirement: Bringing a finished placement back
