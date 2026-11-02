@@ -27,8 +27,10 @@ import io.github.dirnei.mc.heavymatica.ui.glass.Rect;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -90,6 +92,8 @@ public class LibraryScreen extends GlassScreen {
     private @Nullable String tag;
     private @Nullable LibraryEntry selected;
     private @Nullable SchematicDetails selectedDetails;
+    /** The last details loaded per cloud schematic ID while this screen is open. */
+    private final Map<String, SchematicDetails> seenDetails = new HashMap<>();
     private int selectedVersion;
     private @Nullable Component detailsStatus;
     private @Nullable Component message;
@@ -402,8 +406,12 @@ public class LibraryScreen extends GlassScreen {
     }
 
     private void select(LibraryEntry entry) {
+        if (entry.equals(selected)) {
+            return;
+        }
         selected = entry;
-        selectedDetails = null;
+        // Details seen before show at once and are refreshed below, so the panel doesn't empty and refill on every click.
+        selectedDetails = seenDetails.get(entry.id());
         selectedVersion = entry.version();
         grid.setSelected(entry.id());
         if (entry.cloud() && account.signedIn() && library.cloudState() == Library.CloudState.CURRENT) {
@@ -411,8 +419,11 @@ public class LibraryScreen extends GlassScreen {
             // Keep the chosen schematic usable offline: its file goes into the cache in the background.
             library.file(entry.id(), entry.version(), entry.sha256()).exceptionally(error -> null);
             library.details(entry.id()).whenComplete((loaded, failure) -> minecraft.execute(() -> {
+                if (loaded != null) {
+                    seenDetails.put(entry.id(), loaded);
+                }
                 if (selected != null && selected.id().equals(entry.id())) {
-                    selectedDetails = loaded;
+                    selectedDetails = loaded != null ? loaded : selectedDetails;
                     detailsStatus = failure == null ? null : Component.translatable("heavymatica.library.details.failed");
                     updateDetails();
                 }

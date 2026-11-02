@@ -214,6 +214,25 @@ final class DetailsPanel extends AbstractWidget {
                 Glass.textRight(graphics, font, note, x + inner - 5, rowY + 2, GlassStyle.HINT);
             }
             y += rows * VERSION_ROW + 4;
+        } else if (entry.cloud() && status == null) {
+            // While the versions load, the newest one is known from the card and room is kept for the others, so the
+            // rest of the panel doesn't jump down when the list arrives.
+            Glass.text(graphics, font, Component.translatable("heavymatica.library.details.versions").getString().toUpperCase(java.util.Locale.ROOT),
+                    x, y, GlassStyle.HINT, inner);
+            y += 11;
+            int rows = Math.clamp(entry.version(), 1, MAX_VERSION_ROWS);
+            Glass.box(graphics, x, y, inner, VERSION_ROW - 2, 4, 0x1F7FD8FF, 0x807FD8FF);
+            graphics.text(font, "v" + entry.version(), x + 5, y + 2, GlassStyle.ACCENT, false);
+            if (entry.updatedAt() != null) {
+                Glass.text(graphics, font, WHEN.format(entry.updatedAt()), x + 28, y + 2, GlassStyle.LABEL, inner - 80);
+            }
+            Glass.textRight(graphics, font, Component.translatable("heavymatica.library.version.latest").getString(), x + inner - 5, y + 2,
+                    GlassStyle.HINT);
+            for (int i = 1; i < rows; i++) {
+                Glass.box(graphics, x, y + i * VERSION_ROW, inner, VERSION_ROW - 2, 4, 0x08FFFFFF, 0);
+            }
+            versionArea = new Rect(0, 0, 0, 0);
+            y += rows * VERSION_ROW + 4;
         } else {
             versionArea = new Rect(0, 0, 0, 0);
         }
