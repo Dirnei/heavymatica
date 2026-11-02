@@ -17,7 +17,7 @@
 ## 4. Logo
 
 - [x] 4.1 Add `src/branding/generate.py` (D6). It writes `heavymatica.svg` and `heavymatica-small.svg` from concept A's geometry and exports `heavymatica-512.png`, and the 256×256 `src/mod/heavymatica/src/main/resources/heavymatica.png`, rasterised with Pillow, with a clear message when Pillow is missing. Add a short `src/branding/README.md` with how to run it. Verify by running it, checking both PNG sizes with Python, and comparing the SVG in a browser against concept A on https://claude.ai/artifact/7fDyZZcpQ5G3Dysrn3Koo4.
-- [ ] 4.2 Add `logoFile="heavymatica.png"` to the `[[mods]]` block of `src/mod/heavymatica/src/main/templates/META-INF/neoforge.mods.toml`. Verify in `runClient` that the mods list shows the logo for Heavymatica ("Mod logo").
+- [x] 4.2 Add `logoFile="heavymatica.png"` to the `[[mods]]` block of `src/mod/heavymatica/src/main/templates/META-INF/neoforge.mods.toml`. Verify in `runClient` that the mods list shows the logo for Heavymatica ("Mod logo").
 
 ## 5. First release
 

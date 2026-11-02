@@ -21,13 +21,21 @@ public record WheelMeshRenderState(Matrix3x2fc pose, float[] positions, int[] co
         if (b == null) {
             return;
         }
+        submit(graphics, mesh.positions(), mesh.colors(), b);
+    }
+
+    /** Submits quads (four vertices each, in GUI units) with their bounds {minX, minY, maxX, maxY} under the current pose. */
+    public static void submit(GuiGraphicsExtractor graphics, float[] positions, int[] colors, float[] b) {
         Matrix3x2f pose = new Matrix3x2f(graphics.pose());
         ScreenRectangle scissor = graphics.peekScissorStack();
         int x0 = (int) Math.floor(b[0]);
         int y0 = (int) Math.floor(b[1]);
         ScreenRectangle area = new ScreenRectangle(x0, y0, (int) Math.ceil(b[2]) - x0 + 1, (int) Math.ceil(b[3]) - y0 + 1).transformMaxBounds(pose);
         ScreenRectangle bounds = scissor != null ? scissor.intersection(area) : area;
-        graphics.submitGuiElementRenderState(new WheelMeshRenderState(pose, mesh.positions(), mesh.colors(), scissor, bounds));
+        if (bounds == null) {
+            return;
+        }
+        graphics.submitGuiElementRenderState(new WheelMeshRenderState(pose, positions, colors, scissor, bounds));
     }
 
     @Override

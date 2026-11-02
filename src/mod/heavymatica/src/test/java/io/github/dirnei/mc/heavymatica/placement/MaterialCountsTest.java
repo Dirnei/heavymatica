@@ -242,4 +242,27 @@ class MaterialCountsTest {
         counts.remove(0, potted);
         assertArrayEquals(new int[] {0, 0}, counts.sum(0, 0).needed());
     }
+
+    @Test
+    void plannedCountsAmountsTwoItemContentAndOnlyTheVisibleLayers() {
+        MaterialCounts counts = new MaterialCounts(3, 2, 1);
+        counts.add(0, Demand.planned(PLANKS, 3));
+        counts.add(1, Demand.twoItem(PLANKS, SLAB));
+        counts.add(2, Demand.planned(SLAB, 1));
+        counts.add(2, Demand.cantCarry(WATER, 1));
+        counts.add(1, Demand.NONE);
+
+        assertArrayEquals(new int[] {3 + 1, 1}, counts.sum(0, 1).planned());
+        assertArrayEquals(new int[] {0, 1}, counts.sum(2, 2).planned());
+    }
+
+    @Test
+    void plannedStaysWhenTheStateChanges() {
+        MaterialCounts counts = new MaterialCounts(1, 1, 0);
+        Demand candles = Demand.planned(PLANKS, 3);
+        counts.add(0, candles);
+        counts.move(0, candles, CellState.UNKNOWN, 0, CellState.MATCHING, 0);
+        assertArrayEquals(new int[] {0}, counts.sum(0, 0).needed());
+        assertArrayEquals(new int[] {3}, counts.sum(0, 0).planned());
+    }
 }

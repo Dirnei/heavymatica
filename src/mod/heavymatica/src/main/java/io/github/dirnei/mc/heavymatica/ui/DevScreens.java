@@ -86,6 +86,11 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code import=<dir>}: add every file in the directory as a local entry</li>
  *     <li>{@code library}: open the library</li>
  *     <li>{@code select}: select the first card</li>
+ *     <li>{@code details}: open the details page of the selected entry; {@code detailsFilter=<text>}: filter its block list</li>
+ *     <li>{@code materials}: open the materials screen of the selected placement; {@code pick=<block>}: open the block picker for
+ *     that row; {@code pickSearch=<text>}: search in the open picker</li>
+ *     <li>{@code settings}: open the settings screen; {@code settingsSection=<section>}: show that section</li>
+ *     <li>{@code mods}: open the mods list; {@code selectMod=<mod id>}: select a mod in it</li>
  *     <li>{@code search=<text>}: type into the search box, character by character</li>
  *     <li>{@code clickSidebar=<label>}, {@code clickCard=<index>}, {@code clickVersion=<index>}: click there; card indexes
  *     count the up and folder cards too</li>
@@ -233,6 +238,35 @@ public final class DevScreens {
             case "devRedeem" -> devRedeem(minecraft, argument);
             case "import" -> importAll(Path.of(argument));
             case "library" -> minecraft.setScreen(HeavymaticaClient.libraryScreen());
+            case "details" -> {
+                if (minecraft.screen instanceof LibraryScreen screen) {
+                    screen.openDetailsForDevelopment();
+                }
+            }
+            case "detailsFilter" -> {
+                if (minecraft.screen instanceof EntryDetailsScreen screen) {
+                    screen.filterForDevelopment(argument);
+                }
+            }
+            case "materials" -> minecraft.setScreen(new MaterialsScreen(HeavymaticaClient.placements()));
+            case "pick" -> {
+                if (minecraft.screen instanceof MaterialsScreen screen) {
+                    screen.pickForDevelopment(argument);
+                }
+            }
+            case "pickSearch" -> {
+                if (minecraft.screen instanceof BlockPickerScreen screen) {
+                    screen.searchForDevelopment(argument);
+                }
+            }
+            case "settings" -> minecraft.setScreen(new SettingsScreen(minecraft.screen));
+            case "settingsSection" -> {
+                if (minecraft.screen instanceof SettingsScreen screen) {
+                    screen.showSectionForDevelopment(argument);
+                }
+            }
+            case "mods" -> minecraft.setScreen(new net.neoforged.neoforge.client.gui.ModListScreen(minecraft.screen));
+            case "selectMod" -> selectMod(minecraft, argument);
             case "select" -> {
                 if (minecraft.screen instanceof LibraryScreen screen) {
                     screen.selectFirstForDevelopment();
@@ -953,6 +987,29 @@ public final class DevScreens {
     }
 
     /** Clicks through the screen's normal input handling, like the mouse would. */
+    /** Selects a mod in the mods list, as a click on its row would. */
+    private static void selectMod(Minecraft minecraft, String modId) {
+        if (!(minecraft.screen instanceof net.neoforged.neoforge.client.gui.ModListScreen screen)) {
+            return;
+        }
+        try {
+            for (java.lang.reflect.Field field : screen.getClass().getDeclaredFields()) {
+                if (field.getType().getSimpleName().equals("ModListWidget")) {
+                    field.setAccessible(true);
+                    net.minecraft.client.gui.components.AbstractSelectionList<?> list = (net.minecraft.client.gui.components.AbstractSelectionList<?>) field.get(screen);
+                    for (Object entry : list.children()) {
+                        Object info = entry.getClass().getMethod("getInfo").invoke(entry);
+                        if (modId.equals(info.getClass().getMethod("getModId").invoke(info))) {
+                            screen.getClass().getMethod("setSelected", entry.getClass()).invoke(screen, entry);
+                        }
+                    }
+                }
+            }
+        } catch (ReflectiveOperationException e) {
+            Heavymatica.LOGGER.error("Dev selectMod failed", e);
+        }
+    }
+
     private static void click(Screen screen, double[] point) {
         MouseButtonEvent event = new MouseButtonEvent(point[0], point[1], new MouseButtonInfo(0, 0));
         screen.mouseClicked(event, false);

@@ -58,6 +58,10 @@ public final class AccountScreen extends Screen {
                 .bounds(width / 2 - 154, bottom, 150, 20).build());
         link.visible = account.account().map(Account::getLinkingAvailable).orElse(false);
         addRenderableWidget(Button.builder(CommonComponents.GUI_BACK, button -> onClose()).bounds(width / 2 + 4, bottom, 150, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("heavymatica.account.sign_out"), button -> {
+            account.signOut();
+            onClose();
+        }).bounds(width / 2 - 75, bottom - 24, 150, 20).build());
     }
 
     private List<Identity> identities() {

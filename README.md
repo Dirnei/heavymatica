@@ -148,6 +148,13 @@ The dev client runs take a few environment variables, so screens can be checked 
 
 Example: `HEAVYMATICA_DEV_SCREEN="signin;library;wait=60;screenshot=library;quit" ./gradlew :heavymatica:runClient`
 
+Client settings can also be changed in the game: the gear in the library, or Mods → Heavymatica → Config. The cloud address
+and `devSessionJoinUrl` stay in the config file only.
+
+For screen checks, `details` opens the selected entry's details page, `materials` the materials screen and `pick=<block>` its
+block picker (the first row when empty), `settings` and `settingsSection=<section>` the settings screen, and `mods` with
+`selectMod=<mod id>` the mods list.
+
 For building checks, `anchorLocal=<name>`, `alignSelected=<x>,<y>,<z>` and `lockSelected` set up a locked placement from a
 local entry, `lookAt=<x>,<y>,<z>` aims the crosshair, `logClientBlock`, `logHit` and `logBuild` log the world block, vanilla's hit
 and the Easy Place / placement restriction settings with the action bar, and `serverCommand=<command>` runs a command on a

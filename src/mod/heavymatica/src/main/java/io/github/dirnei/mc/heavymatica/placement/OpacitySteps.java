@@ -9,8 +9,8 @@ public final class OpacitySteps {
     public static final List<Double> DEFAULT = List.of(0.2, 0.4, 0.6, 0.8, 1.0);
     public static final double MIN = 0.05;
     public static final double MAX = 1.0;
-    private static final int MIN_STEPS = 2;
-    private static final int MAX_STEPS = 8;
+    public static final int MIN_STEPS = 2;
+    public static final int MAX_STEPS = 8;
     private static final double EPSILON = 0.001;
 
     private OpacitySteps() {

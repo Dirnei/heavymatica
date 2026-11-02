@@ -198,6 +198,11 @@ public final class Library {
         return cache.file(sha256).isPresent();
     }
 
+    /** The version file when it is in the cache; never downloads. */
+    public Optional<Path> cachedFile(String sha256) {
+        return cache.file(sha256);
+    }
+
     public CompletableFuture<SchematicDetails> details(String schematicId) {
         return account.client().call(apis -> apis.schematics().getSchematic(schematicId));
     }

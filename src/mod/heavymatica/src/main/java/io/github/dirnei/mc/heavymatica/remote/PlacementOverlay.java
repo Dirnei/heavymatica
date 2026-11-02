@@ -20,6 +20,8 @@ import io.github.dirnei.mc.heavymatica.placement.UnknownBlocks;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
 import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting;
 import io.github.dirnei.mc.heavymatica.targeting.TargetHud;
+import io.github.dirnei.mc.heavymatica.ui.glass.Glass;
+import io.github.dirnei.mc.heavymatica.ui.glass.GlassStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -53,28 +55,73 @@ public final class PlacementOverlay {
 
     public static final Identifier ID = Identifier.fromNamespaceAndPath(Heavymatica.MOD_ID, "placement_overlay");
 
-    private static final int PADDING = 4;
+    private static final int PADDING = 8;
     private static final int LINE = 10;
     public static final int TEXT = 0xFFFFFFFF;
     public static final int MUTED = 0xFFAAAAAA;
-    private static final int KEY = 0xFFFFE080;
-    private static final int WARNING = 0xFFFF6060;
-    private static final int FOLLOWING = 0xFFFFD040;
-    private static final int ANCHORED = 0xFF40E060;
-    private static final int LOCKED = 0xFF40D0F0;
-    public static final int MISTAKE_RED = 0xFFFF5050;
-    public static final int MISTAKE_ORANGE = 0xFFFFA040;
-    public static final int MISTAKE_CYAN = 0xFF40E8F8;
-    public static final int MISTAKE_MAGENTA = 0xFFFF60FF;
-    public static final int FINISHING_YELLOW = 0xFFFFF040;
+    private static final int WARNING = GlassStyle.DANGER_TEXT;
+    private static final int FOLLOWING = GlassStyle.WARNING;
+    private static final int ANCHORED = GlassStyle.CONFIRM;
+    private static final int LOCKED = GlassStyle.ACCENT;
+    public static final int MISTAKE_RED = GlassStyle.MISTAKE_RED;
+    public static final int MISTAKE_ORANGE = GlassStyle.MISTAKE_ORANGE;
+    public static final int MISTAKE_CYAN = GlassStyle.MISTAKE_CYAN;
+    public static final int MISTAKE_MAGENTA = GlassStyle.MISTAKE_MAGENTA;
+    public static final int FINISHING_YELLOW = GlassStyle.WARNING;
     private static final int CAPTURE = 0xFF80FF80;
     private static final int SHORTAGE_LINES = 3;
 
-    /** One overlay line: an optional key name in its own colour, then text. */
-    record Line(Component key, Component text, int color) {
+    /** How an overlay line is drawn. */
+    enum Kind {
+        /** The placement's name with its version or local mark, and the state as a badge. */
+        TITLE,
+        TEXT,
+        /** Smaller, muted details such as position and rotation. */
+        SMALL,
+        /** The progress text over a bar of built, carried and short. */
+        PROGRESS,
+        /** Coloured counts side by side. */
+        CHIPS,
+        /** A small heading. */
+        SECTION,
+        /** An item that is short, with how many on the right. */
+        SHORTAGE,
+        /** A key as a keycap, then what it does. */
+        HINT,
+        SEPARATOR,
+    }
+
+    /** A coloured piece of a {@link Kind#CHIPS} line. */
+    record Chip(Component text, int color) {
+    }
+
+    /**
+     * One overlay line. {@code key} is a hint's key, a title's state badge, or a shortage's count; {@code chips} are the
+     * counts of a chips line; {@code bar} holds built, carried, short and planned of a progress line.
+     */
+    record Line(Kind kind, Component key, Component text, int color, List<Chip> chips, long[] bar) {
+
+        Line(Component key, Component text, int color) {
+            this(key.getString().isEmpty() ? Kind.TEXT : Kind.HINT, key, text, color, List.of(), new long[0]);
+        }
 
         static Line text(Component text, int color) {
-            return new Line(Component.empty(), text, color);
+            return new Line(Kind.TEXT, Component.empty(), text, color, List.of(), new long[0]);
+        }
+
+        static Line of(Kind kind, Component text, int color) {
+            return new Line(kind, Component.empty(), text, color, List.of(), new long[0]);
+        }
+
+        /** The line as plain text, for development checks. */
+        String plain() {
+            return switch (kind) {
+                case CHIPS -> String.join("  ", chips.stream().map(chip -> chip.text().getString()).toList());
+                case TITLE -> text.getString() + "  " + key.getString();
+                case HINT -> key.getString() + "  " + text.getString();
+                case SHORTAGE -> text.getString() + ": " + key.getString() + " short";
+                default -> text.getString();
+            };
         }
     }
 
@@ -89,6 +136,30 @@ public final class PlacementOverlay {
         event.registerAbove(VanillaGuiLayers.HOTBAR, ID, this::render);
     }
 
+    private static int height(Line line) {
+        return switch (line.kind()) {
+            case TITLE -> 16;
+            case PROGRESS -> 20;
+            case CHIPS -> 15;
+            case HINT -> 14;
+            case SEPARATOR -> 7;
+            case SECTION -> 11;
+            default -> LINE;
+        };
+    }
+
+    private static int width(Font font, Line line) {
+        return switch (line.kind()) {
+            case TITLE -> font.width(line.text()) + 8 + Glass.chipWidth(font, line.key().getString());
+            case CHIPS -> line.chips().stream().mapToInt(chip -> Glass.chipWidth(font, chip.text().getString()) + 4).sum();
+            case HINT -> Glass.keycapWidth(font, line.key()) + 5 + font.width(line.text());
+            case SHORTAGE -> font.width(line.text()) + 30;
+            case PROGRESS -> font.width(line.text()) + 10;
+            case SEPARATOR -> 0;
+            default -> font.width(line.text());
+        };
+    }
+
     private void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
         Minecraft minecraft = Minecraft.getInstance();
         PlacementSession session = sessions.get();
@@ -97,34 +168,70 @@ public final class PlacementOverlay {
         }
         List<Line> lines = lines(minecraft, session);
         Font font = minecraft.font;
-        int keyWidth = lines.stream().mapToInt(line -> font.width(line.key())).max().orElse(0);
-        int keyColumn = keyWidth == 0 ? 0 : keyWidth + 6;
-        int width = lines.stream().mapToInt(line -> (line.key().getString().isEmpty() ? 0 : keyColumn) + font.width(line.text())).max().orElse(0)
-                + 2 * PADDING;
-        int height = lines.size() * LINE + 2 * PADDING - 2;
-        int x = HeavymaticaConfig.overlaySide() == HeavymaticaConfig.OverlaySide.LEFT ? 4 : graphics.guiWidth() - width - 4;
-        int y = (graphics.guiHeight() - height) / 2;
-        graphics.fill(x, y, x + width, y + height, 0x90000000);
+        int maxWidth = Math.max(150, graphics.guiWidth() / 3);
+        int inner = Math.min(maxWidth - 2 * PADDING, Math.max(120, lines.stream().mapToInt(line -> width(font, line)).max().orElse(0)));
+        int width = inner + 2 * PADDING;
+        int height = lines.stream().mapToInt(PlacementOverlay::height).sum() + 2 * PADDING - 2;
+        int x = HeavymaticaConfig.overlaySide() == HeavymaticaConfig.OverlaySide.LEFT ? 6 : graphics.guiWidth() - width - 6;
+        int y = Math.max(4, (graphics.guiHeight() - height) / 2);
+        Glass.panel(graphics, x, y, width, height, Glass.RADIUS, 0xD61C232C, 0xD10E1218, 0x1AFFFFFF);
         int lineY = y + PADDING;
+        int left = x + PADDING;
         for (Line line : lines) {
-            if (line == SEPARATOR) {
-                graphics.fill(x + PADDING, lineY + 3, x + width - PADDING, lineY + 4, 0x60FFFFFF);
-            } else if (line.key().getString().isEmpty()) {
-                graphics.text(font, line.text(), x + PADDING, lineY, line.color(), false);
-            } else {
-                graphics.text(font, line.key(), x + PADDING, lineY, KEY, false);
-                graphics.text(font, line.text(), x + PADDING + keyColumn, lineY, line.color(), false);
-            }
-            lineY += LINE;
+            drawLine(graphics, font, line, left, lineY, inner);
+            lineY += height(line);
         }
     }
 
-    private static final Line SEPARATOR = Line.text(Component.empty(), 0);
+    private static void drawLine(GuiGraphicsExtractor graphics, Font font, Line line, int x, int y, int width) {
+        switch (line.kind()) {
+            case TITLE -> {
+                String badge = line.key().getString();
+                int badgeWidth = badge.isEmpty() ? 0 : Glass.chipWidth(font, badge);
+                Glass.text(graphics, font, line.text().getString(), x, y + 2, GlassStyle.TEXT, width - badgeWidth - 6);
+                if (!badge.isEmpty()) {
+                    Glass.chip(graphics, font, badge, x + width - badgeWidth, y, GlassStyle.withAlpha(line.color(), 0x24), line.color(),
+                            GlassStyle.withAlpha(line.color(), 0x99));
+                }
+            }
+            case PROGRESS -> {
+                Glass.text(graphics, font, line.text().getString(), x, y, line.color(), width);
+                long total = line.bar().length > 3 ? line.bar()[3] : 0;
+                if (line.bar().length > 2) {
+                    Glass.bar(graphics, x, y + 11, width, 5, new long[] {line.bar()[0], line.bar()[1], line.bar()[2]}, Math.max(1, total),
+                            new int[] {GlassStyle.BUILT, GlassStyle.CARRIED, GlassStyle.SHORT});
+                }
+            }
+            case CHIPS -> {
+                int chipX = x;
+                for (Chip chip : line.chips()) {
+                    String text = chip.text().getString();
+                    if (chipX + Glass.chipWidth(font, text) > x + width) {
+                        break;
+                    }
+                    chipX += Glass.chip(graphics, font, text, chipX, y, GlassStyle.withAlpha(chip.color(), 0x24), chip.color(), 0) + 4;
+                }
+            }
+            case SECTION -> graphics.text(font, line.text().getString().toUpperCase(Locale.ROOT), x, y + 1, GlassStyle.HINT, false);
+            case SHORTAGE -> {
+                Glass.text(graphics, font, line.text().getString(), x, y, line.color(), width - 28);
+                Glass.textRight(graphics, font, line.key().getString(), x + width, y, GlassStyle.SHORT_TEXT);
+            }
+            case HINT -> {
+                int capWidth = Glass.keycap(graphics, font, line.key(), x, y);
+                Glass.text(graphics, font, line.text().getString(), x + capWidth + 5, y + 2, line.color(), width - capWidth - 5);
+            }
+            case SEPARATOR -> graphics.fill(x, y + 3, x + width, y + 4, 0x1FFFFFFF);
+            case SMALL -> Glass.text(graphics, font, line.text().getString(), x, y, GlassStyle.SUBTITLE, width);
+            case TEXT -> Glass.text(graphics, font, line.text().getString(), x, y, line.color(), width);
+        }
+    }
+
+    private static final Line SEPARATOR = new Line(Kind.SEPARATOR, Component.empty(), Component.empty(), 0, List.of(), new long[0]);
 
     /** The overlay's lines as text, for development checks. */
     public static List<String> textForDevelopment(Minecraft minecraft, PlacementSession session) {
-        return lines(minecraft, session).stream().filter(line -> line != SEPARATOR)
-                .map(line -> (line.key().getString().isEmpty() ? "" : line.key().getString() + "  ") + line.text().getString()).toList();
+        return lines(minecraft, session).stream().filter(line -> line.kind() != Kind.SEPARATOR).map(Line::plain).toList();
     }
 
     static List<Line> lines(Minecraft minecraft, PlacementSession session) {
@@ -152,22 +259,27 @@ public final class PlacementOverlay {
         Component version = placement.source() instanceof PlacementSource.Cloud cloud
                 ? Component.literal("v" + cloud.version())
                 : Component.translatable("heavymatica.overlay.local");
-        lines.add(Line.text(Component.literal(placement.name() + "  ").append(version), TEXT));
-        lines.add(switch (placement.state()) {
-            case FOLLOWING -> Line.text(Component.translatable("heavymatica.overlay.following"), FOLLOWING);
-            case ANCHORED -> Line.text(Component.translatable("heavymatica.overlay.anchored"), ANCHORED);
-            case LOCKED -> Line.text(Component.translatable("heavymatica.overlay.locked"), LOCKED);
+        Component badge = Component.translatable(switch (placement.state()) {
+            case FOLLOWING -> "heavymatica.overlay.following";
+            case ANCHORED -> "heavymatica.overlay.anchored";
+            case LOCKED -> "heavymatica.overlay.locked";
         });
+        int badgeColor = switch (placement.state()) {
+            case FOLLOWING -> FOLLOWING;
+            case ANCHORED -> ANCHORED;
+            case LOCKED -> LOCKED;
+        };
+        lines.add(new Line(Kind.TITLE, badge, Component.literal(placement.name() + "  ").append(version), badgeColor, List.of(), new long[0]));
         if (HeavymaticaConfig.overlayCompact()) {
             return lines;
         }
         PlacementTransform.Bounds bounds = PlacementTransform.bounds(placement);
-        lines.add(Line.text(Component.translatable("heavymatica.overlay.position", bounds.minX(), bounds.minY(), bounds.minZ()), MUTED));
-        lines.add(Line.text(Component.translatable("heavymatica.overlay.rotation", placement.rotation().degrees(),
-                Component.translatable("heavymatica.overlay.mirror." + placement.mirror().name().toLowerCase(Locale.ROOT))), MUTED));
+        lines.add(Line.of(Kind.SMALL, Component.translatable("heavymatica.overlay.position", bounds.minX(), bounds.minY(), bounds.minZ()).append("   ")
+                .append(Component.translatable("heavymatica.overlay.rotation", placement.rotation().degrees(),
+                        Component.translatable("heavymatica.overlay.mirror." + placement.mirror().name().toLowerCase(Locale.ROOT)))), MUTED));
         int swaps = placement.swaps().size();
         if (swaps > 0) {
-            lines.add(Line.text(Component.translatable(swaps == 1 ? "heavymatica.overlay.swaps.one" : "heavymatica.overlay.swaps", swaps), MUTED));
+            lines.add(Line.of(Kind.SMALL, Component.translatable(swaps == 1 ? "heavymatica.overlay.swaps.one" : "heavymatica.overlay.swaps", swaps), MUTED));
         }
         UnknownBlocks unknown = session.unknownBlocks(placement);
         if (unknown.any()) {
@@ -178,10 +290,10 @@ public final class PlacementOverlay {
             lines.add(Line.text(layersText(placement), TEXT));
             lines.add(Line.text(inHandText(placement), TEXT));
             WorldComparison comparison = session.comparison(placement);
-            if (comparison != null) {
-                comparisonLines(minecraft, placement, comparison, lines);
-            }
             MaterialList<Item, Block> materials = session.materials(placement);
+            if (comparison != null) {
+                comparisonLines(minecraft, placement, comparison, materials, lines);
+            }
             if (materials != null) {
                 shortageLines(materials, lines);
             }
@@ -292,24 +404,37 @@ public final class PlacementOverlay {
      * Progress, layer progress, the mistake counts, the positions to finish in the visible layers per step and, when
      * the crosshair is on a mistake, a block to finish or an incomplete block, what belongs there.
      */
-    private static void comparisonLines(Minecraft minecraft, Placement placement, WorldComparison comparison, List<Line> lines) {
+    private static void comparisonLines(Minecraft minecraft, Placement placement, WorldComparison comparison, @Nullable MaterialList<Item, Block> materials,
+                                        List<Line> lines) {
         ComparisonState state = comparison.state();
         if (state.scanning()) {
             lines.add(Line.text(Component.translatable("heavymatica.overlay.progress.scanning"), MUTED));
         } else {
-            lines.add(Line.text(progress("heavymatica.overlay.progress", state.matching(0, state.sizeY() - 1), state.counted(0, state.sizeY() - 1)), TEXT));
+            int matching = state.matching(0, state.sizeY() - 1);
+            int counted = state.counted(0, state.sizeY() - 1);
+            long[] bar;
+            if (materials != null) {
+                MaterialList.Bar total = materials.total();
+                bar = new long[] {total.built(), total.carried(), total.shortage(), total.planned()};
+            } else {
+                bar = new long[] {matching, 0, 0, Math.max(1, counted)};
+            }
+            lines.add(new Line(Kind.PROGRESS, Component.empty(), progress("heavymatica.overlay.progress", matching, counted), TEXT, List.of(), bar));
             if (placement.layers().mode() != Layers.Mode.OFF) {
                 Layers.Range range = Layers.visible(placement, PlacementSession.feetLayer(placement));
                 lines.add(Line.text(progress("heavymatica.overlay.progress.layers", state.matching(range.from(), range.to()),
                         state.counted(range.from(), range.to())), TEXT));
             }
         }
-        lines.add(Line.text(Component.empty()
-                .append(count(state, CellState.WRONG_BLOCK, "wrong_block", MISTAKE_RED)).append("  ")
-                .append(count(state, CellState.WRONG_ORIENTATION, "wrong_orientation", MISTAKE_ORANGE)).append("  ")
-                .append(count(state, CellState.TOO_MANY, "too_many", MISTAKE_ORANGE)).append("  ")
-                .append(count(state, CellState.WRONG_WATER, "wrong_water", MISTAKE_CYAN)).append("  ")
-                .append(count(state, CellState.EXTRA, "extra", MISTAKE_MAGENTA)), TEXT));
+        List<Chip> counts = new ArrayList<>();
+        count(counts, state, CellState.WRONG_BLOCK, "wrong_block", MISTAKE_RED);
+        count(counts, state, CellState.WRONG_ORIENTATION, "wrong_orientation", MISTAKE_ORANGE);
+        count(counts, state, CellState.TOO_MANY, "too_many", MISTAKE_ORANGE);
+        count(counts, state, CellState.WRONG_WATER, "wrong_water", MISTAKE_CYAN);
+        count(counts, state, CellState.EXTRA, "extra", MISTAKE_MAGENTA);
+        if (!counts.isEmpty()) {
+            lines.add(new Line(Kind.CHIPS, Component.empty(), Component.empty(), TEXT, List.copyOf(counts), new long[0]));
+        }
         finishingLines(placement, comparison, lines);
         BlockPos targeted = crosshairTarget(minecraft, placement);
         if (targeted != null && minecraft.level != null) {
@@ -353,12 +478,16 @@ public final class PlacementOverlay {
                 steps[finish.ordinal()] += finishing[block];
             }
         }
+        List<Chip> chips = new ArrayList<>();
         for (BlockEquivalents.Finish finish : BlockEquivalents.Finish.values()) {
             int count = steps[finish.ordinal()];
             if (count > 0) {
                 String key = "heavymatica.overlay.finish." + stepName(finish);
-                lines.add(Line.text(Component.translatable(count == 1 ? key + ".one" : key, count), FINISHING_YELLOW));
+                chips.add(new Chip(Component.translatable(count == 1 ? key + ".one" : key, count), FINISHING_YELLOW));
             }
+        }
+        if (!chips.isEmpty()) {
+            lines.add(new Line(Kind.CHIPS, Component.empty(), Component.empty(), FINISHING_YELLOW, List.copyOf(chips), new long[0]));
         }
     }
 
@@ -373,12 +502,13 @@ public final class PlacementOverlay {
             lines.add(Line.text(Component.translatable("heavymatica.overlay.materials.nothing_short"), ANCHORED));
             return;
         }
+        lines.add(Line.of(Kind.SECTION, Component.translatable("heavymatica.overlay.materials.fetch"), MUTED));
         for (MaterialList.Row<Item> row : shortages.top()) {
-            lines.add(Line.text(Component.translatable("heavymatica.overlay.materials.short", row.item().getName(row.item().getDefaultInstance()),
-                    row.shortage()), WARNING));
+            lines.add(new Line(Kind.SHORTAGE, Component.literal(Integer.toString(row.shortage())), Component.translatable("heavymatica.overlay.materials.short",
+                    row.item().getName(row.item().getDefaultInstance()), row.shortage()), TEXT, List.of(), new long[0]));
         }
         if (shortages.more() > 0) {
-            lines.add(Line.text(RemoteKeys.MATERIALS.isUnbound()
+            lines.add(Line.of(Kind.SMALL, RemoteKeys.MATERIALS.isUnbound()
                     ? Component.translatable("heavymatica.overlay.materials.more_wheel", shortages.more(), name(RemoteKeys.WHEEL))
                     : Component.translatable("heavymatica.overlay.materials.more", shortages.more(), name(RemoteKeys.MATERIALS)), MUTED));
         }
@@ -389,8 +519,12 @@ public final class PlacementOverlay {
         return Component.translatable(key, percent, matching, counted);
     }
 
-    private static Component count(ComparisonState state, CellState cell, String name, int color) {
-        return Component.translatable("heavymatica.overlay.count." + name, state.total(cell)).withColor(color & 0xFFFFFF);
+    /** Adds a mistake count as a chip, unless it is 0. */
+    private static void count(List<Chip> chips, ComparisonState state, CellState cell, String name, int color) {
+        int total = state.total(cell);
+        if (total > 0) {
+            chips.add(new Chip(Component.translatable("heavymatica.overlay.count." + name, total), color));
+        }
     }
 
     private static Component block(BlockState state) {

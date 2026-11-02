@@ -4,21 +4,26 @@ import io.github.dirnei.mc.heavymatica.blocks.BlockResolver;
 import io.github.dirnei.mc.heavymatica.formats.BlockStates;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.placement.BlockEquivalents;
+import io.github.dirnei.mc.heavymatica.placement.Layers;
 import io.github.dirnei.mc.heavymatica.placement.MaterialList;
 import io.github.dirnei.mc.heavymatica.placement.Materials;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
+import io.github.dirnei.mc.heavymatica.ui.glass.Glass;
+import io.github.dirnei.mc.heavymatica.ui.glass.GlassButton;
+import io.github.dirnei.mc.heavymatica.ui.glass.GlassEditBox;
+import io.github.dirnei.mc.heavymatica.ui.glass.GlassScreen;
+import io.github.dirnei.mc.heavymatica.ui.glass.GlassStyle;
+import io.github.dirnei.mc.heavymatica.ui.glass.Rect;
+import io.github.dirnei.mc.heavymatica.ui.glass.TextFit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Consumer;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.CommonComponents;
@@ -30,27 +35,22 @@ import net.minecraft.world.level.block.Block;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The block types of the selected placement's schematic, each with its total and what it shows as, with a pick and
- * a reset per row; changes apply at once. While the placement is locked, each row also shows how many positions of
- * the block it shows as need finishing in the visible layers, and that block's needed, have and short, and the blocks
- * no item places follow under "Can't carry". A search narrows the rows. Follows the swaps, the world and the inventory
- * while open, and does not pause the game.
+ * The block types of the selected placement's schematic, each under the block it is built with: a swapped row shows
+ * its target in the accent colour with an undo button and the original on hover, and clicking a name picks another
+ * block. While the placement is locked, a bar per row splits its planned blocks in the visible layers into built,
+ * carried and short, a bar for the whole placement sits on top, and the blocks no item places follow under "can't
+ * carry". Unknown blocks come last in their own part. Follows the swaps, the world and the inventory while open, and
+ * does not pause the game.
  */
-public final class MaterialsScreen extends Screen {
+public final class MaterialsScreen extends GlassScreen {
 
-    private static final int ROW = 20;
-    private static final int TOP = 58;
-    private static final int MAX_PANEL = 520;
-    private static final int BUTTONS = 88;
-    private static final int NUMBERS = 120;
-    private static final int FINISH = 72;
-    private static final int TEXT = 0xFFFFFFFF;
-    private static final int MUTED = 0xFFAAAAAA;
-    private static final int MISSING = 0xFFFF5050;
-    private static final int SHORT = 0xFFFF5050;
-    private static final int SWAPPED = 0xFF80E0FF;
-    private static final int HEADER = 0xFFFFE080;
-    private static final int FINISHING = 0xFFFFF040;
+    private static final int LOCKED_ROW = 24;
+    private static final int ROW = 16;
+    private static final int HEADER_ROW = 18;
+
+    /** One line of the table: a part's heading, a block type, or a block no item places. */
+    private record Line(@Nullable Component heading, MaterialRows.@Nullable Row<Item> row, MaterialList.@Nullable CantCarry<Block> cantCarry) {
+    }
 
     private final PlacementSession session;
     private final @Nullable UUID placementId;
@@ -60,13 +60,15 @@ public final class MaterialsScreen extends Screen {
     private List<MaterialRows.Row<Item>> rows = List.of();
     private List<MaterialList.CantCarry<Block>> cantCarry = List.of();
     private List<Map.Entry<String, Integer>> unknown = List.of();
-    private final ScrollBar scroll = new ScrollBar();
-    private final List<Button> pickButtons = new ArrayList<>();
-    private final List<Button> resetButtons = new ArrayList<>();
+    private List<Line> lines = List.of();
     private @Nullable EditBox search;
+    private String query = "";
+    private MaterialsLayout layout;
+    private boolean locked;
+    private double scroll;
 
     public MaterialsScreen(PlacementSession session) {
-        super(Component.translatable("heavymatica.materials.title", session.placements().selected().map(Placement::name).orElse("")));
+        super(Component.translatable("heavymatica.materials.heading"));
         this.session = session;
         this.placementId = session.placements().selected().map(Placement::id).orElse(null);
         session.refreshMaterials();
@@ -93,7 +95,6 @@ public final class MaterialsScreen extends Screen {
     }
 
     private void filter() {
-        String query = query();
         rows = all.stream()
                 .filter(row -> matches(query, row.current()) || matches(query, row.block()) || row.target() != null && matches(query, row.target()))
                 .toList();
@@ -101,6 +102,18 @@ public final class MaterialsScreen extends Screen {
                 .filter(entry -> ScrollBars.matches(query, entry.block().getName().getString(), BuiltInRegistries.BLOCK.getKey(entry.block()).toString()))
                 .toList();
         unknown = list == null ? List.of() : list.unknown().entrySet().stream().filter(entry -> ScrollBars.matches(query, entry.getKey(), entry.getKey())).toList();
+        List<Line> next = new ArrayList<>();
+        rows.stream().filter(row -> !row.unknownPart()).forEach(row -> next.add(new Line(null, row, null)));
+        if (!cantCarry.isEmpty()) {
+            next.add(new Line(Component.translatable("heavymatica.materials.cant_carry"), null, null));
+            cantCarry.forEach(entry -> next.add(new Line(null, null, entry)));
+        }
+        List<MaterialRows.Row<Item>> unknownRows = rows.stream().filter(MaterialRows.Row::unknownPart).toList();
+        if (!unknownRows.isEmpty()) {
+            next.add(new Line(Component.translatable("heavymatica.materials.unknown_blocks"), null, null));
+            unknownRows.forEach(row -> next.add(new Line(null, row, null)));
+        }
+        lines = next;
     }
 
     private static boolean matches(String query, String blockId) {
@@ -108,13 +121,9 @@ public final class MaterialsScreen extends Screen {
         return ScrollBars.matches(query, block == null ? blockId : block.getName().getString(), blockId);
     }
 
-    private String query() {
-        return search == null ? "" : search.getValue();
-    }
-
     /** The listed rows for development checks, in screen order. */
     List<MaterialRows.Row<Item>> rowsForDevelopment() {
-        return rows;
+        return lines.stream().filter(line -> line.row() != null).map(Line::row).toList();
     }
 
     /** The listed unknown blocks with their positions in the visible layers, for development checks. */
@@ -128,38 +137,32 @@ public final class MaterialsScreen extends Screen {
     }
 
     /** Sets the search text, for development checks. */
-    public void searchForDevelopment(String query) {
+    public void searchForDevelopment(String text) {
         if (search != null) {
-            search.setValue(query);
+            search.setValue(text);
         }
+    }
+
+    /** Opens the block picker for the row of this block ID, or for the first row when it is empty, for development checks. */
+    void pickForDevelopment(String blockId) {
+        all.stream().filter(row -> blockId.isEmpty() || row.block().equals(blockId)).findFirst().ifPresent(this::pick);
     }
 
     @Override
     protected void init() {
-        int left = left();
-        int right = left + panel();
-        String query = query();
-        search = new EditBox(font, left, 22, panel(), 16, Component.translatable("heavymatica.materials.search"));
-        search.setHint(Component.translatable("heavymatica.materials.search"));
+        locked = placement().map(Placement::locked).orElse(false);
+        layout = MaterialsLayout.of(width, height, locked);
+        Rect s = layout.search();
+        search = new GlassEditBox(font, s.x(), s.y(), s.w(), s.h(), Component.translatable("heavymatica.materials.search"), true);
         search.setValue(query);
         search.setResponder(text -> {
+            query = text;
             filter();
-            scroll.reset();
-            layoutRows();
+            scroll = 0;
         });
         addRenderableWidget(search);
-        pickButtons.clear();
-        resetButtons.clear();
-        for (int slot = 0; slot < visibleRows(); slot++) {
-            int y = TOP + slot * ROW;
-            int index = slot;
-            pickButtons.add(addRenderableWidget(Button.builder(Component.translatable("heavymatica.materials.pick"), button -> onRow(index, this::pick))
-                    .bounds(right - 84, y, 40, 18).build()));
-            resetButtons.add(addRenderableWidget(Button.builder(Component.translatable("heavymatica.materials.reset"), button -> onRow(index, this::reset))
-                    .bounds(right - 42, y, 42, 18).build()));
-        }
-        addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> onClose()).bounds(width / 2 - 60, height - 26, 120, 20).build());
-        layoutRows();
+        Rect d = layout.done();
+        addRenderableWidget(new GlassButton(d.x(), d.y(), d.w(), d.h(), CommonComponents.GUI_DONE, GlassButton.Kind.PRIMARY, button -> onClose()));
     }
 
     @Override
@@ -169,225 +172,319 @@ public final class MaterialsScreen extends Screen {
         }
     }
 
-    @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
-
     /**
      * The schematic may still be loading when the screen opens, and the session rebuilds the material list every
      * {@link Materials#REFRESH_TICKS} ticks; asking each tick picks both up.
      */
     @Override
     public void tick() {
+        boolean wasLocked = locked;
         refresh();
-        layoutRows();
+        if (placement().map(Placement::locked).orElse(false) != wasLocked) {
+            rebuildWidgets();
+        }
     }
 
     /** Picks for the block as it shows today, so an upgraded block suggests its own kind; the swap stays under the ID as written. */
     private void pick(MaterialRows.Row<Item> row) {
-        minecraft.setScreen(new BlockPickerScreen(this, row.current(), target -> session.controller().swap(row.block(), target)));
+        int need = row.numbers() != null ? row.numbers().needed() : (int) Math.min(Integer.MAX_VALUE, row.total());
+        minecraft.setScreen(new BlockPickerScreen(this, row.current(), row.target(), (int) Math.min(Integer.MAX_VALUE, row.total()), need,
+                list != null, session::carried, target -> {
+                    if (target == null) {
+                        session.controller().resetSwap(row.block());
+                    } else {
+                        session.controller().swap(row.block(), target);
+                    }
+                }));
     }
 
     private void reset(MaterialRows.Row<Item> row) {
         session.controller().resetSwap(row.block());
         refresh();
-        layoutRows();
     }
 
-    private void onRow(int slot, Consumer<MaterialRows.Row<Item>> action) {
-        int index = firstRow() + slot;
-        if (index < rows.size()) {
-            action.accept(rows.get(index));
+    private int rowHeight(Line line) {
+        if (line.heading() != null) {
+            return HEADER_ROW;
         }
-    }
-
-    /** Points the row buttons at the rows now in view. */
-    private void layoutRows() {
-        scroll.clamp(content(), view());
-        Placement placement = placement().orElse(null);
-        for (int slot = 0; slot < pickButtons.size(); slot++) {
-            int index = firstRow() + slot;
-            boolean shown = index < rows.size();
-            pickButtons.get(slot).visible = shown;
-            resetButtons.get(slot).visible = shown;
-            resetButtons.get(slot).active = shown && placement != null && placement.swaps().containsKey(rows.get(index).block());
-        }
-    }
-
-    private int panel() {
-        return Math.min(MAX_PANEL, width - 40);
-    }
-
-    private int left() {
-        return width / 2 - panel() / 2;
-    }
-
-    private int visibleRows() {
-        return Math.max(1, (height - 32 - TOP) / ROW);
-    }
-
-    private int firstRow() {
-        return (int) Math.round(scroll.offset() / ROW);
-    }
-
-    private int lineCount() {
-        return rows.size() + cantCarryLines() + (unknown.isEmpty() ? 0 : unknown.size() + 1);
-    }
-
-    private int cantCarryLines() {
-        return cantCarry.isEmpty() ? 0 : cantCarry.size() + 1;
+        return locked && line.row() != null && !line.row().unknownPart() ? LOCKED_ROW : ROW;
     }
 
     private int content() {
-        return lineCount() * ROW;
-    }
-
-    private int view() {
-        return visibleRows() * ROW;
-    }
-
-    private int barX() {
-        return left() + panel() + 4;
+        return lines.stream().mapToInt(this::rowHeight).sum();
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        scroll.scrollBy(-Math.signum(scrollY) * ROW, content(), view());
-        layoutRows();
+        scroll -= scrollY * ROW * 2;
         return true;
     }
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (ScrollBars.onTrack(event.x(), barX()) && scroll.press(event.y(), TOP, content(), view())) {
-            layoutRows();
+        if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
-        return super.mouseClicked(event, doubleClick);
-    }
-
-    @Override
-    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-        if (scroll.dragging()) {
-            scroll.drag(event.y(), TOP, content(), view());
-            layoutRows();
-            return true;
+        Rect area = layout.rows();
+        if (!area.contains(event.x(), event.y())) {
+            return false;
         }
-        return super.mouseDragged(event, dragX, dragY);
+        MaterialsLayout.Columns columns = layout.columnsFor(locked);
+        int y = area.y() - (int) scroll;
+        for (Line line : lines) {
+            int h = rowHeight(line);
+            if (event.y() >= y && event.y() < y + h && line.row() != null) {
+                MaterialRows.Row<Item> row = line.row();
+                int nameRight = nameRight(row, columns);
+                if (row.target() != null && event.x() >= nameRight + 4 && event.x() < nameRight + 16) {
+                    reset(row);
+                    return true;
+                }
+                if (event.x() < nameRight) {
+                    pick(row);
+                    return true;
+                }
+            }
+            y += h;
+        }
+        return false;
     }
 
-    @Override
-    public boolean mouseReleased(MouseButtonEvent event) {
-        scroll.release();
-        return super.mouseReleased(event);
+    /** Where a row's clickable name ends: the name's width, kept clear of the undo button and the count. */
+    private int nameRight(MaterialRows.Row<Item> row, MaterialsLayout.Columns columns) {
+        int maxName = columns.nameWidth() - (row.target() != null ? 18 : 0);
+        int textWidth = font.width(TextFit.of(name(row.shown()), maxName - 14, font::width).shown());
+        return columns.name() + 14 + textWidth + 2;
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partial) {
-        super.extractRenderState(graphics, mouseX, mouseY, partial);
-        int left = left();
-        int right = left + panel();
-        boolean numbers = list != null;
-        int columns = right - BUTTONS - (numbers ? NUMBERS + FINISH : 0) - 6;
-        int blockWidth = (columns - left - 50) / 2;
-        int totalX = left + blockWidth + 40;
-        int targetX = totalX + 14;
-        int targetWidth = columns - targetX;
-        int shortX = right - BUTTONS - 4;
-        int haveX = shortX - 40;
-        int neededX = haveX - 40;
-        int finishX = neededX - 44;
-        graphics.centeredText(font, title, width / 2, 10, TEXT);
-        graphics.text(font, Component.translatable("heavymatica.materials.block"), left + 20, TOP - 14, HEADER, false);
-        right(graphics, Component.translatable("heavymatica.materials.total"), totalX, TOP - 14, HEADER);
-        graphics.text(font, Component.translatable("heavymatica.materials.target"), targetX + 20, TOP - 14, HEADER, false);
-        if (numbers) {
-            right(graphics, Component.translatable("heavymatica.materials.finish"), finishX, TOP - 14, HEADER);
-            right(graphics, Component.translatable("heavymatica.materials.needed"), neededX, TOP - 14, HEADER);
-            right(graphics, Component.translatable("heavymatica.materials.have"), haveX, TOP - 14, HEADER);
-            right(graphics, Component.translatable("heavymatica.materials.short"), shortX, TOP - 14, HEADER);
-        }
-        graphics.fill(left, TOP - 3, right, TOP - 2, 0x60FFFFFF);
         Placement placement = placement().orElse(null);
-        if (placement != null && !all.isEmpty() && lineCount() == 0) {
-            graphics.centeredText(font, Component.translatable("heavymatica.materials.nothing"), width / 2, TOP + 6, MUTED);
-            return;
+        heading(graphics, placement);
+        if (locked && list != null) {
+            summary(graphics);
         }
+        Rect table = layout.table();
+        Glass.panel(graphics, table.x(), table.y(), table.w(), table.h());
+        columnHeadings(graphics);
         if (placement == null || all.isEmpty()) {
             boolean loading = placement != null && session.model(placement) == null;
-            graphics.centeredText(font, Component.translatable(loading ? "heavymatica.materials.loading" : "heavymatica.materials.empty"), width / 2,
-                    TOP + 6, MUTED);
+            Glass.text(graphics, font, Component.translatable(placement == null ? "heavymatica.materials.select_first"
+                    : loading ? "heavymatica.materials.loading" : "heavymatica.materials.empty").getString(), layout.rows().x(), layout.rows().y() + 6,
+                    GlassStyle.HINT, layout.rows().w());
+        } else if (lines.isEmpty()) {
+            Glass.text(graphics, font, Component.translatable("heavymatica.materials.nothing").getString(), layout.rows().x(), layout.rows().y() + 6,
+                    GlassStyle.HINT, layout.rows().w());
+        } else {
+            table(graphics, mouseX, mouseY);
+        }
+        super.extractRenderState(graphics, mouseX, mouseY, partial);
+    }
+
+    private void heading(GuiGraphicsExtractor graphics, @Nullable Placement placement) {
+        Rect t = layout.title();
+        Glass.text(graphics, font, title.getString(), t.x(), t.y() + 1, GlassStyle.TEXT, t.w());
+        if (placement == null) {
             return;
         }
-        ScrollBars.draw(graphics, scroll, barX(), TOP, content(), view(), mouseX, mouseY);
-        int firstRow = firstRow();
-        for (int i = firstRow; i < Math.min(lineCount(), firstRow + visibleRows()); i++) {
-            int y = TOP + (i - firstRow) * ROW;
-            if (i < rows.size()) {
-                MaterialRows.Row<Item> row = rows.get(i);
-                if (row.known()) {
-                    block(graphics, row.current(), left, y, blockWidth, TEXT);
-                } else {
-                    graphics.text(font, fit(Component.translatable("heavymatica.materials.unknown", row.current()).getString(), blockWidth - 20), left + 20,
-                            y + 5, MISSING, false);
-                }
-                right(graphics, Component.literal(Long.toString(row.total())), totalX, y + 5, TEXT);
-                graphics.text(font, "→", totalX + 4, y + 5, MUTED, false);
-                target(graphics, row.target(), targetX, y, targetWidth);
-                if (row.numbers() != null) {
-                    MaterialList.Row<Item> counts = row.numbers();
-                    right(graphics, Component.literal(Integer.toString(counts.needed())), neededX, y + 5, TEXT);
-                    right(graphics, Component.literal(Integer.toString(counts.had())), haveX, y + 5, TEXT);
-                    right(graphics, Component.literal(Integer.toString(counts.shortage())), shortX, y + 5, counts.shortage() > 0 ? SHORT : MUTED);
-                }
-                if (numbers && row.finishing() > 0 && row.finish() != null) {
-                    right(graphics, Component.translatable("heavymatica.materials.finish." + row.finish().name().toLowerCase(Locale.ROOT), row.finishing()),
-                            finishX, y + 5, FINISHING);
-                }
-            } else if (i < rows.size() + cantCarryLines()) {
-                if (i == rows.size()) {
-                    graphics.text(font, Component.translatable("heavymatica.materials.cant_carry"), left, y + 5, HEADER, false);
-                } else {
-                    MaterialList.CantCarry<Block> entry = cantCarry.get(i - rows.size() - 1);
-                    graphics.text(font, fit(entry.block().getName().getString(), columns - left - 20), left + 20, y + 5, MUTED, false);
-                    right(graphics, Component.literal(Integer.toString(entry.count())), neededX, y + 5, MUTED);
-                }
-            } else {
-                int line = i - rows.size() - cantCarryLines();
-                if (line == 0) {
-                    graphics.text(font, Component.translatable("heavymatica.materials.unknown_blocks"), left, y + 5, HEADER, false);
-                } else {
-                    Map.Entry<String, Integer> entry = unknown.get(line - 1);
-                    graphics.text(font, fit(entry.getKey(), columns - left - 20), left + 20, y + 5, MISSING, false);
-                    right(graphics, Component.literal(Integer.toString(entry.getValue())), neededX, y + 5, MUTED);
-                }
+        int x = t.x();
+        int y = t.y() + 11;
+        TextFit name = Glass.text(graphics, font, placement.name(), x, y + 2, GlassStyle.LABEL, Math.max(20, t.w() / 2));
+        x += font.width(name.shown()) + 6;
+        String state = Component.translatable("heavymatica.materials.state." + placement.state().name().toLowerCase(Locale.ROOT)).getString();
+        if (x + Glass.chipWidth(font, state) <= t.right()) {
+            boolean lockedState = placement.locked();
+            x += Glass.chip(graphics, font, state, x, y, lockedState ? 0x247FD8FF : 0x12FFFFFF, lockedState ? GlassStyle.ACCENT : GlassStyle.LABEL,
+                    lockedState ? 0x997FD8FF : 0x40FFFFFF) + 4;
+        }
+        if (placement.locked() && placement.layers().mode() != Layers.Mode.OFF) {
+            Layers.Range range = Layers.visible(placement, PlacementSession.feetLayer(placement));
+            String layers = Component.translatable("heavymatica.materials.layers", range.from() + 1, range.to() + 1, placement.height()).getString();
+            if (x + Glass.chipWidth(font, layers) <= t.right()) {
+                Glass.chip(graphics, font, layers, x, y, 0x12FFFFFF, GlassStyle.LABEL, 0);
             }
         }
     }
 
-    private void target(GuiGraphicsExtractor graphics, @Nullable String target, int x, int y, int width) {
-        if (target == null) {
-            graphics.text(font, Component.translatable("heavymatica.materials.none"), x + 20, y + 5, MUTED, false);
-        } else if (block(target) == null) {
-            graphics.text(font, fit(Component.translatable("heavymatica.materials.missing", target).getString(), width), x, y + 5, MISSING, false);
-        } else {
-            block(graphics, target, x, y, width, SWAPPED);
+    private void summary(GuiGraphicsExtractor graphics) {
+        Rect s = layout.summary();
+        Glass.panel(graphics, s.x(), s.y(), s.w(), s.h(), Glass.RADIUS, 0xD10E1218, 0xD10E1218, 0x14FFFFFF);
+        MaterialList.Bar total = list.total();
+        int x = s.x() + 10;
+        int w = s.w() - 20;
+        Glass.text(graphics, font, Component.translatable("heavymatica.materials.whole", total.planned()).getString().toUpperCase(Locale.ROOT), x, s.y() + 6,
+                GlassStyle.HINT, w / 2);
+        int right = s.right() - 10;
+        right = legend(graphics, right, s.y() + 6, GlassStyle.SHORT, GlassStyle.SHORT_TEXT,
+                Component.translatable("heavymatica.materials.legend.short", total.shortage()).getString());
+        right = legend(graphics, right, s.y() + 6, GlassStyle.CARRIED, GlassStyle.LABEL,
+                Component.translatable("heavymatica.materials.legend.carried", total.carried()).getString());
+        legend(graphics, right, s.y() + 6, GlassStyle.BUILT, GlassStyle.LABEL, Component.translatable("heavymatica.materials.legend.built", total.built()).getString());
+        Glass.bar(graphics, x, s.y() + 20, w, 7, new long[] {total.built(), total.carried(), total.shortage()}, total.planned(),
+                new int[] {GlassStyle.BUILT, GlassStyle.CARRIED, GlassStyle.SHORT});
+    }
+
+    /** A legend entry right-aligned to {@code right}; returns where the next one ends. */
+    private int legend(GuiGraphicsExtractor graphics, int right, int y, int swatch, int textColor, String text) {
+        int x = right - font.width(text);
+        graphics.text(font, text, x, y, textColor, false);
+        Glass.fill(graphics, x - 9, y + 1, 6, 6, 1.5, swatch);
+        return x - 18;
+    }
+
+    private void columnHeadings(GuiGraphicsExtractor graphics) {
+        Rect c = layout.columns();
+        MaterialsLayout.Columns columns = layout.columnsFor(locked);
+        int y = c.y() + 3;
+        graphics.text(font, Component.translatable("heavymatica.materials.column.block").getString().toUpperCase(Locale.ROOT), columns.name(), y,
+                GlassStyle.HINT, false);
+        String inPlan = Component.translatable("heavymatica.materials.column.in_plan").getString().toUpperCase(Locale.ROOT);
+        Glass.textRight(graphics, font, inPlan, columns.countRight(), y, GlassStyle.HINT);
+        if (locked) {
+            Glass.text(graphics, font, Component.translatable("heavymatica.materials.column.progress").getString().toUpperCase(Locale.ROOT), columns.bar(), y,
+                    GlassStyle.HINT, columns.barWidth());
+            Glass.textRight(graphics, font, Component.translatable("heavymatica.materials.column.short").getString().toUpperCase(Locale.ROOT),
+                    columns.shortRight(), y, GlassStyle.HINT);
+        }
+        graphics.fill(c.x(), c.bottom(), c.right(), c.bottom() + 1, 0x14FFFFFF);
+    }
+
+    private void table(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        Rect area = layout.rows();
+        int content = content();
+        scroll = Math.clamp(scroll, 0, Math.max(0, content - area.h()));
+        MaterialsLayout.Columns columns = layout.columnsFor(locked);
+        graphics.enableScissor(area.x(), area.y(), area.right() + 6, area.bottom());
+        int y = area.y() - (int) scroll;
+        for (Line line : lines) {
+            int h = rowHeight(line);
+            if (y + h >= area.y() && y <= area.bottom()) {
+                if (line.heading() != null) {
+                    graphics.text(font, line.heading().getString().toUpperCase(Locale.ROOT), columns.name(), y + 7, GlassStyle.HINT, false);
+                } else if (line.cantCarry() != null) {
+                    cantCarryRow(graphics, line.cantCarry(), columns, y);
+                } else {
+                    row(graphics, line.row(), columns, y, h, mouseX, mouseY);
+                }
+            }
+            y += h;
+        }
+        graphics.disableScissor();
+        if (content > area.h()) {
+            int thumb = Math.max(12, area.h() * area.h() / content);
+            int thumbTop = area.y() + (int) Math.round(scroll / (content - area.h()) * (area.h() - thumb));
+            Glass.scrollBar(graphics, area.right() + 3, area.y(), area.h(), thumbTop, thumb, false, true);
         }
     }
 
-    /** A block's icon and name, or its ID when the game does not know it. */
-    private void block(GuiGraphicsExtractor graphics, String blockId, int x, int y, int width, int color) {
-        Block block = block(blockId);
-        if (block == null) {
-            graphics.text(font, fit(blockId, width - 20), x + 20, y + 5, MISSING, false);
+    private void row(GuiGraphicsExtractor graphics, MaterialRows.Row<Item> row, MaterialsLayout.Columns columns, int y, int h, int mouseX, int mouseY) {
+        int nameY = y + (h == LOCKED_ROW ? 4 : 4);
+        boolean unknownBlock = row.unknownPart();
+        int nameRight = nameRight(row, columns);
+        boolean hovered = layout.rows().contains(mouseX, mouseY) && mouseY >= y && mouseY < y + h;
+        boolean onName = hovered && mouseX >= columns.name() && mouseX < nameRight;
+        if (hovered) {
+            graphics.fill(layout.rows().x() - 4, y, layout.rows().right() + 2, y + h - 1, 0x08FFFFFF);
+        }
+        if (onName) {
+            Glass.fill(graphics, columns.name() - 3, nameY - 3, nameRight - columns.name() + 6, 14, 4, 0x1AFFFFFF);
+        }
+        icon(graphics, row.shown(), columns.name(), nameY - 1, unknownBlock);
+        int color = unknownBlock ? GlassStyle.DANGER_TEXT : row.swapped() ? GlassStyle.ACCENT : GlassStyle.TEXT;
+        int maxName = columns.nameWidth() - (row.target() != null ? 18 : 0);
+        TextFit name = Glass.text(graphics, font, name(row.shown()), columns.name() + 14, nameY, color, maxName - 14);
+        if (row.target() != null) {
+            int ux = nameRight + 4;
+            boolean missing = !row.swapped();
+            int accent = missing ? GlassStyle.DANGER_TEXT : GlassStyle.ACCENT;
+            boolean overUndo = hovered && mouseX >= ux && mouseX < ux + 12;
+            Glass.box(graphics, ux, nameY - 2, 12, 12, 3, GlassStyle.withAlpha(accent, overUndo ? 0x33 : 0x14), GlassStyle.withAlpha(accent, 0x59));
+            graphics.text(font, "×", ux + 3, nameY, accent, false);
+            if (overUndo) {
+                graphics.setTooltipForNextFrame(font, Component.translatable(missing ? "heavymatica.materials.missing_undo" : "heavymatica.materials.undo",
+                        row.target()), mouseX, mouseY);
+            }
+        }
+        if (onName) {
+            Component tip = row.target() != null && !row.swapped() ? Component.translatable("heavymatica.materials.missing", row.target())
+                    : row.swapped() ? Component.translatable("heavymatica.materials.swapped_from", name(row.current()))
+                    : unknownBlock ? Component.translatable("heavymatica.materials.unknown_tip", row.current())
+                    : name.shortened() ? Component.translatable("heavymatica.materials.swap_tip_named", name.full())
+                    : Component.translatable("heavymatica.materials.swap_tip");
+            graphics.setTooltipForNextFrame(font, tip, mouseX, mouseY);
+        }
+        Glass.textRight(graphics, font, Long.toString(row.total()), columns.countRight(), nameY, GlassStyle.LABEL);
+        if (!locked) {
             return;
         }
-        Item item = block.asItem();
-        if (item != Items.AIR) {
-            graphics.item(item.getDefaultInstance(), x, y + 1);
+        if (unknownBlock) {
+            Integer visible = unknown.stream().filter(entry -> entry.getKey().equals(row.current())).map(Map.Entry::getValue).findFirst().orElse(null);
+            String text = Component.translatable(visible == null ? "heavymatica.materials.unknown_hint" : "heavymatica.materials.unknown_visible",
+                    visible == null ? 0 : visible).getString();
+            Glass.text(graphics, font, text, columns.bar(), nameY, GlassStyle.HINT, columns.barWidth() + 40);
+            return;
         }
-        graphics.text(font, fit(block.getName().getString(), width - 20), x + 20, y + 5, color, false);
+        MaterialList.Bar bar = row.bar();
+        if (bar == null) {
+            Glass.text(graphics, font, Component.translatable("heavymatica.materials.not_needed").getString(), columns.bar(), nameY, GlassStyle.SUBTITLE,
+                    columns.barWidth());
+            return;
+        }
+        Glass.bar(graphics, columns.bar(), y + 4, columns.barWidth(), 5, new long[] {bar.built(), bar.carried(), bar.shortage()}, bar.planned(),
+                new int[] {GlassStyle.BUILT, GlassStyle.CARRIED, GlassStyle.SHORT});
+        Glass.text(graphics, font, legendText(row, bar), columns.bar(), y + 12, GlassStyle.HINT, columns.barWidth());
+        String shortText = bar.shortage() > 0 ? Integer.toString(bar.shortage())
+                : Component.translatable(bar.planned() == bar.built() ? "heavymatica.materials.done" : "heavymatica.materials.enough").getString();
+        Glass.textRight(graphics, font, shortText, columns.shortRight(), y + 7, bar.shortage() > 0 ? GlassStyle.SHORT_TEXT : GlassStyle.CONFIRM);
+    }
+
+    /** "38 built · 22 carried · 36 short", and the finishing step when positions need one. */
+    private String legendText(MaterialRows.Row<Item> row, MaterialList.Bar bar) {
+        List<String> parts = new ArrayList<>();
+        if (bar.built() > 0) {
+            parts.add(Component.translatable("heavymatica.materials.legend.built", bar.built()).getString());
+        }
+        if (bar.carried() > 0) {
+            parts.add(Component.translatable("heavymatica.materials.legend.carried_short", bar.carried()).getString());
+        }
+        if (bar.shortage() > 0) {
+            parts.add(Component.translatable("heavymatica.materials.legend.short", bar.shortage()).getString());
+        }
+        BlockEquivalents.Finish finish = row.finish();
+        if (finish != null && row.finishing() > 0) {
+            parts.add(Component.translatable("heavymatica.materials.finish." + finish.name().toLowerCase(Locale.ROOT), row.finishing()).getString());
+        }
+        return String.join(" · ", parts);
+    }
+
+    private void cantCarryRow(GuiGraphicsExtractor graphics, MaterialList.CantCarry<Block> entry, MaterialsLayout.Columns columns, int y) {
+        icon(graphics, BuiltInRegistries.BLOCK.getKey(entry.block()).toString(), columns.name(), y + 3, false);
+        Glass.text(graphics, font, entry.block().getName().getString(), columns.name() + 14, y + 4, GlassStyle.TEXT, columns.nameWidth() - 14);
+        Glass.textRight(graphics, font, Integer.toString(entry.count()), columns.countRight(), y + 4, GlassStyle.LABEL);
+        if (locked) {
+            Glass.text(graphics, font, Component.translatable("heavymatica.materials.cant_carry_hint").getString(), columns.bar(), y + 4, GlassStyle.HINT,
+                    columns.barWidth());
+        }
+    }
+
+    /** The block's item at a small size, or a dashed square for blocks without an item or unknown to the game. */
+    private void icon(GuiGraphicsExtractor graphics, String blockId, int x, int y, boolean unknownBlock) {
+        Block block = unknownBlock ? null : block(blockId);
+        Item item = block == null ? Items.AIR : block.asItem();
+        if (item != Items.AIR) {
+            graphics.pose().pushMatrix();
+            graphics.pose().translate(x, y);
+            graphics.pose().scale(0.625f, 0.625f);
+            graphics.item(item.getDefaultInstance(), 0, 0);
+            graphics.pose().popMatrix();
+        } else {
+            Glass.rim(graphics, x + 1, y + 1, 8, 8, 2, 1, unknownBlock ? GlassStyle.DANGER_TEXT : GlassStyle.SUBTITLE);
+        }
+    }
+
+    private static String name(String blockId) {
+        Block block = block(blockId);
+        return block == null ? blockId : block.getName().getString();
     }
 
     static @Nullable Block block(String blockId) {
@@ -406,13 +503,5 @@ public final class MaterialsScreen extends Screen {
             item = block.asItem();
         }
         return item == Items.AIR ? null : item;
-    }
-
-    private String fit(String text, int width) {
-        return font.width(text) <= width ? text : font.plainSubstrByWidth(text, Math.max(0, width - font.width("…"))) + "…";
-    }
-
-    private void right(GuiGraphicsExtractor graphics, Component text, int x, int y, int color) {
-        graphics.text(font, text, x - font.width(text), y, color, false);
     }
 }

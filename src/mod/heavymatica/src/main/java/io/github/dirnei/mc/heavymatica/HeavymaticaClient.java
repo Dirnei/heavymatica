@@ -1,5 +1,7 @@
 package io.github.dirnei.mc.heavymatica;
 
+import io.github.dirnei.mc.heavymatica.ui.SettingsScreen;
+import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.dirnei.mc.heavymatica.account.CloudAccount;
@@ -85,6 +87,7 @@ public final class HeavymaticaClient {
 
     public HeavymaticaClient(IEventBus modEventBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.CLIENT, HeavymaticaConfig.SPEC);
+        container.registerExtensionPoint(IConfigScreenFactory.class, (mod, modList) -> new SettingsScreen(modList));
         modVersion = container.getModInfo().getVersion().toString();
         modEventBus.addListener(HeavymaticaClient::registerKeys);
         modEventBus.addListener(HeavymaticaClient::setup);

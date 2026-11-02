@@ -7,8 +7,11 @@ package io.github.dirnei.mc.heavymatica.placement;
  */
 public final class MaterialCounts {
 
-    /** Totals over a layer range: needed and finishing by planned block, can't-carry by block. */
-    public record Totals(int[] needed, int[] cantCarry, int[] finishing) {
+    /**
+     * Totals over a layer range: needed and finishing by planned block, can't-carry by block, and how many of each
+     * planned block the positions plan whatever their state.
+     */
+    public record Totals(int[] needed, int[] cantCarry, int[] finishing, int[] planned) {
     }
 
     private final int layers;
@@ -17,6 +20,7 @@ public final class MaterialCounts {
     private final int[] needed;
     private final int[] cantCarry;
     private final int[] finishing;
+    private final int[] plannedTotal;
 
     public MaterialCounts(int layers, int planned, int blocks) {
         this.layers = layers;
@@ -25,16 +29,28 @@ public final class MaterialCounts {
         this.needed = new int[layers * planned];
         this.cantCarry = new int[layers * blocks];
         this.finishing = new int[layers * planned];
+        this.plannedTotal = new int[layers * planned];
     }
 
     public void add(int layer, Demand demand) {
         change(layer, demand, demand.amount());
         changeContent(layer, demand, 1);
+        plan(layer, demand, 1);
     }
 
     public void remove(int layer, Demand demand) {
         change(layer, demand, -demand.amount());
         changeContent(layer, demand, -1);
+        plan(layer, demand, -1);
+    }
+
+    private void plan(int layer, Demand demand, int sign) {
+        if (demand.kind() == Demand.Kind.PLANNED) {
+            plannedTotal[layer * planned + demand.index()] += sign * demand.amount();
+            if (demand.content() >= 0) {
+                plannedTotal[layer * planned + demand.content()] += sign;
+            }
+        }
     }
 
     /** Replaces what a position asked for in its old state with what it asks for in its new one. */
@@ -74,15 +90,17 @@ public final class MaterialCounts {
         int[] neededSum = new int[planned];
         int[] cantCarrySum = new int[blocks];
         int[] finishingSum = new int[planned];
+        int[] plannedSum = new int[planned];
         for (int layer = Math.max(0, from); layer <= Math.min(to, layers - 1); layer++) {
             for (int block = 0; block < planned; block++) {
                 neededSum[block] += needed[layer * planned + block];
                 finishingSum[block] += finishing[layer * planned + block];
+                plannedSum[block] += plannedTotal[layer * planned + block];
             }
             for (int block = 0; block < blocks; block++) {
                 cantCarrySum[block] += cantCarry[layer * blocks + block];
             }
         }
-        return new Totals(neededSum, cantCarrySum, finishingSum);
+        return new Totals(neededSum, cantCarrySum, finishingSum, plannedSum);
     }
 }

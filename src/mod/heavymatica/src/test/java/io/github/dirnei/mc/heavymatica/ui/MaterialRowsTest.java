@@ -1,6 +1,8 @@
 package io.github.dirnei.mc.heavymatica.ui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel.BlockCount;
@@ -73,12 +75,41 @@ class MaterialRowsTest {
     @Test
     void unknownBlocksAreListedAndMarkedAndCanBeSwapped() {
         List<MaterialRows.Row<String>> rows = rows(List.of(new BlockCount("create:shaft", 40), new BlockCount("oak_planks", 5)), Map.of(), null);
-        assertEquals(List.of("create:shaft", "oak_planks"), blocks(rows));
-        assertEquals(false, rows.get(0).known());
-        assertEquals(40, rows.get(0).total());
+        assertEquals(List.of("oak_planks", "create:shaft"), blocks(rows));
+        assertEquals(false, rows.get(1).known());
+        assertTrue(rows.get(1).unknownPart());
+        assertEquals(40, rows.get(1).total());
 
         List<MaterialRows.Row<String>> swapped = rows(List.of(new BlockCount("create:shaft", 40)), Map.of("create:shaft", "iron_chain"), null);
         assertEquals("iron_chain", swapped.get(0).target());
+        assertEquals("iron_chain", swapped.get(0).shown());
+        assertTrue(swapped.get(0).swapped());
+        assertFalse(swapped.get(0).unknownPart());
+    }
+
+    @Test
+    void unknownBlocksGoLastInEveryState() {
+        MaterialList<String, String> list = list(Map.of("oak_planks", 10));
+        List<MaterialRows.Row<String>> rows = rows(List.of(new BlockCount("create:shaft", 4000), new BlockCount("oak_planks", 10),
+                new BlockCount("stone_bricks", 2)), Map.of(), list);
+        assertEquals("create:shaft", rows.getLast().block());
+    }
+
+    @Test
+    void rowBarFollowsTheShownAsBlock() {
+        MaterialList<String, String> list = SharedLists.of(Map.of("oak_planks", 58), Map.of(), Map.of("oak_planks", 22))
+                .withPlanned(Map.of("oak_planks", 96));
+        List<MaterialRows.Row<String>> rows = rows(List.of(new BlockCount("oak_planks", 96)), Map.of(), list, Map.of("oak_planks", 22));
+        assertEquals(new MaterialList.Bar(96, 38, 22, 36), rows.getFirst().bar());
+    }
+
+    @Test
+    void sharedItemsGiveEqualBars() {
+        MaterialList<String, String> list = SharedLists.of(Map.of("spruce_stairs", 30), Map.of(), Map.of("spruce_stairs", 10))
+                .withPlanned(Map.of("spruce_stairs", 40));
+        List<MaterialRows.Row<String>> rows = rows(List.of(new BlockCount("oak_stairs", 20), new BlockCount("spruce_stairs", 20)),
+                Map.of("oak_stairs", "spruce_stairs"), list, Map.of("spruce_stairs", 10));
+        assertEquals(rows.get(0).bar(), rows.get(1).bar());
     }
 
     @Test

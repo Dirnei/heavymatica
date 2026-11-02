@@ -58,17 +58,63 @@ public final class MaterialList<I, B> {
     private final List<CantCarry<B>> cantCarry;
     private final Map<B, Planned<I>> planned;
     private final Map<String, Integer> unknown;
+    private final Map<B, Integer> plannedCounts;
 
-    private MaterialList(List<Row<I>> rows, List<CantCarry<B>> cantCarry, Map<B, Planned<I>> planned, Map<String, Integer> unknown) {
+    private MaterialList(List<Row<I>> rows, List<CantCarry<B>> cantCarry, Map<B, Planned<I>> planned, Map<String, Integer> unknown,
+                         Map<B, Integer> plannedCounts) {
         this.rows = rows;
         this.cantCarry = cantCarry;
         this.planned = planned;
         this.unknown = unknown;
+        this.plannedCounts = plannedCounts;
     }
 
     /** The list with its unknown blocks part: block ID to how many positions show it, sorted by ID. */
     public MaterialList<I, B> withUnknown(Map<String, Integer> unknownBlocks) {
-        return new MaterialList<>(rows, cantCarry, planned, unknownBlocks);
+        return new MaterialList<>(rows, cantCarry, planned, unknownBlocks, plannedCounts);
+    }
+
+    /** The list with how many of each planned block the counted positions plan, built or not. */
+    public MaterialList<I, B> withPlanned(Map<B, Integer> counts) {
+        return new MaterialList<>(rows, cantCarry, planned, unknown, Map.copyOf(counts));
+    }
+
+    /** How many of a planned block the counted positions plan, built or not; 0 for blocks the list was not built from. */
+    public int plannedCount(B block) {
+        return plannedCounts.getOrDefault(block, 0);
+    }
+
+    /**
+     * A planned block's bar: built (planned minus needed, at least 0), carried (what it was given, at most what it
+     * needs) and short.
+     */
+    public record Bar(int planned, int built, int carried, int shortage) {
+    }
+
+    public @Nullable Bar bar(B block) {
+        Planned<I> numbers = planned.get(block);
+        if (numbers == null) {
+            return null;
+        }
+        int total = Math.max(plannedCount(block), numbers.needed());
+        int carried = Math.min(numbers.given(), numbers.needed());
+        return new Bar(total, Math.max(0, total - numbers.needed()), carried, numbers.needed() - carried);
+    }
+
+    /** The bars of every planned block added up. */
+    public Bar total() {
+        int total = 0;
+        int built = 0;
+        int carried = 0;
+        int shortage = 0;
+        for (B block : planned.keySet()) {
+            Bar bar = bar(block);
+            total += bar.planned();
+            built += bar.built();
+            carried += bar.carried();
+            shortage += bar.shortage();
+        }
+        return new Bar(total, built, carried, shortage);
     }
 
     /** Blocks the game does not know, by ID as shown, with how many positions show them; they need no item. */
@@ -104,7 +150,7 @@ public final class MaterialList<I, B> {
         Map<I, Integer> leftByItem = new HashMap<>();
         planned.forEach(entry -> leftByItem.put(items.get(entry.item()), shares.left()[entry.item()]));
         MaterialList<I, B> list = of(needed, cantCarry, item -> had.getOrDefault(item, 0) + leftByItem.getOrDefault(item, 0), itemOrder, blockOrder);
-        return new MaterialList<>(list.rows, list.cantCarry, Map.copyOf(byBlock), Map.of());
+        return new MaterialList<>(list.rows, list.cantCarry, Map.copyOf(byBlock), Map.of(), Map.of());
     }
 
     /**
@@ -131,7 +177,7 @@ public final class MaterialList<I, B> {
             }
         });
         blocks.sort(Comparator.<CantCarry<B>>comparingInt(entry -> -entry.count()).thenComparing(CantCarry::block, blockOrder));
-        return new MaterialList<>(List.copyOf(rows), List.copyOf(blocks), Map.of(), Map.of());
+        return new MaterialList<>(List.copyOf(rows), List.copyOf(blocks), Map.of(), Map.of(), Map.of());
     }
 
     public List<Row<I>> rows() {

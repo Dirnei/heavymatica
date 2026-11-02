@@ -16,8 +16,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.ConfirmScreen;
+import io.github.dirnei.mc.heavymatica.ui.glass.GlassButton;
+import io.github.dirnei.mc.heavymatica.ui.glass.GlassConfirmScreen;
+import io.github.dirnei.mc.heavymatica.ui.glass.Rect;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
@@ -29,7 +30,8 @@ public final class ImportingLibraryScreen extends LibraryScreen {
 
     private final Importer importer;
     private final Uploader uploader;
-    private @Nullable Button upload;
+    private @Nullable GlassButton upload;
+    private boolean firstRunChecked;
 
     public ImportingLibraryScreen(CloudAccount account, CloudAvailability availability, Library library, Placer placer) {
         super(account, availability, library, placer);
@@ -38,24 +40,56 @@ public final class ImportingLibraryScreen extends LibraryScreen {
     }
 
     @Override
-    protected void addExtraTopButtons(int x) {
-        addRenderableWidget(Button.builder(Component.translatable("heavymatica.import.button"),
-                        button -> minecraft.setScreen(new ImportScreen(this, minecraft.gameDirectory.toPath(), this::importFiles)))
-                .bounds(x, 7, 60, 20).build());
+    protected void addExtraTopButtons(Rect area) {
+        addRenderableWidget(new GlassButton(area.x(), area.y(), area.w(), area.h(), Component.translatable("heavymatica.import.button"),
+                GlassButton.Kind.SECONDARY, button -> openImport(false)));
     }
 
     @Override
-    protected void addExtraActions(int x, int y) {
-        upload = addRenderableWidget(Button.builder(Component.translatable("heavymatica.upload.button"), button -> chooseUploadTarget())
-                .bounds(x, y, 68, 20).build());
-        upload.active = false;
-        upload.visible = false;
+    protected void init() {
+        super.init();
+        firstRunCheck();
     }
 
     @Override
     protected void refreshEntries() {
         super.refreshEntries();
-        onSelectionChanged();
+        firstRunCheck();
+    }
+
+    /** An empty library opens on the import screen once its listing has loaded; only on the first look per opening. */
+    private void firstRunCheck() {
+        if (firstRunChecked || minecraft == null || minecraft.screen != this) {
+            return;
+        }
+        LibraryStart start = LibraryStart.decide(library().entries().size(), library().cloudState() == Library.CloudState.LOADING);
+        if (start == LibraryStart.WAIT) {
+            return;
+        }
+        firstRunChecked = true;
+        if (start == LibraryStart.IMPORT) {
+            minecraft.execute(() -> {
+                if (minecraft.screen == this) {
+                    openImport(true);
+                }
+            });
+        }
+    }
+
+    private void openImport(boolean firstRun) {
+        minecraft.setScreen(new ImportScreen(this, minecraft.gameDirectory.toPath(), this::importFiles, firstRun));
+    }
+
+    @Override
+    protected @Nullable GlassButton createUploadButton() {
+        upload = new GlassButton(0, 0, 10, 16, Component.translatable("heavymatica.upload.button"), GlassButton.Kind.ACCENT, button -> chooseUploadTarget());
+        upload.visible = false;
+        return upload;
+    }
+
+    @Override
+    protected boolean uploadOffered() {
+        return cloudShown() && !availability().tooOld();
     }
 
     @Override
@@ -63,10 +97,7 @@ public final class ImportingLibraryScreen extends LibraryScreen {
         if (upload != null) {
             LibraryEntry entry = selected();
             boolean local = entry != null && !entry.cloud();
-            upload.visible = local && cloudShown() && !availability().tooOld();
-            upload.active = local && account().signedIn();
-            upload.setTooltip(local && !account().signedIn()
-                    ? net.minecraft.client.gui.components.Tooltip.create(Component.translatable("heavymatica.upload.sign_in_needed")) : null);
+            upload.enable(local && account().signedIn(), Component.translatable("heavymatica.upload.sign_in_needed"));
         }
     }
 
@@ -101,14 +132,14 @@ public final class ImportingLibraryScreen extends LibraryScreen {
         Component where = match.cloud()
                 ? Component.translatable("heavymatica.import.duplicate.cloud", match.name(), match.version())
                 : Component.translatable("heavymatica.import.duplicate.local", match.name());
-        minecraft.setScreen(new ConfirmScreen(anyway -> {
-            minecraft.setScreen(this);
-            if (anyway) {
-                importer.importFile(duplicate.file(), true);
-                refreshEntries();
-            }
-        }, Component.translatable("heavymatica.import.duplicate.title", duplicate.file().getFileName().toString()), where,
-                Component.translatable("heavymatica.import.duplicate.anyway"), Component.translatable("heavymatica.import.duplicate.skip")));
+        minecraft.setScreen(new GlassConfirmScreen(this, Component.translatable("heavymatica.import.duplicate.title", duplicate.file().getFileName().toString()),
+                where, Component.translatable("heavymatica.import.duplicate.anyway"), Component.translatable("heavymatica.import.duplicate.skip"), false,
+                anyway -> {
+                    if (anyway) {
+                        importer.importFile(duplicate.file(), true);
+                        refreshEntries();
+                    }
+                }));
     }
 
     private void chooseUploadTarget() {

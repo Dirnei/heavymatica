@@ -194,4 +194,25 @@ class MaterialListTest {
         assertEquals(List.of(new MaterialList.Row<>("cauldron", 3, 0, 3), new MaterialList.Row<>("water_bucket", 3, 0, 3)), list.rows());
         assertTrue(list.cantCarry().isEmpty());
     }
+
+    @Test
+    void barSplitsPlannedIntoBuiltCarriedAndShort() {
+        MaterialList<String, String> list = SharedLists.of(Map.of("minecraft:oak_planks", 58), Map.of(), Map.of("minecraft:oak_planks", 22))
+                .withPlanned(Map.of("minecraft:oak_planks", 96));
+        assertEquals(new MaterialList.Bar(96, 38, 22, 36), list.bar("minecraft:oak_planks"));
+    }
+
+    @Test
+    void barCarriesNoMoreThanIsNeeded() {
+        MaterialList<String, String> list = SharedLists.of(Map.of("minecraft:torch", 4), Map.of(), Map.of("minecraft:torch", 40))
+                .withPlanned(Map.of("minecraft:torch", 4));
+        assertEquals(new MaterialList.Bar(4, 0, 4, 0), list.bar("minecraft:torch"));
+    }
+
+    @Test
+    void totalAddsUpEveryPlannedBlock() {
+        MaterialList<String, String> list = SharedLists.of(Map.of("minecraft:oak_planks", 58, "minecraft:torch", 4), Map.of(),
+                Map.of("minecraft:oak_planks", 22, "minecraft:torch", 40)).withPlanned(Map.of("minecraft:oak_planks", 96, "minecraft:torch", 4));
+        assertEquals(new MaterialList.Bar(100, 38, 26, 36), list.total());
+    }
 }

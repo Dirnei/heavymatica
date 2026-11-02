@@ -1,5 +1,6 @@
 package io.github.dirnei.mc.heavymatica.targeting;
 
+import io.github.dirnei.mc.heavymatica.ui.glass.Glass;
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
@@ -33,7 +34,7 @@ public final class TargetHud {
 
     public static final Identifier ID = Identifier.fromNamespaceAndPath(Heavymatica.MOD_ID, "target_hud");
 
-    private static final int PADDING = 3;
+    private static final int PADDING = 5;
     private static final int LINE = 10;
     private static final int ICON = 16;
     static final int GAP_BELOW_CROSSHAIR = 12;
@@ -94,7 +95,7 @@ public final class TargetHud {
         int height = firstLine + (lines.size() - 1) * LINE + 2 * PADDING - 2;
         int x = (graphics.guiWidth() - width) / 2;
         int y = graphics.guiHeight() / 2 + GAP_BELOW_CROSSHAIR;
-        graphics.fill(x, y, x + width, y + height, 0x90000000);
+        Glass.panel(graphics, x, y, width, height, 6, 0xD61C232C, 0xD10E1218, 0x1AFFFFFF);
         bottom = y + height;
         int lineY = y + PADDING;
         if (!icon.isEmpty()) {

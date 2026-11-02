@@ -1,5 +1,6 @@
 package io.github.dirnei.mc.heavymatica.targeting;
 
+import io.github.dirnei.mc.heavymatica.ui.glass.Glass;
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
 import java.util.ArrayList;
@@ -24,9 +25,9 @@ public final class PointerHud {
 
     public static final Identifier ID = Identifier.fromNamespaceAndPath(Heavymatica.MOD_ID, "mistake_pointer");
 
-    private static final int PADDING = 3;
+    private static final int PADDING = 5;
     private static final int LINE = 10;
-    private static final int GAP = 2;
+    private static final int GAP = 4;
 
     private final Supplier<@Nullable MistakePointer> pointer;
 
@@ -55,7 +56,7 @@ public final class PointerHud {
         int x = (graphics.guiWidth() - width) / 2;
         int below = TargetHud.bottomThisFrame();
         int y = below >= 0 ? below + GAP : graphics.guiHeight() / 2 + TargetHud.GAP_BELOW_CROSSHAIR;
-        graphics.fill(x, y, x + width, y + height, 0x90000000);
+        Glass.panel(graphics, x, y, width, height, Math.min(8, height / 2), 0xC71C232C, 0xC70E1218, 0x1AFFFFFF);
         int lineY = y + PADDING;
         for (TargetHud.Line line : lines) {
             graphics.centeredText(font, line.text(), x + width / 2, lineY, line.color());

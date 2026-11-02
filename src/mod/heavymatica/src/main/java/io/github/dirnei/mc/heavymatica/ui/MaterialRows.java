@@ -27,9 +27,21 @@ final class MaterialRows {
      * @param numbers   the shown-as block's counts under its placing item; null without a material list or when no item
      *                  places the block
      * @param finishing how many positions of the shown-as block need {@code finish}
+     * @param shown     the block ID the row builds with: a known swap target, or the block as the game names it today
+     * @param bar       the shown-as block's bar of the material list; null without a list or when the list has none
      */
     record Row<I>(String block, String current, boolean known, long total, @Nullable String target, MaterialList.@Nullable Row<I> numbers,
-            int finishing, BlockEquivalents.@Nullable Finish finish) {
+            int finishing, BlockEquivalents.@Nullable Finish finish, String shown, MaterialList.@Nullable Bar bar) {
+
+        /** Swapped to a block the game knows; a swap to an unknown block shows the original. */
+        boolean swapped() {
+            return target != null && !target.equals(block) && shown.equals(target);
+        }
+
+        /** Rows that build with a block the game does not know go to the unknown blocks part. */
+        boolean unknownPart() {
+            return !swapped() && !known;
+        }
 
         int shortage() {
             return numbers == null ? 0 : numbers.shortage();
@@ -59,11 +71,13 @@ final class MaterialRows {
             String today = current.apply(count.block());
             String shownAs = target != null && known.test(target) ? target : today;
             MaterialList.Row<I> numbers = null;
+            MaterialList.Bar bar = null;
             int finishing = 0;
             BlockEquivalents.Finish finish = null;
             if (list != null) {
                 B planned = plannedOf.apply(shownAs);
                 MaterialList.Planned<I> shown = planned == null ? null : list.planned(planned);
+                bar = planned == null ? null : list.bar(planned);
                 if (shown != null) {
                     numbers = new MaterialList.Row<>(shown.item(), shown.needed(), shown.given() + shown.left(), shown.shortage());
                     finishing = shown.finishing();
@@ -75,11 +89,12 @@ final class MaterialRows {
                     }
                 }
             }
-            rows.add(new Row<>(count.block(), today, known.test(today), count.count(), target, numbers, finishing, finish));
+            rows.add(new Row<>(count.block(), today, known.test(today), count.count(), target, numbers, finishing, finish, shownAs, bar));
         }
         Comparator<Row<I>> byTotal = Comparator.<Row<I>>comparingLong(row -> -row.total()).thenComparing(Row::block);
-        rows.sort(list == null ? byTotal
-                : Comparator.<Row<I>>comparingInt(row -> -row.shortage()).thenComparingInt(row -> -row.needed()).thenComparing(byTotal));
+        Comparator<Row<I>> unknownLast = Comparator.comparing(Row::unknownPart);
+        rows.sort(unknownLast.thenComparing(list == null ? byTotal
+                : Comparator.<Row<I>>comparingInt(row -> -row.shortage()).thenComparingInt(row -> -row.needed()).thenComparing(byTotal)));
         return List.copyOf(rows);
     }
 }

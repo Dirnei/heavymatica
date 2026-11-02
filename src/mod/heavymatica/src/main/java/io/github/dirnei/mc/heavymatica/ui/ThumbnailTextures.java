@@ -21,11 +21,16 @@ import net.minecraft.resources.Identifier;
 
 /**
  * Thumbnails as GUI textures, keyed by version hash. Cloud thumbnails come through the library's cache; local entries
- * get one rendered on this machine and cached the same way. Missing thumbnails simply stay missing (placeholder).
+ * get one rendered on this machine and cached the same way, one render at a time so a library of old entries does not
+ * stutter. Missing thumbnails simply stay missing (placeholder); a local render that fails is not tried again until the
+ * game restarts.
  */
 final class ThumbnailTextures implements AutoCloseable {
 
     private final Library library;
+    private static final Set<String> FAILED = new HashSet<>();
+    private static boolean rendering;
+
     private final Map<String, Identifier> loaded = new HashMap<>();
     private final Set<String> requested = new HashSet<>();
 
@@ -39,31 +44,54 @@ final class ThumbnailTextures implements AutoCloseable {
         if (texture != null) {
             return Optional.of(texture);
         }
-        if (requested.add(entry.sha256())) {
-            load(entry);
+        if (!requested.contains(entry.sha256()) && load(entry)) {
+            requested.add(entry.sha256());
         }
         return Optional.empty();
     }
 
-    private void load(LibraryEntry entry) {
+    /** Starts loading; false when it has to wait for another local render to finish first. */
+    private boolean load(LibraryEntry entry) {
         if (entry.cloud()) {
             if (entry.hasThumbnail()) {
                 library.thumbnail(entry.id(), entry.version(), entry.sha256())
                         .thenAccept(path -> path.ifPresent(file -> register(entry.sha256(), file)))
                         .exceptionally(error -> null);
             }
-            return;
+            return true;
         }
-        library.cachedThumbnail(entry.sha256()).ifPresentOrElse(file -> register(entry.sha256(), file), () -> renderLocal(entry));
+        Optional<Path> cached = library.cachedThumbnail(entry.sha256());
+        if (cached.isPresent()) {
+            register(entry.sha256(), cached.get());
+            return true;
+        }
+        if (FAILED.contains(entry.sha256())) {
+            return true;
+        }
+        if (rendering) {
+            return false;
+        }
+        renderLocal(entry);
+        return true;
     }
 
     private void renderLocal(LibraryEntry entry) {
         library.local().find(entry.sha256()).ifPresent(local -> {
+            rendering = true;
             try {
                 ThumbnailRenderer.renderPng(SchematicReader.read(library.local().file(local)))
-                        .thenAccept(png -> Minecraft.getInstance().execute(() -> register(entry.sha256(), library.storeThumbnail(entry.sha256(), png))))
-                        .exceptionally(error -> null);
+                        .whenComplete((png, failure) -> Minecraft.getInstance().execute(() -> {
+                            rendering = false;
+                            if (failure != null) {
+                                FAILED.add(entry.sha256());
+                                Heavymatica.LOGGER.debug("No thumbnail for local entry {}", entry.name(), failure);
+                            } else {
+                                register(entry.sha256(), library.storeThumbnail(entry.sha256(), png));
+                            }
+                        }));
             } catch (RuntimeException e) {
+                rendering = false;
+                FAILED.add(entry.sha256());
                 Heavymatica.LOGGER.debug("No thumbnail for local entry {}", entry.name(), e);
             }
         });

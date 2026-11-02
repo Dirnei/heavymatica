@@ -1,14 +1,15 @@
 package io.github.dirnei.mc.heavymatica.remote;
 
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Entry;
+import io.github.dirnei.mc.heavymatica.ui.glass.GlassStyle;
 
 /** The wheel's colours (ARGB) and which entries are tinted as danger or confirm. */
 public final class WheelStyle {
 
     public enum Kind {
-        NORMAL(0xFF7FD8FF),
-        DANGER(0xFFFF6B6B),
-        CONFIRM(0xFF7EE28F);
+        NORMAL(GlassStyle.ACCENT),
+        DANGER(GlassStyle.DANGER),
+        CONFIRM(GlassStyle.CONFIRM);
 
         private final int accent;
 
@@ -21,21 +22,21 @@ public final class WheelStyle {
         }
     }
 
-    public static final int BODY_INNER = 0xC70E1218;
-    public static final int BODY_OUTER = 0xCC1C232C;
+    public static final int BODY_INNER = GlassStyle.BODY_BOTTOM;
+    public static final int BODY_OUTER = GlassStyle.BODY_TOP;
     public static final int RIM = 0x12FFFFFF;
-    public static final int RIM_HOVERED = 0x5EFFFFFF;
-    public static final int CENTRE = 0xDB080B0F;
+    public static final int RIM_HOVERED = GlassStyle.RIM_HOVERED;
+    public static final int CENTRE = GlassStyle.CENTRE;
     public static final int DIM_CENTRE = 0x6104060A;
     public static final int DIM_EDGE = 0x1F04060A;
     public static final int HOVER_FILL_INNER = 0x1A;
     public static final int HOVER_FILL_OUTER = 0x6B;
-    public static final int TEXT = 0xFFFFFFFF;
-    public static final int LABEL = 0xFFC9D2DA;
-    public static final int HINT = 0xFF9AA7B3;
-    public static final int SUBTITLE = 0xFF7F8C98;
-    public static final int GHOST = 0xFF7FD8FF;
-    public static final int GHOST_LIGHT = 0xFFF1EFE6;
+    public static final int TEXT = GlassStyle.TEXT;
+    public static final int LABEL = GlassStyle.LABEL;
+    public static final int HINT = GlassStyle.HINT;
+    public static final int SUBTITLE = GlassStyle.SUBTITLE;
+    public static final int GHOST = GlassStyle.ACCENT;
+    public static final int GHOST_LIGHT = GlassStyle.GHOST_LIGHT;
 
     private WheelStyle() {
     }
