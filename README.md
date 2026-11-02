@@ -36,20 +36,29 @@ openspec/        specs and changes
 
 ## Releasing
 
-The mod is released with [Release Please](https://github.com/googleapis/release-please) from Conventional Commits:
+A release is a tag push, nothing else. No file is edited and nothing is committed:
 
-- Every push to `main` updates a release PR for `heavymatica`. It lists the `feat` and `fix` commits that touch
-  `src/mod/heavymatica`, bumps `mod_version` in its `gradle.properties` and adds the notes to its `CHANGELOG.md`.
-  Before 1.0, `feat` raises the minor version and `fix` the patch version.
-- Merging the release PR tags `heavymatica-v<version>`, creates the GitHub release, builds the jar at that version and
-  uploads it to the GitHub release, CurseForge and Modrinth (`.github/workflows/release.yml`). Versions 0.x are
-  published as alpha; from 1.0 a version containing `alpha` or `beta` is published as that, anything else as release.
-- Repository settings: Actions may create pull requests; variables `CURSEFORGE_ID_HEAVYMATICA` and
-  `MODRINTH_ID_HEAVYMATICA` with secrets `CURSEFORGE_TOKEN` and `MODRINTH_TOKEN`. A platform without its project ID
-  variable is skipped.
-- A change that alters the jar but lies outside `src/mod/heavymatica`, such as `src/mod/build.gradle`,
-  `src/mod/gradle.properties` or the contract in `src/api`, does not count for a release on its own. Add a
-  `Release-As: x.y.z` footer to its commit to release it.
+```
+git tag -a heavymatica-v0.3.0 -m "Optional text above the notes"
+git push origin heavymatica-v0.3.0
+```
+
+- The version comes from the tag (`heavymatica-v<major>.<minor>.<patch>`, optionally with a `-suffix`). Any other form
+  fails. Builds without a tag report `0.0.0-dev`.
+- The notes list the `feat` and `fix` commits since the previous `heavymatica-v*` tag that touch `src/mod/heavymatica`.
+  An annotated tag's message goes above them; a lightweight tag (`git tag heavymatica-v0.3.0`) adds nothing. Preview
+  them with `sh .github/scripts/release-notes.sh <tag>` after tagging locally.
+- The first release has no previous tag, so its notes are the tag message alone: tag it annotated.
+- With no `feat` or `fix` commit and no message, the release fails before anything is uploaded.
+- Changes outside `src/mod/heavymatica` that alter the jar, such as `src/mod/build.gradle`, `src/mod/gradle.properties`
+  or the contract in `src/api`, are not listed. Mention them in the tag message.
+- `.github/workflows/release.yml` builds and tests the tagged commit, then creates the GitHub release with the jar and
+  uploads it to CurseForge and Modrinth. Versions 0.x are published as alpha; from 1.0 a version containing `alpha` or
+  `beta` is published as that, anything else as release.
+- Repository settings: variables `CURSEFORGE_ID_HEAVYMATICA` and `MODRINTH_ID_HEAVYMATICA` with secrets
+  `CURSEFORGE_TOKEN` and `MODRINTH_TOKEN`. A platform without its project ID variable is skipped.
+- If publishing fails, re-run the failed job in the Actions tab. To redo a wrong tag, delete its GitHub release, then
+  the tag (`git tag -d <tag>` and `git push origin :refs/tags/<tag>`), and push it again.
 
 Every push and pull request is built and tested by `.github/workflows/build.yml`.
 

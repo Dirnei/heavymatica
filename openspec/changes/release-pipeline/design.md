@@ -13,16 +13,17 @@
   package scopes.
 - The servus mods repository (`../servus_mc_mods/.github/workflows/`) has a tag-driven `release.yml` with a reusable
   `build.yml`, using `Kira-NT/mc-publish@v3`. This design reuses its shape: project IDs as variables, a missing ID
-  skips the platform, notes are required, and the type comes from the version. The difference is that Release Please
-  creates the tag.
+  skips the platform, notes are required, and the type comes from the version. This design follows it, and adds notes
+  generated from the commits so that a release needs no file edits.
 - The decisions were made with the user in the exploration that preceded this change. See proposal.md for the why.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- One merge of the release PR publishes everywhere, with no personal access token and no manual tag.
+- One tag push publishes everywhere. No file is edited and nothing is committed for a release, and no personal access
+  token is needed.
 - The build that is published is the build that was tested, at exactly the released version.
-- Adding `heavymatica_machines` later is one more package entry, not a new pipeline.
+- Adding `heavymatica_machines` later is one more tag prefix and folder, not a new pipeline.
 
 **Non-Goals:**
 - CI or releases for `src/cloud` (.NET), `src/web` or the conformance generator. They are deployed, not distributed,
@@ -32,93 +33,68 @@
 
 ## Decisions
 
-### D1: Release Please in manifest mode, one package per mod
+### D1: The tag is the release
 
-`release-please-config.json` at the repository root:
+`.github/workflows/release.yml` runs on `push: tags: ['heavymatica-v*']`. A tag pushed by a person triggers workflows
+(only tags made with `GITHUB_TOKEN` don't), so no personal access token is needed.
 
-```json
-{
-  "packages": {
-    "src/mod/heavymatica": {
-      "component": "heavymatica",
-      "release-type": "simple",
-      "include-component-in-tag": true,
-      "tag-separator": "-",
-      "changelog-path": "CHANGELOG.md",
-      "bump-minor-pre-major": true,
-      "extra-files": [{ "type": "generic", "path": "gradle.properties" }]
-    }
-  },
-  "changelog-sections": [
-    { "type": "feat", "section": "Features" },
-    { "type": "fix", "section": "Bug Fixes" },
-    { "type": "perf", "section": "Performance" },
-    { "type": "refactor", "hidden": true }, { "type": "test", "hidden": true },
-    { "type": "docs", "hidden": true }, { "type": "build", "hidden": true },
-    { "type": "chore", "hidden": true }
-  ],
-  "bootstrap-sha": "<the commit that adds this file>"
-}
-```
+- **Version:** the tag minus `heavymatica-v`. It must match `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$`, otherwise the
+  run fails before building ("Releasing by pushing a version tag").
+- **Jar version:** the root `build.gradle` already uses `release_version_<project>` when it is given, so the release
+  build passes `-Prelease_version_heavymatica=<version>`. Nothing in the repository is rewritten.
+- **Development version:** `mod_version` in `src/mod/heavymatica/gradle.properties` becomes `0.0.0-dev`, once. It is
+  never edited for a release, so every build without the property reports the development version.
+- **Tags per mod:** `heavymatica_machines` later gets `heavymatica_machines-v*` and its own folder. The trigger pattern
+  `heavymatica-v*` does not match it, because of the `-v` right after the name.
+- *Alternative: Release Please.* Tried first and dropped: it needs an open release PR, a forced first version through
+  `release-as`, a `bootstrap-sha` that breaks when history is rewritten, and the repository setting that lets Actions
+  create pull requests. It also commits the version and changelog, which is exactly the file editing a release should
+  not need.
 
-- **Version file:** in `src/mod/heavymatica/gradle.properties`, `mod_version=0.1.0` is wrapped in
-  `# x-release-please-start-version` and `# x-release-please-end` comment lines. The generic updater rewrites the
-  version between them. The inline `# x-release-please-version` marker can't be used here: a Java properties file
-  doesn't treat a `#` in the middle of a line as a comment, so the marker would become part of the value. With the
-  block markers, the build keeps reading a clean `0.1.0`.
-- **Tags:** `heavymatica-v<version>`, from the component plus the `-` separator. `heavymatica_machines` later gets
-  its own entry, `src/mod/heavymatica_machines`, and its own tags.
-- **Commits are assigned to packages by path.** A commit counts for the mod when it touches `src/mod/heavymatica/**`,
-  whatever its scope.
-- *Alternative: `release-type: java` or a Gradle plugin.* Rejected: the version lives in one properties line, and
-  `simple` plus a generic updater handles that without Maven assumptions.
+### D2: Notes generated from the commits
 
-### D2: Bootstrapping from 0.1.0 with no tags
-
-`.release-please-manifest.json` starts as `{ "src/mod/heavymatica": "0.1.0" }`. That treats 0.1.0, the current
-development version, as released, so it is never published. `bootstrap-sha` is set to the commit that adds the
-Release Please files. Otherwise Release Please would read the whole history back to the first commit and fill the first
-changelog with weeks of development commits.
-
-The first release is forced: the package entry gets `"release-as": "0.2.0"` in the same commit. The first release PR
-then proposes 0.2.0 as soon as any commit touches the mod. Its changelog section is edited by hand in the PR before
-merging, to a short "First public alpha" summary. After that release the `release-as` line is removed again.
-
-- *Alternative: publish 0.1.0 as the first release.* Rejected: Release Please needs a previous version to bump from,
-  and making 0.1.0 itself the first release needs the same `release-as` trick with no gain.
-
-### D3: One workflow, release then publish
-
-`.github/workflows/release.yml` runs on every push to `main`:
+`.github/scripts/release-notes.sh <tag>` prints the notes and runs the same way locally and in the workflow:
 
 ```
-push to main
+prev = git describe --tags --abbrev=0 --match 'heavymatica-v*' <tag>^    (none -> first release)
+message = annotated tag message, only if git cat-file -t <tag> == tag
+list = git log --format=%s <prev>..<tag> -- src/mod/heavymatica
+         feat(scope)!: subject  -> Features:  - **scope:** subject
+         fix(scope)!: subject   -> Bug fixes: - **scope:** subject
+         anything else          -> left out
+notes = message, blank line, "### Features" / "### Bug fixes" sections (only the non-empty ones)
+first release: notes = message only
+```
+
+- **Lightweight vs annotated:** `git tag -l --format='%(contents)'` returns the commit message for a lightweight tag,
+  so the message is read only when the tag object's type is `tag`.
+- **Checkout:** `actions/checkout@v4` with `fetch-depth: 0` (history and tags), then
+  `git fetch --force origin "refs/tags/<tag>:refs/tags/<tag>"`, so the annotated tag object is there and not a
+  lightweight ref to the commit.
+- **Commits by path:** a commit counts for the mod when it touches `src/mod/heavymatica/**`, whatever its scope.
+- **Empty notes:** the publish job fails with "Release notes are missing for <version>" before any upload.
+- *Alternative: notes from a hand-edited CHANGELOG.md.* Rejected: it is a file to edit before every release.
+
+### D3: One workflow, build then publish
+
+```
+push tag heavymatica-v<version>
    |
    v
-release-please   (googleapis/release-please-action@v4, GITHUB_TOKEN,
-   |              permissions: contents write, pull-requests write)
-   |  outputs['src/mod/heavymatica--release_created'] == 'true' ?
+meta             version from the tag (fails on a bad version), notes from release-notes.sh (fails when empty),
+   |             type (D4), minecraft_version
    v
-build            (uses: ./.github/workflows/build.yml at the release commit)
+build            (uses: ./.github/workflows/build.yml at the tagged commit)
    |
    v
-publish          version, tag and notes from the release-please outputs
-                 -> ./gradlew :heavymatica:build -Prelease_version_heavymatica=<version>
-                 -> Kira-NT/mc-publish@v3: GitHub release (existing tag) + CurseForge + Modrinth
+publish          ./gradlew :heavymatica:build -Prelease_version_heavymatica=<version>
+                 -> Kira-NT/mc-publish@v3: GitHub release for the tag + CurseForge + Modrinth
 ```
 
-- **Why one workflow:** a tag or release made with `GITHUB_TOKEN` does not trigger other workflows. A separate
-  tag-triggered `release.yml`, as in servus, would never run without a personal access token. Gating jobs on the
-  outputs avoids that secret entirely.
-- **Notes:** the publish job takes the release body from the action's `src/mod/heavymatica--body` output. If that
-  output is not available in the action version used, it falls back to the `## <version>` section of
-  `src/mod/heavymatica/CHANGELOG.md`, cut out the way servus does. If the notes are empty, the job fails before any
-  upload ("No release without notes").
-- **Concurrency:** `group: release`, `cancel-in-progress: false`, so two quick pushes never publish twice.
-- **Build again in publish:** the reusable build checks the commit. The publish job then builds once more with
-  `-Prelease_version_heavymatica`, exactly as servus does, so the jar carries the released version even though
-  `gradle.properties` already holds it after the merge. This keeps it correct if the version line and the tag ever
-  disagree.
+- **Meta first:** a bad version or empty notes stop the run before the build spends time on it.
+- **Concurrency:** `group: release`, `cancel-in-progress: false`, so two quick tags never publish over each other.
+- **Build again in publish:** the reusable build checks the commit at the dev version. The publish job builds once
+  more with `-Prelease_version_heavymatica`, as servus does, so the jar carries the released version.
 
 ### D4: Platform targets and the version type
 
@@ -130,12 +106,12 @@ Inputs to `mc-publish`:
 | `name` | `Heavymatica <version>` |
 | `version` | `<version>` |
 | `version-type` | see below |
-| `changelog` | the notes from D3 |
+| `changelog` | the notes from D2 |
 | `loaders` | `neoforge` |
 | `game-versions` | `minecraft_version` from `src/mod/gradle.properties` |
 | `java` | `25` |
 | `dependencies` | `jade(optional)`, matching `neoforge.mods.toml` |
-| `github-tag` | `heavymatica-v<version>`, so the jar goes on the release Release Please made |
+| `github-tag` | `heavymatica-v<version>`; mc-publish creates the GitHub release for it |
 | `curseforge-id` / `curseforge-token` | `vars.CURSEFORGE_ID_HEAVYMATICA` / `secrets.CURSEFORGE_TOKEN`, token only when the ID is set |
 | `modrinth-id` / `modrinth-token` | `vars.MODRINTH_ID_HEAVYMATICA` / `secrets.MODRINTH_TOKEN`, token only when the ID is set |
 
@@ -194,37 +170,35 @@ logo down with smoothing by default (`logoBlur`), so the large variant is used, 
 
 These steps are outside the repository. They are tasks for the user and are listed in tasks.md:
 
-1. Repository settings → Actions → General: allow GitHub Actions to create and approve pull requests. Release Please
-   needs it.
-2. Create the CurseForge project (NeoForge, client) and the Modrinth project. Upload `heavymatica-512.png` as the icon.
+1. Create the CurseForge project (NeoForge, client) and the Modrinth project. Upload `heavymatica-512.png` as the icon.
    Put the network disclosure on both pages: "Contacts heavymatica.com when you open the schematic library; can be
    turned off in the settings." (from the change `cloud-availability`).
-3. Repository variables `CURSEFORGE_ID_HEAVYMATICA` and `MODRINTH_ID_HEAVYMATICA`, and secrets `CURSEFORGE_TOKEN`
+2. Repository variables `CURSEFORGE_ID_HEAVYMATICA` and `MODRINTH_ID_HEAVYMATICA`, and secrets `CURSEFORGE_TOKEN`
    and `MODRINTH_TOKEN`. Either platform can be added later. Until then it is skipped.
-4. Check that CurseForge lists the game version from `minecraft_version` (26.1.2). Otherwise its upload fails.
+3. Check that CurseForge lists the game version from `minecraft_version` (26.1.2). Otherwise its upload fails.
 
 ## Risks / Trade-offs
 
-- [Shared files outside the package folder, such as `src/mod/build.gradle`, `src/mod/gradle.properties` (Minecraft
-  and NeoForge versions) or the contract in `src/api`, change the jar but do not count as mod commits] → for such a
-  change, add a `Release-As: x.y.z` footer, or touch the package with a `fix` commit that says what changed. Accepted
-  rather than widening the package path to `src/mod`, which would mix in the later `heavymatica_machines`.
-- [CurseForge does not list 26.1.2 yet] → the CurseForge upload fails while GitHub and Modrinth succeed. D7 step 4
+- [Shared files outside the mod folder, such as `src/mod/build.gradle`, `src/mod/gradle.properties` (Minecraft and
+  NeoForge versions) or the contract in `src/api`, change the jar but don't appear in the notes] → mention such changes
+  in the tag message. Accepted rather than widening the path to `src/mod`, which would mix in the later
+  `heavymatica_machines`.
+- [A tag on a commit that is not on `main` still releases] → accepted: only the owner pushes tags, and the build and
+  tests still gate the publish.
+- [CurseForge does not list 26.1.2 yet] → the CurseForge upload fails while GitHub and Modrinth succeed. D7 step 3
   checks it before the first release. mc-publish's `fail-mode` can be set to `warn` if it keeps happening.
-- [The first public changelog depends on a hand edit (D2)] → the release PR is reviewed before merging anyway, and
-  "No release without notes" catches an empty section.
-- [The `--body` output name is wrong for the action version] → D3 falls back to the CHANGELOG section. The first run
-  shows which path was taken.
-- [A release is created but publishing fails halfway] → the tag and GitHub release stay. The publish job is re-run
-  from the Actions UI (`workflow_dispatch` is not needed, because re-running the failed job reuses the same outputs).
+- [mc-publish does not create the GitHub release for an existing tag] → the publish job creates it first with
+  `gh release create <tag> --notes-file` and lets mc-publish attach the jar. The first release shows which is needed.
+- [Publishing fails halfway] → re-run the failed job from the Actions UI. For a wrong tag, delete it locally and on
+  the remote, along with any GitHub release it made, and push it again.
 
 ## Migration Plan
 
-1. Merge this change on `main`: workflows, config, `gradlew` mode, logo. The build workflow runs on that push. The
-   release job opens the first release PR (0.2.0, from `release-as`) once a commit touches the mod.
-2. Do the manual setup (D7) before merging that PR.
-3. Edit the PR's changelog to the first-alpha summary and merge. Check the GitHub release, CurseForge and Modrinth.
-4. Remove `release-as` from the config.
+1. Land this change on `main`: workflows, notes script, Release Please removed, dev version, `gradlew` mode, logo.
+   The build workflow runs on that push. Nothing is released.
+2. Do the manual setup (D7).
+3. Release the first version: `git tag -a heavymatica-v0.1.0 -m "First public alpha"` and
+   `git push origin heavymatica-v0.1.0`. Check the GitHub release, CurseForge and Modrinth.
 
 Rollback: delete the two workflow files. Tags and releases already made stay, and nothing in the mod depends on them.
 

@@ -1,93 +1,82 @@
 name: Release
 
-# Merging the release PR that Release Please keeps open creates the tag and GitHub release; the jobs after it build and
-# publish the jar in this same run, because a release made with GITHUB_TOKEN does not trigger other workflows.
+# Pushing a tag heavymatica-v<version> releases that version: the version comes from the tag, the notes from the
+# commits since the previous heavymatica tag (.github/scripts/release-notes.sh), and nothing in the repository changes.
 #
 # Repository settings:
-#   Actions may create pull requests (Settings > Actions > General)
 #   variable CURSEFORGE_ID_HEAVYMATICA, secret CURSEFORGE_TOKEN   without the variable CurseForge is skipped
 #   variable MODRINTH_ID_HEAVYMATICA,   secret MODRINTH_TOKEN     without the variable Modrinth is skipped
 
 on:
   push:
-    branches: [main]
+    tags: ['heavymatica-v*']
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
-  release-please:
+  meta:
     runs-on: ubuntu-latest
     outputs:
-      created: ${{ steps.release.outputs['src/mod/heavymatica--release_created'] }}
-      version: ${{ steps.release.outputs['src/mod/heavymatica--version'] }}
-      tag: ${{ steps.release.outputs['src/mod/heavymatica--tag_name'] }}
-      body: ${{ steps.release.outputs['src/mod/heavymatica--body'] }}
-    steps:
-      - name: Release Please
-        id: release
-        uses: googleapis/release-please-action@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-
-  build:
-    needs: release-please
-    if: needs.release-please.outputs.created == 'true'
-    uses: ./.github/workflows/build.yml
-
-  publish:
-    needs: [release-please, build]
-    if: needs.release-please.outputs.created == 'true'
-    runs-on: ubuntu-latest
+      version: ${{ steps.meta.outputs.version }}
+      type: ${{ steps.meta.outputs.type }}
+      mc: ${{ steps.meta.outputs.mc }}
+      notes: ${{ steps.meta.outputs.notes }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The checkout can leave the pushed tag as a plain ref to the commit, which loses an annotated tag's message.
+      - name: Fetch the tag object
+        run: git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
 
       - name: Read the release
         id: meta
-        env:
-          VERSION: ${{ needs.release-please.outputs.version }}
-          BODY: ${{ needs.release-please.outputs.body }}
-          CURSEFORGE_ID: ${{ vars.CURSEFORGE_ID_HEAVYMATICA }}
-          MODRINTH_ID: ${{ vars.MODRINTH_ID_HEAVYMATICA }}
         run: |
-          version_type() {
-            case "$1" in
-              0.*) echo alpha ;;
-              *alpha*) echo alpha ;;
-              *beta*) echo beta ;;
-              *) echo release ;;
-            esac
-          }
-          notes="$BODY"
-          if [ -z "$(echo "$notes" | tr -d '[:space:]')" ]; then
-            notes=$(awk -v version="$VERSION" '
-              index($0, "## ") == 1 && (index($0, "[" version "]") || index($0, "## " version)) { found = 1; next }
-              found && index($0, "## ") == 1 { exit }
-              found { print }
-            ' src/mod/heavymatica/CHANGELOG.md)
+          tag="$GITHUB_REF_NAME"
+          version="${tag#heavymatica-v}"
+          if ! printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::$tag does not carry a valid version (major.minor.patch with an optional -suffix)"
+            exit 1
           fi
-          if [ -z "$(echo "$notes" | tr -d '[:space:]')" ]; then
-            echo "::error::Release notes are missing for $VERSION"
+          case "$version" in
+            0.*) type=alpha ;;
+            *alpha*) type=alpha ;;
+            *beta*) type=beta ;;
+            *) type=release ;;
+          esac
+          notes=$(sh .github/scripts/release-notes.sh "$tag")
+          if [ -z "$(printf '%s' "$notes" | tr -d '[:space:]')" ]; then
+            echo "::error::Release notes are missing for $version"
             exit 1
           fi
           mc=$(sed -n 's/^minecraft_version=//p' src/mod/gradle.properties | tr -d '\r')
           {
-            echo "type=$(version_type "$VERSION")"
+            echo "version=$version"
+            echo "type=$type"
             echo "mc=$mc"
-            echo "curseforge_id=$CURSEFORGE_ID"
-            echo "modrinth_id=$MODRINTH_ID"
             echo "notes<<RELEASE_NOTES_END"
-            echo "$notes"
+            printf '%s\n' "$notes"
             echo "RELEASE_NOTES_END"
           } >> "$GITHUB_OUTPUT"
+          printf 'Releasing %s as %s for Minecraft %s\n\n%s\n' "$version" "$type" "$mc" "$notes"
+
+  build:
+    needs: meta
+    uses: ./.github/workflows/build.yml
+
+  publish:
+    needs: [meta, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up JDK 25
         uses: actions/setup-java@v4
@@ -107,23 +96,23 @@ jobs:
 
       - name: Build the release jar
         working-directory: src/mod
-        run: ./gradlew :heavymatica:build -Prelease_version_heavymatica=${{ needs.release-please.outputs.version }} --no-daemon
+        run: ./gradlew :heavymatica:build -Prelease_version_heavymatica=${{ needs.meta.outputs.version }} --no-daemon
 
       - name: Publish to GitHub, CurseForge and Modrinth
         uses: Kira-NT/mc-publish@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          github-tag: ${{ needs.release-please.outputs.tag }}
-          curseforge-id: ${{ steps.meta.outputs.curseforge_id }}
-          curseforge-token: ${{ steps.meta.outputs.curseforge_id != '' && secrets.CURSEFORGE_TOKEN || '' }}
-          modrinth-id: ${{ steps.meta.outputs.modrinth_id }}
-          modrinth-token: ${{ steps.meta.outputs.modrinth_id != '' && secrets.MODRINTH_TOKEN || '' }}
-          files: src/mod/heavymatica/build/libs/heavymatica-${{ needs.release-please.outputs.version }}.jar
-          name: Heavymatica ${{ needs.release-please.outputs.version }}
-          version: ${{ needs.release-please.outputs.version }}
-          version-type: ${{ steps.meta.outputs.type }}
-          changelog: ${{ steps.meta.outputs.notes }}
+          github-tag: ${{ github.ref_name }}
+          curseforge-id: ${{ vars.CURSEFORGE_ID_HEAVYMATICA }}
+          curseforge-token: ${{ vars.CURSEFORGE_ID_HEAVYMATICA != '' && secrets.CURSEFORGE_TOKEN || '' }}
+          modrinth-id: ${{ vars.MODRINTH_ID_HEAVYMATICA }}
+          modrinth-token: ${{ vars.MODRINTH_ID_HEAVYMATICA != '' && secrets.MODRINTH_TOKEN || '' }}
+          files: src/mod/heavymatica/build/libs/heavymatica-${{ needs.meta.outputs.version }}.jar
+          name: Heavymatica ${{ needs.meta.outputs.version }}
+          version: ${{ needs.meta.outputs.version }}
+          version-type: ${{ needs.meta.outputs.type }}
+          changelog: ${{ needs.meta.outputs.notes }}
           loaders: neoforge
-          game-versions: ${{ steps.meta.outputs.mc }}
+          game-versions: ${{ needs.meta.outputs.mc }}
           java: 25
           dependencies: jade(optional)
