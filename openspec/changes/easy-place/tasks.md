@@ -24,6 +24,10 @@
 
 - [x] 5.1 Run the full `./gradlew :heavymatica:test` and fix failures; update `ROADMAP.md`'s Litematica gaps (Easy Place and restriction done) and the README's dev notes if the dev steps changed.
 
+## 6. Two-item content step
+
+- [x] 6.1 Easy Place puts the held content into a standing two-item base (D8): use the item on the base at the target position with a visible-face hit; restriction judges a content clicked onto its base as the two-item block it makes. Verify with unit tests for the decision, the face choice and the judging, the full `./gradlew :heavymatica:test`, and in `runClient` for "Planting into a placed pot", "Candle onto a placed cake", "Wrong plant refused with restriction" and "Plant into a pot planned empty".
+
 ## Workflow follow-up
 
 - Archive `unknown-and-legacy-blocks` before archiving this change, since both touch `client/radial-menu`.

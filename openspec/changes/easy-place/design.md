@@ -23,8 +23,6 @@
 **Non-Goals:**
 - Properties a placement never sets (repeater delay, note pitch, stair shape, connections); the comparison already
   covers them as "needs finishing" or as matching.
-- Two-item blocks' content step (planting into a placed pot). The click on the base is a block interaction, not a
-  placement; this can follow once two-item blocks have landed.
 - Carpet's accurate block placement protocol and a server-mod placement request; both can come later behind the same
   search.
 - Anti-cheat compatibility.
@@ -120,6 +118,20 @@ Found while implementing: `CandleBlock` overrides `useItemOn` (to blow out lit c
 alone would skip a candle clicked onto candles and break the "Too many" scenario. The skip therefore does not apply when
 the predicted placement goes into the clicked block itself (vanilla's "replace clicked" case: a candle onto candles, a
 slab onto a slab); such a click adds to the block rather than using it.
+
+### D8: The content step of two-item blocks
+
+Added after two-item blocks landed. Putting a plant into a placed pot, a candle onto a placed cake or a bucket into an
+empty cauldron is the content item used on the base block, not a placement, so the D1 search finds nothing for it.
+
+- Easy Place: when the target is not enough yet, the world block there is the base as first placed (its default
+  state), and the held item turns it into a two-item block the comparison accepts, Easy Place sends one
+  `gameMode.useItemOn` on the target position with a hit at the centre of the face the eye sees most squarely (the top
+  face when it sees none) and the player's own rotation. Base plus content item to two-item block is looked up in
+  reverse from the two-item block table over the block registry, so modded pots and candle cakes count too.
+- Restriction: a non-sneaking click whose held item is the content of the clicked base is judged as that two-item block
+  at the clicked position, before the D6 "acts on use" skip and whatever the item would place otherwise. This extends
+  D6's "adds to the clicked block" exception, and also covers buckets, which are no `BlockItem`.
 
 ### D7: Settings, keys and the wheel
 

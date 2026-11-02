@@ -88,6 +88,23 @@ Properties a placement never decides SHALL be left to the game and the compariso
 - **WHEN** the player uses Easy Place on a dedicated server without Heavymatica
 - **THEN** the blocks are placed with the planned orientation, as in single player
 
+### Requirement: Easy Place puts the content into a placed base
+When an Easy Place click targets a not-enough-yet two-item block whose base stands there, and the main hand holds the
+content item that turns that base into the planned block, Easy Place SHALL use the held item on the base as a vanilla
+right-click on it would: on a face the player can see, or the top face, with the player's own rotation.
+
+#### Scenario: Planting into a placed pot
+- **WHEN** Easy Place is on, a ghost plans a potted poppy, an empty flower pot stands there, and the player right-clicks it with a poppy
+- **THEN** a potted poppy stands there
+
+#### Scenario: Candle onto a placed cake
+- **WHEN** Easy Place is on, a ghost plans a red candle cake, an uneaten cake stands there, and the player right-clicks it with a red candle
+- **THEN** a red candle cake stands there
+
+#### Scenario: Another plant
+- **WHEN** Easy Place is on, a ghost plans a potted poppy, an empty flower pot stands there, and the player right-clicks it with a dandelion
+- **THEN** it is not an Easy Place click
+
 ### Requirement: Easy Place follows the game's rules
 Easy Place SHALL place with the held item and SHALL follow the game's rules on the server: a block that needs support
 SHALL only be placed where it can survive, and the server's answer SHALL be what the world shows.

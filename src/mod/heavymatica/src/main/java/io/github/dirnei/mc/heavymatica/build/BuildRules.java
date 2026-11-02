@@ -66,6 +66,26 @@ public final class BuildRules {
     }
 
     /**
+     * True when an Easy Place click puts the held content into the base standing at a not-enough-yet target instead of
+     * placing a block.
+     *
+     * @param filled the comparison's verdict on the two-item block the held item makes of the standing block, or null
+     *               when it makes none
+     */
+    public static boolean easyPlaceAddsContent(CellState target, @Nullable CellState filled) {
+        return target == CellState.INCOMPLETE && filled != null && easyPlaceAccepts(filled);
+    }
+
+    /**
+     * True when restriction judges a click as the two-item block it makes of the clicked block: the held item is the
+     * content of the clicked base and the player does not sneak, so the base takes it in, whatever the item would
+     * otherwise place.
+     */
+    public static boolean judgesAsFilled(boolean fillsClicked, boolean sneaking) {
+        return fillsClicked && !sneaking;
+    }
+
+    /**
      * True when restriction leaves a click to vanilla before judging it: an item that places no block, or a block that
      * acts when used while the player does not sneak, unless the click adds to that very block (a candle onto candles).
      */

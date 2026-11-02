@@ -89,6 +89,28 @@ public final class PlacementSearch {
     }
 
     /**
+     * A click on the centre of the face of the target the eye sees most squarely, with the player's own rotation; the
+     * top face when the eye sees none.
+     *
+     * @param eyeX the eye's position relative to the target's minimum corner
+     */
+    public static Click visibleFace(double eyeX, double eyeY, double eyeZ, float yaw, float pitch) {
+        Face best = Face.UP;
+        double bestDistance = eyeY - 1;
+        double[] distances = {-eyeY, eyeY - 1, -eyeZ, eyeZ - 1, -eyeX, eyeX - 1};
+        for (Face face : Face.values()) {
+            if (distances[face.ordinal()] > bestDistance) {
+                best = face;
+                bestDistance = distances[face.ordinal()];
+            }
+        }
+        if (bestDistance <= 0) {
+            best = Face.UP;
+        }
+        return new Click(best, 0.5 + best.x * 0.5, 0.5 + best.y * 0.5, 0.5 + best.z * 0.5, yaw, pitch, false);
+    }
+
+    /**
      * The first click whose placed state is accepted.
      *
      * @param place the state a click places, or null when it places nothing at the target position

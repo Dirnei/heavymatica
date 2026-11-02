@@ -5,6 +5,7 @@ import io.github.dirnei.mc.heavymatica.build.PlacementSearch.Click;
 import io.github.dirnei.mc.heavymatica.build.PlacementSearch.Found;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Bounds;
+import io.github.dirnei.mc.heavymatica.placement.TwoItemBlocks;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
 import io.github.dirnei.mc.heavymatica.remote.Remotes;
 import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting;
@@ -17,11 +18,14 @@ import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Easy Place: a main-hand right-click on a missing or not-enough-yet ghost within reach, holding one of its items,
- * places the planned block with its planned orientation. Sends only what a vanilla client sends: a look direction, a
+ * places the planned block with its planned orientation, or uses the held content on the standing base of a two-item
+ * block. Sends only what a vanilla client sends: a look direction, a
  * block click, and the real look direction again. Game thread only.
  */
 public final class EasyPlace {
@@ -62,13 +66,23 @@ public final class EasyPlace {
         int x = target.pos().getX() - bounds.minX();
         int y = target.pos().getY() - bounds.minY();
         int z = target.pos().getZ() - bounds.minZ();
+        Block filled = target.found() == null ? null : TwoItemBlocks.filled(target.found(), held.getItem());
+        if (BuildRules.easyPlaceAddsContent(target.state(), filled == null ? null : comparison.judge(x, y, z, filled.defaultBlockState()))) {
+            Vec3 eye = player.getEyePosition();
+            Click face = PlacementSearch.visibleFace(eye.x - target.pos().getX(), eye.y - target.pos().getY(), eye.z - target.pos().getZ(),
+                    player.getYRot(), player.getXRot());
+            return outcome(send(minecraft, player, face, target));
+        }
         Found<BlockState> found = VanillaPlacement.find(player, InteractionHand.MAIN_HAND, target.pos(),
                 state -> BuildRules.easyPlaceAccepts(comparison.judge(x, y, z, state)));
         if (found == null) {
             player.sendOverlayMessage(Component.translatable("heavymatica.easy_place.cant_place", target.planned().getBlock().getName()));
             return Outcome.CANT_PLACE;
         }
-        InteractionResult result = send(minecraft, player, found.click(), target);
+        return outcome(send(minecraft, player, found.click(), target));
+    }
+
+    private static Outcome outcome(InteractionResult result) {
         return result instanceof InteractionResult.Success success && success.swingSource() == InteractionResult.SwingSource.CLIENT
                 ? Outcome.PLACED_SWING : Outcome.PLACED;
     }

@@ -8,6 +8,7 @@ import io.github.dirnei.mc.heavymatica.placement.Layers;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Bounds;
+import io.github.dirnei.mc.heavymatica.placement.TwoItemBlocks;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,15 +21,19 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Placement restriction: a right-click with a block item that would put a block the comparison judges wrong into a
- * locked placement's visible layers is refused before vanilla sends anything. The click is predicted as vanilla would
- * place it, from vanilla's own hit result and the player's real rotation. Game thread only.
+ * Placement restriction: a right-click with a block item, or with the content of a clicked two-item base, that would put
+ * a block the comparison judges wrong into a locked placement's visible layers is refused before vanilla sends anything.
+ * The click is predicted as vanilla would place it, from vanilla's own hit result and the player's real rotation. Game
+ * thread only.
  */
 public final class PlacementRestriction {
 
@@ -51,13 +56,8 @@ public final class PlacementRestriction {
                 || hit.getType() != HitResult.Type.BLOCK) {
             return null;
         }
-        boolean blockItem = player.getItemInHand(hand).getItem() instanceof BlockItem;
-        VanillaPlacement.Placed placed = blockItem ? VanillaPlacement.predict(player, hand, hit) : null;
+        VanillaPlacement.Placed placed = predict(level, player, hand, hit);
         if (placed == null) {
-            return null;
-        }
-        boolean acts = ACTS_ON_USE.acts(level.getBlockState(hit.getBlockPos()).getBlock().getClass());
-        if (BuildRules.skipsJudging(true, acts, player.isSecondaryUseActive(), placed.pos().equals(hit.getBlockPos()))) {
             return null;
         }
         Covering<Local> deciding = BuildRules.deciding(coverings(level.dimension().identifier().toString(), placed.pos()),
@@ -73,6 +73,26 @@ public final class PlacementRestriction {
         }
         return comparison.kindAt(local.x(), local.y(), local.z()) == Kind.AIR ? Component.translatable("heavymatica.restriction.refused_air")
                 : Component.translatable("heavymatica.restriction.refused", comparison.plannedAt(local.x(), local.y(), local.z()).getBlock().getName());
+    }
+
+    /**
+     * What the click puts where, as restriction judges it: the two-item block a content makes of its clicked base, or
+     * the block the held block item places; null when the click is left to vanilla.
+     */
+    private static VanillaPlacement.@Nullable Placed predict(ClientLevel level, LocalPlayer player, InteractionHand hand, BlockHitResult hit) {
+        ItemStack stack = player.getItemInHand(hand);
+        BlockState clicked = level.getBlockState(hit.getBlockPos());
+        Block filled = TwoItemBlocks.filled(clicked, stack.getItem());
+        if (BuildRules.judgesAsFilled(filled != null, player.isSecondaryUseActive())) {
+            return new VanillaPlacement.Placed(hit.getBlockPos(), filled.defaultBlockState());
+        }
+        boolean blockItem = stack.getItem() instanceof BlockItem;
+        VanillaPlacement.Placed placed = blockItem ? VanillaPlacement.predict(player, hand, hit) : null;
+        if (placed == null) {
+            return null;
+        }
+        boolean acts = ACTS_ON_USE.acts(clicked.getBlock().getClass());
+        return BuildRules.skipsJudging(true, acts, player.isSecondaryUseActive(), placed.pos().equals(hit.getBlockPos())) ? null : placed;
     }
 
     /** The locked placements of the dimension that hold the position, with whether their layers show it. */

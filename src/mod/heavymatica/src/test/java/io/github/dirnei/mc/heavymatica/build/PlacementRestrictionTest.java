@@ -131,4 +131,23 @@ class PlacementRestrictionTest {
         assertFalse(BuildRules.skipsJudging(true, true, false, true));
         assertFalse(BuildRules.skipsJudging(true, false, false, false));
     }
+
+    @Test
+    void aContentOnItsClickedBaseIsJudgedAsTheFilledBlockUnlessSneaking() {
+        assertTrue(BuildRules.judgesAsFilled(true, false));
+        assertFalse(BuildRules.judgesAsFilled(true, true));
+        assertFalse(BuildRules.judgesAsFilled(false, false));
+    }
+
+    @Test
+    void theFilledBlockIsJudgedAgainstThePlan() {
+        int pot = 20;
+        int pottedPoppy = 22;
+        int pottedDandelion = 23;
+        int emptyPotState = 300;
+        Expected plannedPoppy = Expected.block(pottedPoppy, 0, false).withBase(emptyPotState);
+        assertFalse(refused(plannedPoppy, Found.block(pottedPoppy, 0, false).withState(302, pot)));
+        assertTrue(refused(plannedPoppy, Found.block(pottedDandelion, 0, false).withState(303, pot)));
+        assertTrue(refused(Expected.block(pot, 0, false), Found.block(pottedPoppy, 0, false).withState(302, pot)));
+    }
 }

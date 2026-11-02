@@ -72,4 +72,16 @@ class EasyPlaceTest {
         assertFalse(BuildRules.easyPlaceAccepts(CellState.WRONG_ORIENTATION));
         assertFalse(BuildRules.easyPlaceAccepts(CellState.TOO_MANY));
     }
+
+    @Test
+    void theContentGoesIntoAStandingBaseWhenItMakesThePlannedBlock() {
+        assertTrue(BuildRules.easyPlaceAddsContent(CellState.INCOMPLETE, CellState.MATCHING));
+    }
+
+    @Test
+    void noContentStepWithoutAFillableBaseOrForAnotherContent() {
+        assertFalse(BuildRules.easyPlaceAddsContent(CellState.INCOMPLETE, null));
+        assertFalse(BuildRules.easyPlaceAddsContent(CellState.INCOMPLETE, CellState.WRONG_BLOCK));
+        assertFalse(BuildRules.easyPlaceAddsContent(CellState.MISSING, CellState.MATCHING));
+    }
 }

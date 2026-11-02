@@ -106,7 +106,8 @@ message naming the planned block, or saying that the plan has air there.
 ### Requirement: Using blocks stays possible
 Placement restriction SHALL NOT refuse a right-click on a block that acts when used, such as a chest, door, lever or
 button, unless the player is sneaking; such a click SHALL behave as without placement restriction. Only items that place
-blocks SHALL be judged; other items, such as buckets, SHALL behave as without placement restriction.
+blocks, and the content of a two-item block used on its base, SHALL be judged; other items, such as buckets, SHALL
+behave as without placement restriction.
 
 #### Scenario: Opening a chest
 - **WHEN** placement restriction is on and the player holding cobblestone right-clicks a chest inside a locked placement
@@ -119,6 +120,23 @@ blocks SHALL be judged; other items, such as buckets, SHALL behave as without pl
 #### Scenario: Bucket
 - **WHEN** placement restriction is on and the player empties a water bucket inside a locked placement
 - **THEN** the water is placed
+
+### Requirement: Content put into a two-item base
+A right-click without sneaking that uses the content item of a two-item block (a plant, a candle, a filled bucket) on its
+base standing as first placed (an empty flower pot, an uneaten cake, an empty cauldron) SHALL be judged as the two-item
+block it makes at the base's position, although the base acts when used and although the item may place no block.
+
+#### Scenario: Planned plant allowed
+- **WHEN** placement restriction is on, the plan has a potted poppy, an empty flower pot stands there, and the player right-clicks it with a poppy
+- **THEN** a potted poppy stands there
+
+#### Scenario: Wrong plant refused with restriction
+- **WHEN** placement restriction is on, the plan has a potted poppy, an empty flower pot stands there, and the player right-clicks it with a dandelion
+- **THEN** the pot stays empty and the action bar names the potted poppy
+
+#### Scenario: Plant into a pot planned empty
+- **WHEN** placement restriction is on, the plan has an empty flower pot, one stands there, and the player right-clicks it with a poppy
+- **THEN** the pot stays empty
 
 ### Requirement: Restriction and Easy Place
 An Easy Place click SHALL NOT be refused by placement restriction, since it places the planned block. A right-click that

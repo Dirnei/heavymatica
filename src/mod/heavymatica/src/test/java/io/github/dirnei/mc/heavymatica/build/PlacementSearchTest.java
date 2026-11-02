@@ -107,4 +107,20 @@ class PlacementSearchTest {
         }
         assertEquals(7 * (2 + 4 * 3), clicks.size());
     }
+
+    @Test
+    void theContentClickHitsAFaceTheEyeSees() {
+        Click above = PlacementSearch.visibleFace(0.5, 2.6, -1, 12, 60);
+        assertEquals(Face.UP, above.face());
+        assertEquals(1, above.hitY());
+        assertFalse(above.turned());
+        assertEquals(12, above.yaw());
+        Click side = PlacementSearch.visibleFace(0.5, 0.6, -3, 0, 0);
+        assertEquals(Face.NORTH, side.face());
+        assertEquals(0, side.hitZ());
+        assertEquals(0.5, side.hitY());
+        assertEquals(Face.EAST, PlacementSearch.visibleFace(4, 1.5, 0.5, 0, 0).face());
+        assertEquals(Face.DOWN, PlacementSearch.visibleFace(0.5, -2, 0.5, 0, 0).face());
+        assertEquals(Face.UP, PlacementSearch.visibleFace(0.5, 0.5, 0.5, 0, 0).face());
+    }
 }

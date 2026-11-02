@@ -12,6 +12,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CandleBlock;
 import net.minecraft.world.level.block.CandleCakeBlock;
 import net.minecraft.world.level.block.FlowerPotBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -31,6 +32,7 @@ public final class TwoItemBlocks {
 
     private static final Map<Block, Optional<Parts>> CACHE = new IdentityHashMap<>();
     private static @Nullable Map<Block, Block> candlesByCake;
+    private static @Nullable Map<Block, Map<Item, Block>> filledByBase;
 
     private TwoItemBlocks() {
     }
@@ -38,6 +40,33 @@ public final class TwoItemBlocks {
     /** The parts of a two-item block; null for any other block, and when the content has no item. */
     public static @Nullable Parts of(Block block) {
         return CACHE.computeIfAbsent(block, key -> Optional.ofNullable(lookup(key))).orElse(null);
+    }
+
+    /**
+     * The two-item block that using the item on a standing block makes: the block must be a base as it is first placed
+     * (an uneaten cake, an empty cauldron) and the item that base's content item. Null for any other pair.
+     */
+    public static @Nullable Block filled(BlockState standing, Item item) {
+        Block base = standing.getBlock();
+        if (standing != base.defaultBlockState()) {
+            return null;
+        }
+        Map<Item, Block> filled = filledByBase().get(base);
+        return filled == null ? null : filled.get(item);
+    }
+
+    private static Map<Block, Map<Item, Block>> filledByBase() {
+        if (filledByBase == null) {
+            Map<Block, Map<Item, Block>> map = new IdentityHashMap<>();
+            for (Block block : BuiltInRegistries.BLOCK) {
+                Parts parts = of(block);
+                if (parts != null) {
+                    map.computeIfAbsent(parts.base(), ignored -> new IdentityHashMap<>()).putIfAbsent(parts.contentItem(), block);
+                }
+            }
+            filledByBase = map;
+        }
+        return filledByBase;
     }
 
     private static @Nullable Parts lookup(Block block) {
