@@ -168,6 +168,13 @@ public final class ComparisonState {
         return old;
     }
 
+    /** Marks a cell's box for rebuilding although its state did not change, for example when another block took its place. */
+    void markBoxes(int index) {
+        int layer = sizeX * sizeZ;
+        int rest = index % layer;
+        markBoxes(rest % sizeX, index / layer, rest / sizeX);
+    }
+
     /** Marks the box sections of a cell and of its neighbours, whose shared faces may appear or disappear. */
     private void markBoxes(int x, int y, int z) {
         dirtyBoxSections.set(section(x, y, z));

@@ -2,6 +2,7 @@ package io.github.dirnei.mc.heavymatica.placement;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.systems.RenderSystem;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import io.github.dirnei.mc.heavymatica.formats.BlockStates;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.placement.CellState.Expected;
@@ -17,6 +18,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Item;
@@ -28,6 +31,8 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
@@ -55,6 +60,8 @@ public final class WorldComparison implements AutoCloseable {
     private final MaterialCounts materials;
     private final ComparisonState state;
     private final MistakeBoxes boxes;
+    /** The world block in each boxed cell by cell index, so a box follows another block taking its place in the same state. */
+    private final Int2IntOpenHashMap boxedBlocks = new Int2IntOpenHashMap();
     private final UnknownCounts unknown;
     private final CellKeys keys;
     private final int[] scratch = new int[2];
@@ -102,7 +109,8 @@ public final class WorldComparison implements AutoCloseable {
             }
         }
         this.state = new ComparisonState(view.sizeX(), view.sizeY(), view.sizeZ(), counted);
-        this.boxes = new MistakeBoxes(state);
+        this.boxes = new MistakeBoxes(state, this::foundOutline);
+        boxedBlocks.defaultReturnValue(-1);
     }
 
     /**
@@ -373,7 +381,28 @@ public final class WorldComparison implements AutoCloseable {
     void compare(int x, int y, int z, BlockState world, CellKeys keys) {
         int entry = view.paletteIndex(x, y, z, scratch);
         CellState.Found found = keys.found(world);
-        set(x, y, z, entry, CellState.classify(expected[entry], found), found.amount());
+        CellState next = CellState.classify(expected[entry], found);
+        set(x, y, z, entry, next, found.amount());
+        int index = state.index(x, y, z);
+        if (next.boxed()) {
+            int id = Block.getId(world);
+            if (boxedBlocks.put(index, id) != id) {
+                state.markBoxes(index);
+            }
+        } else {
+            boxedBlocks.remove(index);
+        }
+    }
+
+    /** The outline of the world block at a local position, or null when it fills its cell or has none. */
+    private @Nullable List<AABB> foundOutline(int x, int y, int z) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null) {
+            return null;
+        }
+        BlockPos pos = new BlockPos(bounds.minX() + x, bounds.minY() + y, bounds.minZ() + z);
+        VoxelShape shape = level.getBlockState(pos).getShape(level, pos);
+        return shape.isEmpty() || Block.isShapeFullBlock(shape) ? null : shape.toAabbs();
     }
 
     /**

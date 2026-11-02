@@ -93,14 +93,16 @@ final class GhostRenderer {
                     GpuBuffer mask = comparison.mask();
                     // The in-hand filter never matches a block the game does not know.
                     float placeholders = placement.inHand() ? 0.0F : placeholderOpacity;
+                    // Boxes go first: the ghosts' depth pass would otherwise hide every box behind a ghost block, and the
+                    // boxes should only hide behind real blocks.
+                    comparison.boxes().update();
+                    comparison.boxes().draw(event.getModelViewMatrix(), offset, layers.from(), layers.to());
                     int full = cells.draw(event.getModelViewMatrix(), offset, layers, block -> alpha.applyAsDouble(block) >= opacity ? opacity : 0.0,
                             placeholders, mask);
                     int dimmed = cells.draw(event.getModelViewMatrix(), offset, layers, block -> {
                         double value = alpha.applyAsDouble(block);
                         return value < opacity ? value : 0.0;
                     }, 0.0F, mask);
-                    comparison.boxes().update();
-                    comparison.boxes().draw(event.getModelViewMatrix(), offset, layers.from(), layers.to());
                     throughCells.add(placement.id());
                     cellsDrawn.append(" ").append(placement.name()).append(" layers ").append(layers.from()).append('-').append(layers.to())
                             .append(": ").append(full).append(" full, ").append(dimmed).append(" dimmed");

@@ -18,7 +18,7 @@ import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
  * Each ghost pipeline has a depth-only twin drawn first, so only the nearest ghost surface gets blended. The alpha
  * comes from the colour modulator. The masked variants read each vertex's cell index from its lightmap coordinates and
  * drop cells whose bit in {@code GhostMask} is clear. Mistake boxes are plain coloured quads with the same depth
- * settings, plus a twin that draws only where something nearer hides them, so they show through walls.
+ * settings, drawn before the ghosts so that only real blocks hide them.
  */
 public final class GhostPipeline {
 
@@ -58,12 +58,7 @@ public final class GhostPipeline {
 
     public static final RenderPipeline MISTAKE_BOX = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(Heavymatica.MOD_ID, "pipeline/mistake_box"))
-            .withCull(false)
-            .build();
-
-    public static final RenderPipeline MISTAKE_BOX_HIDDEN = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(Heavymatica.MOD_ID, "pipeline/mistake_box_hidden"))
-            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN, false))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
             .withCull(false)
             .build();
 
@@ -76,6 +71,5 @@ public final class GhostPipeline {
         event.registerPipeline(GHOST);
         event.registerPipeline(GHOST_MASKED);
         event.registerPipeline(MISTAKE_BOX);
-        event.registerPipeline(MISTAKE_BOX_HIDDEN);
     }
 }

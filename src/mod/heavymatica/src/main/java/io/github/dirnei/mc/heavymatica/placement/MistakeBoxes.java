@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.phys.AABB;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
@@ -27,8 +28,9 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * The coloured boxes over mistakes and blocks that need finishing of one comparison: one vertex buffer per 16-block
- * section with its quads ordered by layer, rebuilt when the scanner changes a boxed state in that section. Faces between two boxes of the same colour
- * are left out, so a large run of mistakes (terrain or water inside a placement) costs its surface, not its volume.
+ * section with its quads ordered by layer, rebuilt when the scanner changes a boxed state or the block in a boxed cell.
+ * A box follows the outline of the block found there. Faces between two full boxes of the same colour are left out, so a
+ * large run of mistakes (terrain or water inside a placement) costs its surface, not its volume.
  * Render thread only.
  */
 final class MistakeBoxes implements AutoCloseable {
@@ -40,8 +42,6 @@ final class MistakeBoxes implements AutoCloseable {
     static final int NEEDS_FINISHING_COLOR = 0x70FFF020;
 
     private static final float INFLATE = 0.005F;
-    /** How strongly boxes behind other blocks show, relative to visible ones. */
-    private static final float HIDDEN_ALPHA = 0.5F;
     private static final int INDICES_PER_QUAD = 6;
 
     /** One section's boxes; {@code layerStart[y - section min y]} is the first quad of that layer, the last entry the total. */
@@ -51,11 +51,20 @@ final class MistakeBoxes implements AutoCloseable {
     private record Draw(GpuBuffer vertices, int firstQuad, int endQuad) {
     }
 
+    /** The outline of the block found at a local position. */
+    interface CellShapes {
+
+        /** The parts of the found block's outline in cell units, or null when the block fills its cell or has no outline. */
+        @Nullable List<AABB> at(int x, int y, int z);
+    }
+
     private final ComparisonState state;
+    private final CellShapes shapes;
     private final Map<Integer, Section> sections = new HashMap<>();
 
-    MistakeBoxes(ComparisonState state) {
+    MistakeBoxes(ComparisonState state, CellShapes shapes) {
         this.state = state;
+        this.shapes = shapes;
     }
 
     static int color(CellState cell) {
@@ -116,36 +125,59 @@ final class MistakeBoxes implements AutoCloseable {
         }
     }
 
-    /** Adds the faces of one box that do not touch a box of the same state; returns how many. */
+    /**
+     * Adds one cell's box; returns how many faces. A block that fills its cell gets a cube without the faces it shares
+     * with a full neighbour of the same state; any other block gets its own outline, one box per part.
+     */
     private int box(BufferBuilder buffer, int x, int y, int z, int color, CellState cell) {
-        float x0 = x - INFLATE;
-        float y0 = y - INFLATE;
-        float z0 = z - INFLATE;
-        float x1 = x + 1 + INFLATE;
-        float y1 = y + 1 + INFLATE;
-        float z1 = z + 1 + INFLATE;
+        List<AABB> parts = shapes.at(x, y, z);
+        if (parts != null) {
+            int faces = 0;
+            for (AABB part : parts) {
+                faces += cuboid(buffer, color, (float) (x + part.minX), (float) (y + part.minY), (float) (z + part.minZ),
+                        (float) (x + part.maxX), (float) (y + part.maxY), (float) (z + part.maxZ), true, true, true, true, true, true);
+            }
+            return faces;
+        }
+        return cuboid(buffer, color, x, y, z, x + 1, y + 1, z + 1, open(x, y - 1, z, cell), open(x, y + 1, z, cell),
+                open(x, y, z - 1, cell), open(x, y, z + 1, cell), open(x - 1, y, z, cell), open(x + 1, y, z, cell));
+    }
+
+    /** Whether a full box needs its face towards this neighbour: not when the neighbour is a full box of the same state. */
+    private boolean open(int x, int y, int z, CellState cell) {
+        return state.stateOrUnknown(x, y, z) != cell || shapes.at(x, y, z) != null;
+    }
+
+    private static int cuboid(BufferBuilder buffer, int color, float minX, float minY, float minZ, float maxX, float maxY, float maxZ,
+            boolean down, boolean up, boolean north, boolean south, boolean west, boolean east) {
+        float x0 = minX - INFLATE;
+        float y0 = minY - INFLATE;
+        float z0 = minZ - INFLATE;
+        float x1 = maxX + INFLATE;
+        float y1 = maxY + INFLATE;
+        float z1 = maxZ + INFLATE;
         int faces = 0;
-        if (state.stateOrUnknown(x, y - 1, z) != cell) {
+        if (down) {
             quad(buffer, color, x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1);
             faces++;
         }
-        if (state.stateOrUnknown(x, y + 1, z) != cell) {
+        if (up) {
             quad(buffer, color, x0, y1, z0, x0, y1, z1, x1, y1, z1, x1, y1, z0);
             faces++;
         }
-        if (state.stateOrUnknown(x, y, z - 1) != cell) {
+        if (north) {
             quad(buffer, color, x0, y0, z0, x0, y1, z0, x1, y1, z0, x1, y0, z0);
             faces++;
         }
-        if (state.stateOrUnknown(x, y, z + 1) != cell) {
+        if (south) {
             quad(buffer, color, x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1);
             faces++;
         }
-        if (state.stateOrUnknown(x - 1, y, z) != cell) {
+        if (west) {
             quad(buffer, color, x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0);
             faces++;
         }
-        if (state.stateOrUnknown(x + 1, y, z) != cell) {
+        if (east) {
             quad(buffer, color, x1, y0, z0, x1, y1, z0, x1, y1, z1, x1, y0, z1);
             faces++;
         }
@@ -182,7 +214,6 @@ final class MistakeBoxes implements AutoCloseable {
         Matrix4f moved = new Matrix4f(modelView).translate(offset);
         RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
         GpuBuffer indexBuffer = indices.getBuffer(maxQuad * INDICES_PER_QUAD);
-        drawPass(GhostPipeline.MISTAKE_BOX_HIDDEN, HIDDEN_ALPHA, moved, indices, indexBuffer, draws);
         drawPass(GhostPipeline.MISTAKE_BOX, 1.0F, moved, indices, indexBuffer, draws);
     }
 
