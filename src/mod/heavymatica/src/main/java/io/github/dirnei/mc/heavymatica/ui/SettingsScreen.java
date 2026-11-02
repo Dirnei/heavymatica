@@ -335,11 +335,14 @@ public final class SettingsScreen extends GlassScreen {
         Item item = BuiltInRegistries.ITEM.getOptional(Identifier.tryParse(HeavymaticaConfig.remoteItem())).orElse(Items.AIR);
         int x = use.getX() - 92;
         Glass.box(graphics, x, y + row.height() / 2 - 10, 20, 20, 4, 0x66000000, 0x29FFFFFF);
-        if (item != Items.AIR) {
+        // Opened from the mods list on the title screen, items have no data components yet and cannot become stacks.
+        boolean stackable = item != Items.AIR && item.builtInRegistryHolder().areComponentsBound();
+        if (stackable) {
             graphics.item(item.getDefaultInstance(), x + 2, y + row.height() / 2 - 8);
         }
-        Glass.text(graphics, font, item == Items.AIR ? HeavymaticaConfig.remoteItem() : item.getName(item.getDefaultInstance()).getString(), x + 24,
-                y + row.height() / 2 - 4, GlassStyle.LABEL, 64);
+        String name = item == Items.AIR ? HeavymaticaConfig.remoteItem()
+                : Component.translatable(item.getDescriptionId()).getString();
+        Glass.text(graphics, font, name, x + 24, y + row.height() / 2 - 4, GlassStyle.LABEL, 64);
     }
 
     /** The section shown, for development checks. */
