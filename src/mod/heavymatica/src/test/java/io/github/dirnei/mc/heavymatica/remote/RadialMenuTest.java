@@ -482,7 +482,7 @@ class RadialMenuTest {
 
     @Test
     void holdReleaseOnPasteLeavesTheSubWheelOpen() {
-        RadialMenu menu = menu(Mode.HOLD, ANCHORED.with(CREATIVE));
+        RadialMenu menu = menu(Mode.HOLD, LOCKED.with(CREATIVE));
         assertEquals(Outcome.STAY, menu.release(index(menu, Entry.PASTE)));
         assertEquals(Page.PASTE, menu.page());
         assertEquals(Outcome.STAY, menu.release(0));
