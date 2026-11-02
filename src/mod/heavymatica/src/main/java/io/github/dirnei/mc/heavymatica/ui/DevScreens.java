@@ -101,6 +101,17 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code look=<yaw>,<pitch>}: turn the player's camera</li>
  *     <li>{@code command=<command>}: run a command on the singleplayer server, for example
  *     {@code item replace entity @p weapon.mainhand with minecraft:stick}</li>
+ *     <li>{@code serverCommand=<command>}: send a command (without the slash) to the server as the player; works on dedicated
+ *     servers</li>
+ *     <li>{@code anchorLocal=<name>}: start a placement of the newest local entry with that name at the player's feet, anchored
+ *     (move it with {@code alignSelected}, lock it with {@code lockSelected})</li>
+ *     <li>{@code lookAt=<x>,<y>,<z>}: turn the player's camera onto a point</li>
+ *     <li>{@code logClientBlock=<x>,<y>,<z>}: log the client world's block state at a position; works on dedicated servers</li>
+ *     <li>{@code logBuild}: log whether Easy Place and placement restriction are on, and the action bar's text;
+ *     {@code clearActionBar}: clear the action bar</li>
+ *     <li>{@code note=<text>}: log the text, to mark a script's sections in the log</li>
+ *     <li>{@code logHit}: log vanilla's hit result under the crosshair: block, face and location</li>
+ *     <li>{@code logActsOnUse=<block id>,...}: log whether placement restriction treats each block as acting when used</li>
  *     <li>{@code hotbar=<0-8>}: select a hotbar slot</li>
  *     <li>{@code press=<key mapping>}, {@code down=<key mapping>}, {@code up=<key mapping>}: press, hold or release a key
  *     mapping by name (for example {@code key.use}, {@code key.heavymatica.rotate}) through Minecraft's key handling</li>
@@ -506,6 +517,34 @@ public final class DevScreens {
                 String[] parts = argument.split(",");
                 logBlock(minecraft, new net.minecraft.core.BlockPos(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2])));
             }
+            case "serverCommand" -> minecraft.getConnection().sendCommand(argument);
+            case "anchorLocal" -> anchorLocal(argument);
+            case "lookAt" -> {
+                double[] point = Arrays.stream(argument.split(",")).mapToDouble(Double::parseDouble).toArray();
+                net.minecraft.world.phys.Vec3 eye = minecraft.player.getEyePosition();
+                double dx = point[0] - eye.x;
+                double dy = point[1] - eye.y;
+                double dz = point[2] - eye.z;
+                minecraft.player.setYRot((float) Math.toDegrees(Math.atan2(-dx, dz)));
+                minecraft.player.setXRot((float) Math.toDegrees(-Math.atan2(dy, Math.sqrt(dx * dx + dz * dz))));
+            }
+            case "logClientBlock" -> {
+                String[] parts = argument.split(",");
+                net.minecraft.core.BlockPos pos = new net.minecraft.core.BlockPos(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
+                Heavymatica.LOGGER.info("Dev block at {}: {}", pos.toShortString(), minecraft.level.getBlockState(pos));
+            }
+            case "logBuild" -> Heavymatica.LOGGER.info("Dev build: easy place {}, placement restriction {}, action bar {}", HeavymaticaConfig.easyPlace(),
+                    HeavymaticaConfig.placementRestriction(), actionBar(minecraft));
+            case "logActsOnUse" -> Arrays.stream(argument.split(",")).forEach(id -> {
+                Block block = BuiltInRegistries.BLOCK.getValue(net.minecraft.resources.Identifier.parse(id));
+                Heavymatica.LOGGER.info("Dev acts on use: {} ({}) {}", id, block.getClass().getSimpleName(),
+                        io.github.dirnei.mc.heavymatica.build.PlacementRestriction.ACTS_ON_USE.acts(block.getClass()));
+            });
+            case "note" -> Heavymatica.LOGGER.info("Dev note: {}", argument);
+            case "logHit" -> Heavymatica.LOGGER.info("Dev hit: {}", minecraft.hitResult instanceof net.minecraft.world.phys.BlockHitResult hit
+                    ? hit.getType() + " " + hit.getBlockPos().toShortString() + " " + hit.getDirection() + " " + hit.getLocation()
+                    : String.valueOf(minecraft.hitResult == null ? null : minecraft.hitResult.getType()));
+            case "clearActionBar" -> minecraft.gui.setOverlayMessage(Component.empty(), false);
             case "quit" -> minecraft.stop();
             default -> Heavymatica.LOGGER.warn("Unknown dev screen step {}", step);
         }
@@ -553,6 +592,35 @@ public final class DevScreens {
                 session.box().flatMap(CaptureBox::second).orElse(null), session.box().map(CaptureBox::secondActive).orElse(false),
                 session.box().flatMap(CaptureBox::bounds).orElse(null), session.progress().orElse(null),
                 minecraft.player == null ? -1 : minecraft.player.getInventory().getSelectedSlot());
+    }
+
+    /** Starts a placement of the newest local entry with that name at the player's feet and anchors it. */
+    private static void anchorLocal(String name) {
+        PlacementSession session = HeavymaticaClient.placements();
+        LocalLibrary local = HeavymaticaClient.library().local();
+        LocalLibrary.LocalEntry entry = local.entries().stream().filter(candidate -> candidate.name().equals(name))
+                .max(java.util.Comparator.comparing(LocalLibrary.LocalEntry::importedAt)).orElse(null);
+        if (session == null || entry == null) {
+            Heavymatica.LOGGER.warn("Dev place: no local entry {}", name);
+            return;
+        }
+        net.minecraft.core.BlockPos feet = Minecraft.getInstance().player.blockPosition();
+        Placement placement = session.start(new io.github.dirnei.mc.heavymatica.placement.PlacementSource.Local(entry.sha256()), name,
+                SchematicReader.read(local.file(entry)), RemoteInput.dimension(),
+                new io.github.dirnei.mc.heavymatica.placement.PlacementController.Target(feet.getX(), feet.getY(), feet.getZ()));
+        session.placements().update(PlacementTransform.anchor(placement));
+    }
+
+    /** The action bar's current text, read from the HUD. */
+    private static String actionBar(Minecraft minecraft) {
+        try {
+            java.lang.reflect.Field field = net.minecraft.client.gui.Gui.class.getDeclaredField("overlayMessageString");
+            field.setAccessible(true);
+            Component message = (Component) field.get(minecraft.gui);
+            return message == null ? "" : message.getString();
+        } catch (ReflectiveOperationException e) {
+            return "?";
+        }
     }
 
     private static void logLocal() {

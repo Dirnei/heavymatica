@@ -26,12 +26,14 @@ public final class RadialMenu {
     }
 
     /**
-     * The selected placement and what paste allows as the wheel opened.
+     * The selected placement, what paste allows, and the Easy Place and placement restriction settings as the wheel
+     * opened.
      *
      * @param unknownBlocks whether it has blocks the game does not know
      * @param unknownShown  whether unknown blocks are shown
      */
-    public record Selection(State state, String name, Layers.Mode layers, boolean inHand, boolean unknownBlocks, boolean unknownShown, Paste paste) {
+    public record Selection(State state, String name, Layers.Mode layers, boolean inHand, boolean unknownBlocks, boolean unknownShown, Paste paste,
+                            boolean easyPlace, boolean restriction) {
 
         public static final Selection NONE = new Selection(State.NONE, "", Layers.Mode.OFF, false);
 
@@ -43,8 +45,16 @@ public final class RadialMenu {
             this(state, name, layers, inHand, unknownBlocks, unknownShown, Paste.NONE);
         }
 
+        public Selection(State state, String name, Layers.Mode layers, boolean inHand, boolean unknownBlocks, boolean unknownShown, Paste paste) {
+            this(state, name, layers, inHand, unknownBlocks, unknownShown, paste, false, false);
+        }
+
         public Selection with(Paste paste) {
-            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste);
+            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction);
+        }
+
+        public Selection withBuild(boolean easyPlace, boolean restriction) {
+            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction);
         }
     }
 
@@ -75,6 +85,7 @@ public final class RadialMenu {
         CONFIRM_UNLOCK,
         OPACITY,
         PASTE,
+        OPTIONS,
     }
 
     public enum Entry {
@@ -85,6 +96,9 @@ public final class RadialMenu {
         REMOVE,
         UNLOCK,
         IN_HAND,
+        OPTIONS,
+        EASY_PLACE,
+        RESTRICTION,
         LAYERS,
         MATERIALS,
         PASTE,
@@ -108,8 +122,8 @@ public final class RadialMenu {
     }
 
     /**
-     * @param current whether the entry is the current setting (layer mode, in-hand filter on, opacity step, unknown
-     *                blocks shown)
+     * @param current whether the entry is the current setting (layer mode, opacity step, unknown blocks shown, or a
+     *                setting that is on)
      * @param value   the opacity of an opacity step, 0 for other entries
      */
     public record Segment(Entry entry, boolean enabled, boolean current, double value) {
@@ -127,6 +141,8 @@ public final class RadialMenu {
         UNLOCK,
         REMOVE,
         TOGGLE_IN_HAND,
+        TOGGLE_EASY_PLACE,
+        TOGGLE_RESTRICTION,
         LAYERS_OFF,
         LAYERS_FROM_TO,
         LAYERS_FOLLOW,
@@ -229,7 +245,7 @@ public final class RadialMenu {
                 case FOLLOWING -> List.of(segment(Entry.CANCEL), segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY));
                 case ANCHORED -> List.of(segment(Entry.LOCK), segment(Entry.REMOVE), segment(Entry.MATERIALS), segment(Entry.OPACITY),
                         segment(Entry.LIBRARY), segment(Entry.START_CAPTURE));
-                case LOCKED -> List.of(segment(Entry.UNLOCK), new Segment(Entry.IN_HAND, true, selection.inHand()), segment(Entry.LAYERS),
+                case LOCKED -> List.of(segment(Entry.UNLOCK), segment(Entry.OPTIONS), segment(Entry.LAYERS),
                         segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY), segment(Entry.START_CAPTURE));
             }))));
             case OPACITY -> opacity.steps().stream()
@@ -238,6 +254,8 @@ public final class RadialMenu {
             case LAYERS -> List.of(layer(Entry.LAYERS_OFF, Layers.Mode.OFF), layer(Entry.LAYERS_FROM_TO, Layers.Mode.FROM_TO),
                     layer(Entry.LAYERS_FOLLOW, Layers.Mode.FOLLOW));
             case PASTE -> List.of(segment(Entry.PASTE_REPLACE_ALL), segment(Entry.PASTE_ONLY_AIR), segment(Entry.PASTE_SKIP_AIR));
+            case OPTIONS -> List.of(new Segment(Entry.IN_HAND, true, selection.inHand()), new Segment(Entry.EASY_PLACE, true, selection.easyPlace()),
+                    new Segment(Entry.RESTRICTION, true, selection.restriction()));
             case CONFIRM_REMOVE, CONFIRM_UNLOCK -> List.of(segment(Entry.YES), segment(Entry.NO));
         };
     }
@@ -300,6 +318,7 @@ public final class RadialMenu {
             case LAYERS -> new Label("heavymatica.wheel.layers", selection.name());
             case OPACITY -> new Label("heavymatica.wheel.opacity", "");
             case PASTE -> new Label("heavymatica.wheel.paste", selection.name());
+            case OPTIONS -> new Label("heavymatica.wheel.options", "");
             case CONFIRM_REMOVE -> new Label("heavymatica.wheel.confirm.remove", selection.name());
             case CONFIRM_UNLOCK -> new Label("heavymatica.wheel.confirm.unlock", selection.name());
         };
@@ -346,6 +365,9 @@ public final class RadialMenu {
             case REMOVE -> turnTo(Page.CONFIRM_REMOVE);
             case UNLOCK -> turnTo(Page.CONFIRM_UNLOCK);
             case IN_HAND -> run(Command.TOGGLE_IN_HAND);
+            case OPTIONS -> turnTo(Page.OPTIONS);
+            case EASY_PLACE -> run(Command.TOGGLE_EASY_PLACE);
+            case RESTRICTION -> run(Command.TOGGLE_RESTRICTION);
             case LAYERS -> turnTo(Page.LAYERS);
             case MATERIALS -> run(Command.OPEN_MATERIALS);
             case PASTE -> turnTo(Page.PASTE);

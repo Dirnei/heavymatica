@@ -1,6 +1,7 @@
 package io.github.dirnei.mc.heavymatica.remote;
 
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
+import io.github.dirnei.mc.heavymatica.build.BuildInput;
 import io.github.dirnei.mc.heavymatica.capture.CaptureController;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.paste.CreativePaste;
@@ -290,7 +291,8 @@ public final class RemoteInput {
                     case LOCKED -> RadialMenu.State.LOCKED;
                 }, selected.name(), selected.layers().mode(), selected.inHand(), session.unknownBlocks(selected).any(),
                         HeavymaticaConfig.ghostShowUnknownBlocks());
-        selection = selection.with(new RadialMenu.Paste(CreativePaste.available(), paste.running(), paste.undoable()));
+        selection = selection.with(new RadialMenu.Paste(CreativePaste.available(), paste.running(), paste.undoable()))
+                .withBuild(HeavymaticaConfig.easyPlace(), HeavymaticaConfig.placementRestriction());
         RadialMenu.Capture captureState = capture.session().box()
                 .map(box -> new RadialMenu.Capture(true, capture.session().capturing() ? 0 : box.corners())).orElse(RadialMenu.Capture.OFF);
         Minecraft.getInstance().setScreen(new RadialMenuScreen(new RadialMenu(HeavymaticaConfig.wheelMode(), selection,
@@ -310,6 +312,8 @@ public final class RemoteInput {
             case LOCK -> controller.lock();
             case UNLOCK -> controller.unlock();
             case TOGGLE_IN_HAND -> controller.toggleInHand();
+            case TOGGLE_EASY_PLACE -> BuildInput.toggleEasyPlace(Minecraft.getInstance().player);
+            case TOGGLE_RESTRICTION -> BuildInput.toggleRestriction(Minecraft.getInstance().player);
             case LAYERS_OFF, LAYERS_FROM_TO, LAYERS_FOLLOW -> session.placements().selected()
                     .ifPresent(placement -> controller.setLayerMode(command.layerMode(), PlacementSession.feetLayer(placement)));
             case SET_OPACITY -> HeavymaticaConfig.setGhostOpacity(run.value());

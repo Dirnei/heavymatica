@@ -338,5 +338,18 @@
   "heavymatica.library.export.exists.title": "File already exists",
   "heavymatica.library.export.exists.message": "schematics/%s already exists.",
   "heavymatica.library.export.overwrite": "Overwrite",
-  "heavymatica.library.export.keep_both": "Keep both"
+  "heavymatica.library.export.keep_both": "Keep both",
+  "key.heavymatica.toggle_easy_place": "Toggle Easy Place",
+  "key.heavymatica.toggle_restriction": "Toggle placement restriction",
+  "heavymatica.easy_place.on": "Easy Place: on",
+  "heavymatica.easy_place.off": "Easy Place: off",
+  "heavymatica.easy_place.cant_place": "Easy Place can't place %s here",
+  "heavymatica.restriction.on": "Placement restriction: on",
+  "heavymatica.restriction.off": "Placement restriction: off",
+  "heavymatica.restriction.refused": "Placement restriction: the plan has %s here",
+  "heavymatica.restriction.refused_air": "Placement restriction: the plan has air here",
+  "heavymatica.wheel.options": "Options",
+  "heavymatica.wheel.entry.options": "Options",
+  "heavymatica.wheel.entry.easy_place": "Easy Place",
+  "heavymatica.wheel.entry.restriction": "Placement restriction"
 }

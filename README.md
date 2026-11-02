@@ -121,3 +121,8 @@ The dev client runs take a few environment variables, so screens can be checked 
 
 Example: `HEAVYMATICA_DEV_SCREEN="signin;library;wait=60;screenshot=library;quit" ./gradlew :heavymatica:runClient`
 
+For building checks, `anchorLocal=<name>`, `alignSelected=<x>,<y>,<z>` and `lockSelected` set up a locked placement from a
+local entry, `lookAt=<x>,<y>,<z>` aims the crosshair, `logClientBlock`, `logHit` and `logBuild` log the world block, vanilla's hit
+and the Easy Place / placement restriction settings with the action bar, and `serverCommand=<command>` runs a command on a
+dedicated server (with `HEAVYMATICA_QUICKPLAY`).
+

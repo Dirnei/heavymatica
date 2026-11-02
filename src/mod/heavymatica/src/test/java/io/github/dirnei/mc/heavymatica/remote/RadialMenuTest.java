@@ -45,7 +45,7 @@ class RadialMenuTest {
     void bringBackComesFirstInEveryStateAfterAFinish() {
         assertEquals(List.of(Entry.BRING_BACK, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
                 entries(new RadialMenu(Mode.HOLD, Selection.NONE, OPACITY, true)));
-        assertEquals(List.of(Entry.BRING_BACK, Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY,
+        assertEquals(List.of(Entry.BRING_BACK, Entry.UNLOCK, Entry.OPTIONS, Entry.LAYERS, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY,
                         Entry.START_CAPTURE),
                 entries(new RadialMenu(Mode.HOLD, LOCKED, OPACITY, true)));
     }
@@ -62,7 +62,7 @@ class RadialMenuTest {
         assertEquals(List.of(Entry.CANCEL, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY), entries(menu(Mode.HOLD, FOLLOWING)));
         assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
                 entries(menu(Mode.HOLD, ANCHORED)));
-        assertEquals(List.of(Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
+        assertEquals(List.of(Entry.UNLOCK, Entry.OPTIONS, Entry.LAYERS, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
                 entries(menu(Mode.HOLD, LOCKED)));
     }
 
@@ -76,7 +76,7 @@ class RadialMenuTest {
                 entries(menu(Mode.HOLD, withUnknown(FOLLOWING, true))));
         assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.MATERIALS, Entry.OPACITY, Entry.UNKNOWN_BLOCKS, Entry.LIBRARY, Entry.START_CAPTURE),
                 entries(menu(Mode.HOLD, withUnknown(ANCHORED, true))));
-        assertEquals(List.of(Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIALS, Entry.OPACITY, Entry.UNKNOWN_BLOCKS, Entry.LIBRARY,
+        assertEquals(List.of(Entry.UNLOCK, Entry.OPTIONS, Entry.LAYERS, Entry.MATERIALS, Entry.OPACITY, Entry.UNKNOWN_BLOCKS, Entry.LIBRARY,
                         Entry.START_CAPTURE),
                 entries(menu(Mode.HOLD, withUnknown(LOCKED, false))));
     }
@@ -122,10 +122,56 @@ class RadialMenuTest {
     }
 
     @Test
-    void inHandIsMarkedWhenOn() {
+    void lockedWheelHasNoInHandSegment() {
         RadialMenu menu = menu(Mode.HOLD, LOCKED);
-        assertEquals(true, menu.segments().get(index(menu, Entry.IN_HAND)).current());
-        assertEquals(false, menu.segments().get(index(menu, Entry.UNLOCK)).current());
+        assertEquals(false, entries(menu).contains(Entry.IN_HAND));
+        assertEquals(false, menu.segments().get(index(menu, Entry.OPTIONS)).current());
+    }
+
+    @Test
+    void optionsOpensTheSubWheelWithTheSettingsMarked() {
+        RadialMenu menu = menu(Mode.TOGGLE, new Selection(State.LOCKED, "Castle Gate", Layers.Mode.OFF, false).withBuild(false, true));
+        assertEquals(Outcome.STAY, menu.click(index(menu, Entry.OPTIONS)));
+        assertEquals(Page.OPTIONS, menu.page());
+        assertEquals(new Label("heavymatica.wheel.options", ""), menu.label());
+        assertEquals(List.of(new Segment(Entry.IN_HAND, true, false), new Segment(Entry.EASY_PLACE, true, false),
+                new Segment(Entry.RESTRICTION, true, true)), menu.segments());
+        RadialMenu all = menu(Mode.TOGGLE, new Selection(State.LOCKED, "Castle Gate", Layers.Mode.OFF, true).withBuild(true, false));
+        all.click(index(all, Entry.OPTIONS));
+        assertEquals(List.of(true, true, false), all.segments().stream().map(Segment::current).toList());
+    }
+
+    @Test
+    void optionsPicksToggleTheSetting() {
+        for (Entry entry : List.of(Entry.IN_HAND, Entry.EASY_PLACE, Entry.RESTRICTION)) {
+            RadialMenu menu = menu(Mode.TOGGLE, LOCKED);
+            menu.click(index(menu, Entry.OPTIONS));
+            Command expected = switch (entry) {
+                case IN_HAND -> Command.TOGGLE_IN_HAND;
+                case EASY_PLACE -> Command.TOGGLE_EASY_PLACE;
+                default -> Command.TOGGLE_RESTRICTION;
+            };
+            assertEquals(run(expected), menu.click(index(menu, entry)));
+        }
+    }
+
+    @Test
+    void optionsStaysOpenAfterTheReleaseInHoldMode() {
+        RadialMenu menu = menu(Mode.HOLD, LOCKED);
+        assertEquals(Outcome.STAY, menu.release(index(menu, Entry.OPTIONS)));
+        assertEquals(Page.OPTIONS, menu.page());
+        assertEquals(Outcome.STAY, menu.release(index(menu, Entry.EASY_PLACE)));
+        assertEquals(run(Command.TOGGLE_EASY_PLACE), menu.click(index(menu, Entry.EASY_PLACE)));
+    }
+
+    @Test
+    void optionsClosesWithoutAChange() {
+        RadialMenu escape = menu(Mode.TOGGLE, LOCKED);
+        escape.click(index(escape, Entry.OPTIONS));
+        assertEquals(Outcome.CLOSE, escape.escape());
+        RadialMenu centre = menu(Mode.TOGGLE, LOCKED);
+        centre.click(index(centre, Entry.OPTIONS));
+        assertEquals(Outcome.CLOSE, centre.click(-1));
     }
 
     @Test
@@ -197,7 +243,6 @@ class RadialMenuTest {
     @Test
     void otherLockedSegmentsRun() {
         RadialMenu menu = menu(Mode.TOGGLE, LOCKED);
-        assertEquals(run(Command.TOGGLE_IN_HAND), menu.click(index(menu, Entry.IN_HAND)));
         assertEquals(run(Command.OPEN_MATERIALS), menu.click(index(menu, Entry.MATERIALS)));
         assertEquals(run(Command.OPEN_LIBRARY), menu.click(index(menu, Entry.LIBRARY)));
     }
@@ -332,7 +377,7 @@ class RadialMenuTest {
     void pasteComesAfterMaterialsOnAnchoredAndLockedPlacementsInCreative() {
         assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.MATERIALS, Entry.PASTE, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
                 entries(menu(Mode.HOLD, ANCHORED.with(CREATIVE))));
-        assertEquals(List.of(Entry.UNLOCK, Entry.IN_HAND, Entry.LAYERS, Entry.MATERIALS, Entry.PASTE, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
+        assertEquals(List.of(Entry.UNLOCK, Entry.OPTIONS, Entry.LAYERS, Entry.MATERIALS, Entry.PASTE, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
                 entries(menu(Mode.HOLD, LOCKED.with(CREATIVE))));
     }
 

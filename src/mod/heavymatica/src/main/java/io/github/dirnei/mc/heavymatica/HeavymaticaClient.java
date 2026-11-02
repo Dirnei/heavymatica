@@ -7,6 +7,8 @@ import io.github.dirnei.mc.heavymatica.account.DevSessionJoin;
 import io.github.dirnei.mc.heavymatica.account.GameSessionJoin;
 import io.github.dirnei.mc.heavymatica.account.SessionJoin;
 import io.github.dirnei.mc.heavymatica.account.SessionStore;
+import io.github.dirnei.mc.heavymatica.build.BuildInput;
+import io.github.dirnei.mc.heavymatica.build.BuildKeys;
 import io.github.dirnei.mc.heavymatica.cache.SchematicCache;
 import io.github.dirnei.mc.heavymatica.capture.CaptureController;
 import io.github.dirnei.mc.heavymatica.capture.CaptureRenderer;
@@ -166,6 +168,7 @@ public final class HeavymaticaClient {
         event.registerCategory(CATEGORY);
         event.register(OPEN_LIBRARY);
         RemoteKeys.register(event);
+        BuildKeys.register(event);
     }
 
     private static void setup(FMLClientSetupEvent event) {
@@ -196,6 +199,7 @@ public final class HeavymaticaClient {
             paste = new CreativePaste();
             paste.register();
             new RemoteInput(placements, HeavymaticaClient::openLibrary, HeavymaticaClient::openMaterials, capture, paste).register();
+            new BuildInput(placements, targeting).register();
             new CaptureRenderer(placements.capture()).register();
             account.restore();
             library.loadStored();

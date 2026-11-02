@@ -265,6 +265,9 @@ public final class RadialMenuScreen extends Screen {
             case LOCK -> Items.IRON_BARS;
             case UNLOCK -> Items.OAK_DOOR;
             case IN_HAND -> Items.SPYGLASS;
+            case OPTIONS -> Items.COMPARATOR;
+            case EASY_PLACE -> Items.OAK_STAIRS;
+            case RESTRICTION -> Items.SHIELD;
             case LAYERS -> Items.LADDER;
             case MATERIALS -> Items.BRUSH;
             case PASTE -> Items.PISTON;

@@ -95,6 +95,16 @@ public final class HeavymaticaConfig {
                     "Sneak while picking, or turn this off, to pick the block behind the ghost as usual.")
             .define("pickBlock", true);
 
+    private static final ModConfigSpec.BooleanValue BUILD_EASY_PLACE = BUILDER
+            .pop()
+            .push("build")
+            .comment("Easy Place: right-clicking a ghost within reach with its item places the planned block with the planned orientation.")
+            .define("easyPlace", false);
+
+    private static final ModConfigSpec.BooleanValue BUILD_PLACEMENT_RESTRICTION = BUILDER
+            .comment("Placement restriction: refuse block placements that would put a wrong block into a locked placement's visible layers.")
+            .define("placementRestriction", false);
+
     public static final ModConfigSpec SPEC;
 
     public enum OverlaySide {
@@ -182,6 +192,26 @@ public final class HeavymaticaConfig {
 
     public static boolean targetingPickBlock() {
         return TARGETING_PICK_BLOCK.get();
+    }
+
+    public static boolean easyPlace() {
+        return BUILD_EASY_PLACE.get();
+    }
+
+    /** Turns Easy Place on or off and writes the config file. */
+    public static void setEasyPlace(boolean on) {
+        BUILD_EASY_PLACE.set(on);
+        BUILD_EASY_PLACE.save();
+    }
+
+    public static boolean placementRestriction() {
+        return BUILD_PLACEMENT_RESTRICTION.get();
+    }
+
+    /** Turns placement restriction on or off and writes the config file. */
+    public static void setPlacementRestriction(boolean on) {
+        BUILD_PLACEMENT_RESTRICTION.set(on);
+        BUILD_PLACEMENT_RESTRICTION.save();
     }
 
     private static boolean isItemId(Object value) {

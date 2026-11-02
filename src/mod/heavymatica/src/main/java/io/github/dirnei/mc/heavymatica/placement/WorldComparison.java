@@ -56,11 +56,13 @@ public final class WorldComparison implements AutoCloseable {
     private final ComparisonState state;
     private final MistakeBoxes boxes;
     private final UnknownCounts unknown;
+    private final CellKeys keys;
     private final int[] scratch = new int[2];
     private @Nullable GpuBuffer mask;
 
     WorldComparison(Placement placement, SchematicModel model, CellKeys keys) {
         this.placement = placement;
+        this.keys = keys;
         this.bounds = PlacementTransform.bounds(placement);
         this.view = new GhostView(model, placement.rotation(), placement.mirror(), placement.swaps());
         this.expected = new Expected[model.palette().size()];
@@ -360,6 +362,11 @@ public final class WorldComparison implements AutoCloseable {
             text.append(text.isEmpty() ? "" : ", ").append("waterlogged");
         }
         return text.toString();
+    }
+
+    /** How the comparison would judge a block at a local position inside the placement, without changing anything. */
+    public CellState judge(int x, int y, int z, BlockState block) {
+        return CellState.classify(expected[view.paletteIndex(x, y, z, scratch)], keys.found(block));
     }
 
     /** Compares one local position with the block the world holds there. */
