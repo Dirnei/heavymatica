@@ -39,7 +39,9 @@ cloud
     .WithReference(database)
     .WaitFor(database)
     .WaitFor(minio)
-    .WithEnvironment("S3__ServiceUrl", minio.GetEndpoint("http"))
+    // Browsers send every localhost cookie to every localhost port, and MinIO refuses requests whose headers grow too
+    // large (MetadataTooLarge), so presigned links name 127.0.0.1, which gets no localhost cookies.
+    .WithEnvironment("S3__ServiceUrl", ReferenceExpression.Create($"http://127.0.0.1:{minio.GetEndpoint("http").Property(EndpointProperty.Port)}"))
     .WithEnvironment("S3__AccessKey", minioUser)
     .WithEnvironment("S3__SecretKey", minioPassword)
     .WithEnvironment("S3__Bucket", "heavymatica")
