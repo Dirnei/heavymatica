@@ -2,10 +2,14 @@ package io.github.dirnei.mc.heavymatica.targeting;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.dirnei.mc.heavymatica.placement.BlockEquivalents.Finish;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
 import io.github.dirnei.mc.heavymatica.targeting.TargetLines.StateLine;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -71,5 +75,36 @@ class TargetLinesTest {
     @EnumSource(value = CellState.class, names = {"MATCHING", "IGNORED"})
     void noLineForStatesThatAreNeverTargets(CellState state) {
         assertNull(TargetLines.state(state, null, false));
+    }
+
+    @Test
+    void gateToOpenIsOrange() {
+        assertEquals(new StateLine("heavymatica.target.open_it", TargetLines.ORANGE), TargetLines.openState(true));
+    }
+
+    @Test
+    void doorToCloseIsOrange() {
+        assertEquals(new StateLine("heavymatica.target.close_it", TargetLines.ORANGE), TargetLines.openState(false));
+    }
+
+    @Test
+    void chestWaitingForItsOtherHalfIsPlainLikeNotEnoughYet() {
+        assertEquals(new StateLine("heavymatica.target.other_half", TargetLines.TEXT), TargetLines.otherHalf());
+    }
+
+    @Test
+    void chestThatShouldStaySingleNamesTheFoundOrientation() {
+        assertEquals(new StateLine("heavymatica.target.wrong_orientation", TargetLines.ORANGE),
+                TargetLines.state(CellState.WRONG_ORIENTATION, null, false));
+    }
+
+    @Test
+    void newLinesAreTranslated() throws IOException {
+        try (InputStream in = TargetLinesTest.class.getClassLoader().getResourceAsStream("assets/heavymatica/lang/en_us.json")) {
+            String json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            for (StateLine line : new StateLine[] {TargetLines.openState(true), TargetLines.openState(false), TargetLines.otherHalf()}) {
+                assertTrue(json.contains("\"" + line.key() + "\""), line.key());
+            }
+        }
     }
 }

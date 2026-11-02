@@ -150,4 +150,18 @@ class PlacementRestrictionTest {
         assertTrue(refused(plannedPoppy, Found.block(pottedDandelion, 0, false).withState(303, pot)));
         assertTrue(refused(Expected.block(pot, 0, false), Found.block(pottedPoppy, 0, false).withState(302, pot)));
     }
+
+    private static final int CHEST = 90;
+    private static final int CHEST_SINGLE = 91;
+    private static final int CHEST_LEFT = 92;
+
+    @Test
+    void aChestThatWouldConnectWhereSingleIsPlannedIsRefused() {
+        assertTrue(refused(Expected.block(CHEST, CHEST_SINGLE, false), Found.block(CHEST, CHEST_LEFT, false)));
+    }
+
+    @Test
+    void theFirstHalfOfADoubleChestIsAllowed() {
+        assertFalse(refused(Expected.block(CHEST, CHEST_LEFT, false).withAlone(CHEST_SINGLE), Found.block(CHEST, CHEST_SINGLE, false)));
+    }
 }

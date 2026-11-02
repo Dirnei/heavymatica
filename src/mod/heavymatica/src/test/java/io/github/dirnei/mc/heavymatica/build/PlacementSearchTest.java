@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.dirnei.mc.heavymatica.build.PlacementSearch.Click;
 import io.github.dirnei.mc.heavymatica.build.PlacementSearch.Face;
 import io.github.dirnei.mc.heavymatica.build.PlacementSearch.Found;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
@@ -122,5 +123,19 @@ class PlacementSearchTest {
         assertEquals(Face.EAST, PlacementSearch.visibleFace(4, 1.5, 0.5, 0, 0).face());
         assertEquals(Face.DOWN, PlacementSearch.visibleFace(0.5, -2, 0.5, 0, 0).face());
         assertEquals(Face.UP, PlacementSearch.visibleFace(0.5, 0.5, 0.5, 0, 0).face());
+    }
+
+    @Test
+    void sneakingClicksComeAfterEveryOtherClick() {
+        List<Click> plain = PlacementSearch.candidates(0, 0);
+        List<Click> all = PlacementSearch.withSneaking(plain);
+        List<Click> tried = new ArrayList<>();
+        Found<String> found = PlacementSearch.search(all, click -> {
+            tried.add(click);
+            return click.sneaking() ? "single" : "connected";
+        }, "single"::equals);
+        assertTrue(found.click().sneaking());
+        assertEquals(plain.size() + 1, tried.size());
+        assertTrue(tried.subList(0, plain.size()).stream().noneMatch(Click::sneaking));
     }
 }

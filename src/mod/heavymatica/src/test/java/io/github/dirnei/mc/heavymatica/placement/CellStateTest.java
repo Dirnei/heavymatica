@@ -345,4 +345,60 @@ class CellStateTest {
     void plannedPottedPlantInPlaceMatches() {
         assertEquals(CellState.MATCHING, CellState.classify(twoItem(POTTED_DEAD_BUSH, FLOWER_POT_STATE), inWorld(POTTED_DEAD_BUSH, 510, FLOWER_POT)));
     }
+
+    private static final int OAK_FENCE_GATE = 50;
+    private static final int CHEST = 51;
+    private static final int GATE_CLOSED = 60;
+    private static final int GATE_OPEN = 61;
+    private static final int CHEST_SINGLE_NORTH = 70;
+    private static final int CHEST_LEFT_NORTH = 71;
+    private static final int CHEST_RIGHT_NORTH = 72;
+    private static final int CHEST_SINGLE_EAST = 73;
+
+    private static Expected chestHalf(int orientation) {
+        return Expected.block(CHEST, orientation, false).withAlone(CHEST_SINGLE_NORTH);
+    }
+
+    @Test
+    void gateOpenedAfterPlacingIsWrongOrientation() {
+        assertEquals(CellState.WRONG_ORIENTATION, CellState.classify(Expected.block(OAK_FENCE_GATE, GATE_CLOSED, false),
+                Found.block(OAK_FENCE_GATE, GATE_OPEN, false)));
+    }
+
+    @Test
+    void trapdoorLeftClosedIsWrongOrientation() {
+        assertEquals(CellState.WRONG_ORIENTATION, CellState.classify(Expected.block(OAK_FENCE_GATE, GATE_OPEN, false),
+                Found.block(OAK_FENCE_GATE, GATE_CLOSED, false)));
+    }
+
+    @Test
+    void mergedSingleChestIsWrongOrientation() {
+        assertEquals(CellState.WRONG_ORIENTATION, CellState.classify(Expected.block(CHEST, CHEST_SINGLE_NORTH, false),
+                Found.block(CHEST, CHEST_LEFT_NORTH, false)));
+    }
+
+    @Test
+    void swappedChestHalvesAreWrongOrientation() {
+        assertEquals(CellState.WRONG_ORIENTATION, CellState.classify(chestHalf(CHEST_LEFT_NORTH), Found.block(CHEST, CHEST_RIGHT_NORTH, false)));
+    }
+
+    @Test
+    void singleChestUnderAPlannedHalfIsNotEnoughYet() {
+        assertEquals(CellState.INCOMPLETE, CellState.classify(chestHalf(CHEST_LEFT_NORTH), Found.block(CHEST, CHEST_SINGLE_NORTH, false)));
+    }
+
+    @Test
+    void connectedChestHalfMatches() {
+        assertEquals(CellState.MATCHING, CellState.classify(chestHalf(CHEST_LEFT_NORTH), Found.block(CHEST, CHEST_LEFT_NORTH, false)));
+    }
+
+    @Test
+    void singleChestFacingElsewhereIsWrongOrientation() {
+        assertEquals(CellState.WRONG_ORIENTATION, CellState.classify(chestHalf(CHEST_LEFT_NORTH), Found.block(CHEST, CHEST_SINGLE_EAST, false)));
+    }
+
+    @Test
+    void singleChestOfAnotherBlockIsWrongBlock() {
+        assertEquals(CellState.WRONG_BLOCK, CellState.classify(chestHalf(CHEST_LEFT_NORTH), Found.block(OAK_PLANKS, CHEST_SINGLE_NORTH, false)));
+    }
 }

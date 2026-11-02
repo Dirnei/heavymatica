@@ -265,4 +265,9 @@ class MaterialCountsTest {
         assertArrayEquals(new int[] {0}, counts.sum(0, 0).needed());
         assertArrayEquals(new int[] {3}, counts.sum(0, 0).planned());
     }
+
+    @Test
+    void singleChestUnderAPlannedHalfNeedsNoMoreChests() {
+        assertEquals(0, Demand.planned(0, 1).amountFor(CellState.INCOMPLETE, 1));
+    }
 }

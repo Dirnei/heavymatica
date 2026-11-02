@@ -41,9 +41,14 @@ public final class PlacementSearch {
      * A click on the target position.
      *
      * @param hitX   where on the block it lands, 0 to 1 from the block's minimum corner
-     * @param turned true when the rotation differs from the player's own, so it has to be sent first
+     * @param turned   true when the rotation differs from the player's own, so it has to be sent first
+     * @param sneaking true when the click is made while sneaking, which the player does not do
      */
-    public record Click(Face face, double hitX, double hitY, double hitZ, float yaw, float pitch, boolean turned) {
+    public record Click(Face face, double hitX, double hitY, double hitZ, float yaw, float pitch, boolean turned, boolean sneaking) {
+
+        Click sneaked() {
+            return new Click(face, hitX, hitY, hitZ, yaw, pitch, turned, true);
+        }
     }
 
     /** A winning click and the state it places. */
@@ -77,15 +82,22 @@ public final class PlacementSearch {
                 double x = 0.5 + face.x * 0.5;
                 double z = 0.5 + face.z * 0.5;
                 if (!face.horizontal()) {
-                    clicks.add(new Click(face, x, face.y > 0 ? 1 : 0, z, yaw, pitch, turned));
+                    clicks.add(new Click(face, x, face.y > 0 ? 1 : 0, z, yaw, pitch, turned, false));
                     continue;
                 }
                 for (double y : new double[] {0.5, 1 - EDGE, EDGE}) {
-                    clicks.add(new Click(face, x, y, z, yaw, pitch, turned));
+                    clicks.add(new Click(face, x, y, z, yaw, pitch, turned, false));
                 }
             }
         }
         return clicks;
+    }
+
+    /** The clicks, then each of them again made while sneaking. */
+    public static List<Click> withSneaking(List<Click> clicks) {
+        List<Click> all = new ArrayList<>(clicks);
+        clicks.forEach(click -> all.add(click.sneaked()));
+        return all;
     }
 
     /**
@@ -107,7 +119,7 @@ public final class PlacementSearch {
         if (bestDistance <= 0) {
             best = Face.UP;
         }
-        return new Click(best, 0.5 + best.x * 0.5, 0.5 + best.y * 0.5, 0.5 + best.z * 0.5, yaw, pitch, false);
+        return new Click(best, 0.5 + best.x * 0.5, 0.5 + best.y * 0.5, 0.5 + best.z * 0.5, yaw, pitch, false, false);
     }
 
     /**

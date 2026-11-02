@@ -7,6 +7,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -24,20 +25,31 @@ public final class VanillaPlacement {
     private VanillaPlacement() {
     }
 
-    /** The first click at the target that makes the held block item place an accepted state, or null. */
+    /**
+     * The first click at the target that makes the held block item place an accepted state, or null. Clicks made while
+     * sneaking are tried only after every other click, such as for a chest that must not connect to its neighbour.
+     */
     public static @Nullable Found<BlockState> find(LocalPlayer player, InteractionHand hand, BlockPos target, Predicate<BlockState> accept) {
         float yaw = player.getYRot();
         float pitch = player.getXRot();
+        Input input = player.input.keyPresses;
         try {
-            return PlacementSearch.search(PlacementSearch.candidates(yaw, pitch), click -> {
+            return PlacementSearch.search(PlacementSearch.withSneaking(PlacementSearch.candidates(yaw, pitch)), click -> {
                 player.setYRot(click.yaw());
                 player.setXRot(click.pitch());
+                player.input.keyPresses = sneaking(input, click.sneaking());
                 return placed(player, hand, hit(target, click), target);
             }, accept);
         } finally {
             player.setYRot(yaw);
             player.setXRot(pitch);
+            player.input.keyPresses = input;
         }
+    }
+
+    /** The input with its sneak key set as given; the client player reads sneaking from it. */
+    public static Input sneaking(Input input, boolean shift) {
+        return new Input(input.forward(), input.backward(), input.left(), input.right(), input.jump(), shift, input.sprint());
     }
 
     /** The click as the game's hit result. */

@@ -15,8 +15,12 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.FenceGateBlock;
+import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.block.state.properties.SlabType;
@@ -30,7 +34,10 @@ import org.jetbrains.annotations.Nullable;
  */
 final class CellKeys {
 
-    /** Properties set by how a block is placed; anything else (connections, power, age, stair shape) is ignored. */
+    /**
+     * Properties set by how a block is placed, plus a chest's type; anything else (connections, power, age, stair shape)
+     * is ignored. A door's, trapdoor's or fence gate's open state counts too, see {@link #countsOpen}.
+     */
     static final List<Property<?>> ORIENTATION = List.of(
             BlockStateProperties.FACING,
             BlockStateProperties.HORIZONTAL_FACING,
@@ -43,10 +50,12 @@ final class CellKeys {
             BlockStateProperties.DOUBLE_BLOCK_HALF,
             BlockStateProperties.DOOR_HINGE,
             BlockStateProperties.ATTACH_FACE,
-            BlockStateProperties.ORIENTATION);
+            BlockStateProperties.ORIENTATION,
+            BlockStateProperties.CHEST_TYPE);
 
-    /** The properties shown to the player for a block: the orientation and the slab type. */
-    static final List<Property<?>> SHOWN = Stream.concat(ORIENTATION.stream(), Stream.of(BlockStateProperties.SLAB_TYPE)).toList();
+    /** The properties shown to the player for a block: the orientation, the open state and the slab type. */
+    static final List<Property<?>> SHOWN = Stream.concat(ORIENTATION.stream(), Stream.of(BlockStateProperties.OPEN, BlockStateProperties.SLAB_TYPE))
+            .toList();
 
     private static final List<IntegerProperty> AMOUNTS = List.of(BlockStateProperties.CANDLES, BlockStateProperties.PICKLES, BlockStateProperties.LAYERS);
 
@@ -76,7 +85,26 @@ final class CellKeys {
         TwoItemBlocks.Parts parts = TwoItemBlocks.of(resolved.getBlock());
         return Expected.block(block(resolved), orientation(resolved), waterlogged(resolved), ids(equivalence.same()), ids(equivalence.finishFrom()),
                 equivalence.finish() == null ? -1 : equivalence.finish().ordinal()).withAmount(amount(resolved), half(resolved))
-                .withBase(parts == null ? -1 : Block.getId(parts.base().defaultBlockState()));
+                .withBase(parts == null ? -1 : Block.getId(parts.base().defaultBlockState()))
+                .withAlone(chestHalf(resolved) ? orientation(resolved.setValue(BlockStateProperties.CHEST_TYPE, ChestType.SINGLE)) : -1);
+    }
+
+    static boolean chestHalf(BlockState state) {
+        return state.hasProperty(BlockStateProperties.CHEST_TYPE) && state.getValue(BlockStateProperties.CHEST_TYPE) != ChestType.SINGLE;
+    }
+
+    /** A barrel's open state flips while a player looks inside, so only doors, trapdoors and fence gates count it. */
+    static boolean countsOpen(BlockState state) {
+        Block block = state.getBlock();
+        return state.hasProperty(BlockStateProperties.OPEN) && (block instanceof DoorBlock || block instanceof TrapDoorBlock || block instanceof FenceGateBlock);
+    }
+
+    /** The state with its open value taken from {@code planned}, when both count an open state; otherwise the state itself. */
+    static BlockState withPlannedOpen(BlockState state, BlockState planned) {
+        if (!countsOpen(state) || !countsOpen(planned)) {
+            return state;
+        }
+        return state.setValue(BlockStateProperties.OPEN, planned.getValue(BlockStateProperties.OPEN));
     }
 
     /**
@@ -145,6 +173,10 @@ final class CellKeys {
                 values.add(property);
                 values.add(state.getValue(property));
             }
+        }
+        if (countsOpen(state)) {
+            values.add(BlockStateProperties.OPEN);
+            values.add(state.getValue(BlockStateProperties.OPEN));
         }
         return orientations.computeIfAbsent(values, key -> orientations.size());
     }

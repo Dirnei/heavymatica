@@ -12,6 +12,7 @@ import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Relative;
 import io.github.dirnei.mc.heavymatica.placement.Placements;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -57,10 +58,20 @@ public final class RemoteInput {
     }
 
     public void register() {
+        RemoteKeys.lockedSelected(this::lockedSelected);
         NeoForge.EVENT_BUS.addListener(this::interaction);
         NeoForge.EVENT_BUS.addListener(this::scroll);
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Pre event) -> claimSharedKeys());
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> tick());
+    }
+
+    private boolean lockedSelected() {
+        return session.placements().selected().map(Placement::locked).orElse(false);
+    }
+
+    private boolean layerKeysWithoutRemote(Minecraft minecraft) {
+        return minecraft.player != null
+                && LayerKeyRules.withoutRemote(minecraft.screen != null, Remotes.held(), lockedSelected(), capture.session().on());
     }
 
     /** The current dimension's ID, or an empty string outside a world. */
@@ -117,18 +128,23 @@ public final class RemoteInput {
 
     /**
      * While the remote is held its keys win: presses of other bindings on the same key (L is vanilla's advancements key)
-     * are dropped before vanilla handles them.
+     * are dropped before vanilla handles them. Without the remote on a locked placement, only the layer keys win.
      */
-    private static void claimSharedKeys() {
+    private void claimSharedKeys() {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player == null || minecraft.screen != null || !Remotes.held()) {
+        List<KeyMapping> claimed;
+        if (minecraft.player != null && minecraft.screen == null && Remotes.held()) {
+            claimed = RemoteKeys.ALL;
+        } else if (layerKeysWithoutRemote(minecraft)) {
+            claimed = RemoteKeys.LAYER;
+        } else {
             return;
         }
         for (KeyMapping other : minecraft.options.keyMappings) {
             if (RemoteKeys.ALL.contains(other) || other.isUnbound()) {
                 continue;
             }
-            for (KeyMapping mine : RemoteKeys.ALL) {
+            for (KeyMapping mine : claimed) {
                 if (mine.getKey().equals(other.getKey())) {
                     while (other.consumeClick()) {
                         // Dropped: the remote's binding handles this key.
@@ -164,6 +180,10 @@ public final class RemoteInput {
         capture.tick();
         if (!minecraft.options.keyUse.isDown()) {
             useHandled = false;
+        }
+        if (layerKeysWithoutRemote(minecraft)) {
+            layerKeysWithoutRemote(minecraft.player);
+            return;
         }
         if (minecraft.player == null || minecraft.screen != null || !Remotes.held()) {
             RemoteKeys.ALL.forEach(key -> {
@@ -262,10 +282,28 @@ public final class RemoteInput {
     }
 
     /**
-     * On a locked placement up / down and numpad + / - work on its layers; left / right, rotate, mirror and remove do
-     * nothing.
+     * Without the remote on a locked placement only the layer keys act, and the action bar shows a change since the
+     * overlay is hidden; every other remote key is dropped.
      */
-    private void layerKeys(PlacementController controller, int feetLayer, boolean shift) {
+    private void layerKeysWithoutRemote(LocalPlayer player) {
+        for (KeyMapping key : RemoteKeys.ALL) {
+            if (!RemoteKeys.LAYER.contains(key)) {
+                while (key.consumeClick()) {
+                    // Only the layer keys act without the remote.
+                }
+            }
+        }
+        Placement selected = session.placements().selected().orElse(null);
+        if (selected == null) {
+            return;
+        }
+        layerChanges(session.controller(), PlacementSession.feetLayer(selected), shift(Minecraft.getInstance()));
+        session.placements().selected().filter(placement -> !placement.layers().equals(selected.layers()))
+                .ifPresent(placement -> player.sendOverlayMessage(PlacementOverlay.layersText(placement)));
+    }
+
+    /** Up / down move the from-to window, numpad + / - resize it or change the follow offset, and the cycle key steps the setting. */
+    private void layerChanges(PlacementController controller, int feetLayer, boolean shift) {
         repeating(RemoteKeys.MOVE_FORWARD, () -> controller.moveWindow(1));
         repeating(RemoteKeys.MOVE_BACK, () -> controller.moveWindow(-1));
         repeating(RemoteKeys.MOVE_UP, () -> controller.resizeWindow(1));
@@ -273,6 +311,14 @@ public final class RemoteInput {
         while (RemoteKeys.CYCLE_LAYERS.consumeClick()) {
             controller.cycleLayers(shift ? -1 : 1, feetLayer);
         }
+    }
+
+    /**
+     * On a locked placement up / down and numpad + / - work on its layers; left / right, rotate, mirror and remove do
+     * nothing.
+     */
+    private void layerKeys(PlacementController controller, int feetLayer, boolean shift) {
+        layerChanges(controller, feetLayer, shift);
         while (RemoteKeys.IN_HAND.consumeClick()) {
             controller.toggleInHand();
         }

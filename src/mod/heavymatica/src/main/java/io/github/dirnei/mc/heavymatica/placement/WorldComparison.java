@@ -28,6 +28,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -375,6 +376,35 @@ public final class WorldComparison implements AutoCloseable {
     /** How the comparison would judge a block at a local position inside the placement, without changing anything. */
     public CellState judge(int x, int y, int z, BlockState block) {
         return CellState.classify(expected[view.paletteIndex(x, y, z, scratch)], keys.found(block));
+    }
+
+    /**
+     * How the comparison would judge a block a click places at a local position inside the placement, leaving out its
+     * open state: opening or closing a door, trapdoor or fence gate is left to the player.
+     */
+    public CellState judgePlaced(int x, int y, int z, BlockState block) {
+        return judge(x, y, z, CellKeys.withPlannedOpen(block, plannedAt(x, y, z)));
+    }
+
+    /** True when {@code found} is a single chest where {@code planned} is one half of a double chest. */
+    public static boolean waitsForOtherHalf(BlockState planned, BlockState found) {
+        return CellKeys.chestHalf(planned) && found.hasProperty(BlockStateProperties.CHEST_TYPE)
+                && found.getValue(BlockStateProperties.CHEST_TYPE) == ChestType.SINGLE;
+    }
+
+    /**
+     * The open state to set when {@code found} differs from {@code planned} only in it, for a door, trapdoor or fence
+     * gate; null otherwise.
+     */
+    public static @Nullable Boolean openToSet(BlockState planned, BlockState found) {
+        if (!CellKeys.countsOpen(planned) || !CellKeys.countsOpen(found)) {
+            return null;
+        }
+        boolean open = planned.getValue(BlockStateProperties.OPEN);
+        if (found.getValue(BlockStateProperties.OPEN) == open || !details(CellKeys.withPlannedOpen(found, planned)).equals(details(planned))) {
+            return null;
+        }
+        return open;
     }
 
     /** Compares one local position with the block the world holds there. */

@@ -8,9 +8,13 @@ import org.jetbrains.annotations.Nullable;
 /** The decisions of Easy Place and placement restriction, free of the game. */
 public final class BuildRules {
 
-    /** What the player and the ghost under the crosshair look like as a right-click starts. */
+    /**
+     * What the player and the ghost under the crosshair look like as a right-click starts.
+     *
+     * @param waitsForOtherHalf true when the target is a single chest where one half of a double chest is planned
+     */
     public record EasyPlaceClick(boolean on, boolean screenOpen, boolean sneaking, boolean spectator, boolean remoteHeld,
-                                 @Nullable CellState target, boolean inReach, boolean heldIsCandidate) {
+                                 @Nullable CellState target, boolean inReach, boolean heldIsCandidate, boolean waitsForOtherHalf) {
     }
 
     /** A locked placement in the player's dimension with the position inside it, and whether its layers show it. */
@@ -22,11 +26,13 @@ public final class BuildRules {
 
     /**
      * True for an Easy Place click: Easy Place on, no screen, neither sneaking nor a spectator, no remote held, and a
-     * missing or not-enough-yet ghost within reach whose candidate items include the held one.
+     * missing or not-enough-yet ghost within reach whose candidate items include the held one. A single chest waiting
+     * for its other half is no target: the chest a click places there lands beside it.
      */
     public static boolean easyPlaces(EasyPlaceClick click) {
         return click.on() && !click.screenOpen() && !click.sneaking() && !click.spectator() && !click.remoteHeld()
-                && (click.target() == CellState.MISSING || click.target() == CellState.INCOMPLETE) && click.inReach() && click.heldIsCandidate();
+                && (click.target() == CellState.MISSING || click.target() == CellState.INCOMPLETE) && click.inReach() && click.heldIsCandidate()
+                && !click.waitsForOtherHalf();
     }
 
     /**

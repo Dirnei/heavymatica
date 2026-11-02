@@ -158,7 +158,15 @@ public final class TargetHud {
             return null;
         }
         Component text;
-        if (target.state() == CellState.WRONG_BLOCK && target.found() != null) {
+        Boolean openToSet = target.state() == CellState.WRONG_ORIENTATION && target.found() != null
+                ? WorldComparison.openToSet(target.planned(), target.found()) : null;
+        if (openToSet != null) {
+            line = TargetLines.openState(openToSet);
+            text = Component.translatable(line.key());
+        } else if (target.state() == CellState.INCOMPLETE && target.found() != null && WorldComparison.waitsForOtherHalf(target.planned(), target.found())) {
+            line = TargetLines.otherHalf();
+            text = Component.translatable(line.key());
+        } else if (target.state() == CellState.WRONG_BLOCK && target.found() != null) {
             text = Component.translatable(line.key(), target.found().getBlock().getName());
         } else if (target.state() == CellState.WRONG_ORIENTATION && target.found() != null) {
             text = Component.translatable(line.key(), WorldComparison.details(target.found()));

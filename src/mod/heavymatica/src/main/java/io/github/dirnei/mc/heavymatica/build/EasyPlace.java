@@ -15,8 +15,10 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -58,7 +60,8 @@ public final class EasyPlace {
         ItemStack held = player.getMainHandItem();
         boolean candidate = comparison != null && target.plannedIndex() >= 0 && candidate(comparison, target.plannedIndex(), held);
         BuildRules.EasyPlaceClick click = new BuildRules.EasyPlaceClick(true, minecraft.screen != null, player.isShiftKeyDown(), player.isSpectator(),
-                Remotes.isRemote(held), target == null ? null : target.state(), target != null && target.inReach(), candidate);
+                Remotes.isRemote(held), target == null ? null : target.state(), target != null && target.inReach(), candidate,
+                target != null && target.found() != null && WorldComparison.waitsForOtherHalf(target.planned(), target.found()));
         if (!BuildRules.easyPlaces(click)) {
             return Outcome.NOT_OURS;
         }
@@ -67,14 +70,14 @@ public final class EasyPlace {
         int y = target.pos().getY() - bounds.minY();
         int z = target.pos().getZ() - bounds.minZ();
         Block filled = target.found() == null ? null : TwoItemBlocks.filled(target.found(), held.getItem());
-        if (BuildRules.easyPlaceAddsContent(target.state(), filled == null ? null : comparison.judge(x, y, z, filled.defaultBlockState()))) {
+        if (BuildRules.easyPlaceAddsContent(target.state(), filled == null ? null : comparison.judgePlaced(x, y, z, filled.defaultBlockState()))) {
             Vec3 eye = player.getEyePosition();
             Click face = PlacementSearch.visibleFace(eye.x - target.pos().getX(), eye.y - target.pos().getY(), eye.z - target.pos().getZ(),
                     player.getYRot(), player.getXRot());
             return outcome(send(minecraft, player, face, target));
         }
         Found<BlockState> found = VanillaPlacement.find(player, InteractionHand.MAIN_HAND, target.pos(),
-                state -> BuildRules.easyPlaceAccepts(comparison.judge(x, y, z, state)));
+                state -> BuildRules.easyPlaceAccepts(comparison.judgePlaced(x, y, z, state)));
         if (found == null) {
             player.sendOverlayMessage(Component.translatable("heavymatica.easy_place.cant_place", target.planned().getBlock().getName()));
             return Outcome.CANT_PLACE;
@@ -101,12 +104,18 @@ public final class EasyPlace {
 
     /**
      * Rotation, click, real rotation. The client player has the click's rotation during the click so the client's own
-     * prediction places the same state, and gets its own back before the next frame, so the camera never moves.
+     * prediction places the same state, and gets its own back before the next frame, so the camera never moves. A
+     * sneaking click is wrapped the same way in a sneaking input and the real one.
      */
     private static InteractionResult send(Minecraft minecraft, LocalPlayer player, Click click, GhostTarget target) {
         ClientPacketListener connection = minecraft.getConnection();
         float yaw = player.getYRot();
         float pitch = player.getXRot();
+        Input input = player.input.keyPresses;
+        if (click.sneaking()) {
+            player.input.keyPresses = VanillaPlacement.sneaking(input, true);
+            connection.send(new ServerboundPlayerInputPacket(player.input.keyPresses));
+        }
         if (click.turned()) {
             connection.send(new ServerboundMovePlayerPacket.Rot(click.yaw(), click.pitch(), player.onGround(), player.horizontalCollision));
             player.setYRot(click.yaw());
@@ -119,6 +128,10 @@ public final class EasyPlace {
                 player.setYRot(yaw);
                 player.setXRot(pitch);
                 connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
+            }
+            if (click.sneaking()) {
+                player.input.keyPresses = input;
+                connection.send(new ServerboundPlayerInputPacket(player.getLastSentInput()));
             }
         }
     }

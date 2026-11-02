@@ -17,7 +17,10 @@ public enum CellState {
     EXTRA,
     /** A block that becomes the planned one after a finishing step, such as dirt under a planned dirt path. */
     NEEDS_FINISHING,
-    /** The planned block in its orientation with fewer candles, pickles, layers or slabs than planned, or a two-item block's empty base. */
+    /**
+     * The planned block in its orientation with fewer candles, pickles, layers or slabs than planned, a two-item block's
+     * empty base, or a single chest where one half of a double chest is planned.
+     */
     INCOMPLETE,
     /** The planned block in its orientation, with more candles, pickles, layers or slabs than planned. */
     TOO_MANY,
@@ -64,9 +67,10 @@ public enum CellState {
      * @param amount      candles, pickles, layers or slabs; 1 for blocks without an amount
      * @param half        which half a single slab fills, 1 bottom or 2 top; 0 for a double slab and other blocks
      * @param base        the state of a two-item block's empty base that takes its content, -1 for other blocks
+     * @param alone       for one half of a double chest, the orientation of the same chest standing single; -1 otherwise
      */
     public record Expected(Kind kind, int block, int orientation, boolean waterlogged, int[] same, int[] finishFrom, int finish, int amount,
-                           int half, int base) {
+                           int half, int base, int alone) {
 
         public enum Kind {
             IGNORED,
@@ -77,24 +81,28 @@ public enum CellState {
 
         private static final int[] NONE = {};
 
-        public static final Expected IGNORE = new Expected(Kind.IGNORED, 0, 0, false, NONE, NONE, -1, 1, 0, -1);
-        public static final Expected AIR = new Expected(Kind.AIR, 0, 0, false, NONE, NONE, -1, 1, 0, -1);
-        public static final Expected CANT_CHECK = new Expected(Kind.CANT_CHECK, 0, 0, false, NONE, NONE, -1, 1, 0, -1);
+        public static final Expected IGNORE = new Expected(Kind.IGNORED, 0, 0, false, NONE, NONE, -1, 1, 0, -1, -1);
+        public static final Expected AIR = new Expected(Kind.AIR, 0, 0, false, NONE, NONE, -1, 1, 0, -1, -1);
+        public static final Expected CANT_CHECK = new Expected(Kind.CANT_CHECK, 0, 0, false, NONE, NONE, -1, 1, 0, -1, -1);
 
         public static Expected block(int block, int orientation, boolean waterlogged) {
             return block(block, orientation, waterlogged, NONE, NONE, -1);
         }
 
         public static Expected block(int block, int orientation, boolean waterlogged, int[] same, int[] finishFrom, int finish) {
-            return new Expected(Kind.BLOCK, block, orientation, waterlogged, same, finishFrom, finish, 1, 0, -1);
+            return new Expected(Kind.BLOCK, block, orientation, waterlogged, same, finishFrom, finish, 1, 0, -1, -1);
         }
 
         public Expected withAmount(int amount, int half) {
-            return new Expected(kind, block, orientation, waterlogged, same, finishFrom, finish, amount, half, base);
+            return new Expected(kind, block, orientation, waterlogged, same, finishFrom, finish, amount, half, base, alone);
         }
 
         public Expected withBase(int base) {
-            return new Expected(kind, block, orientation, waterlogged, same, finishFrom, finish, amount, half, base);
+            return new Expected(kind, block, orientation, waterlogged, same, finishFrom, finish, amount, half, base, alone);
+        }
+
+        public Expected withAlone(int alone) {
+            return new Expected(kind, block, orientation, waterlogged, same, finishFrom, finish, amount, half, base, alone);
         }
 
         /** True when the position counts toward progress. */
@@ -149,6 +157,9 @@ public enum CellState {
                     done = NEEDS_FINISHING;
                 } else {
                     yield WRONG_BLOCK;
+                }
+                if (expected.alone() >= 0 && found.orientation() == expected.alone()) {
+                    yield INCOMPLETE;
                 }
                 if (found.orientation() != expected.orientation() || found.half() != 0 && expected.half() != 0 && found.half() != expected.half()) {
                     yield WRONG_ORIENTATION;

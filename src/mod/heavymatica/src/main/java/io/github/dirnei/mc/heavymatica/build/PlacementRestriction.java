@@ -67,7 +67,7 @@ public final class PlacementRestriction {
         }
         Local local = deciding.value();
         WorldComparison comparison = local.comparison();
-        CellState judged = comparison.judge(local.x(), local.y(), local.z(), placed.state());
+        CellState judged = comparison.judgePlaced(local.x(), local.y(), local.z(), placed.state());
         if (!BuildRules.refused(judged)) {
             return null;
         }

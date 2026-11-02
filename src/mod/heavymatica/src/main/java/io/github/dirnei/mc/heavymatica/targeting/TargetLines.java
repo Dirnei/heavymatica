@@ -28,6 +28,16 @@ public final class TargetLines {
     private TargetLines() {
     }
 
+    /** The line for a door, trapdoor or fence gate that differs from the plan only in its open state. */
+    public static StateLine openState(boolean plannedOpen) {
+        return new StateLine(plannedOpen ? "heavymatica.target.open_it" : "heavymatica.target.close_it", ORANGE);
+    }
+
+    /** The line for a single chest where one half of a double chest is planned. */
+    public static StateLine otherHalf() {
+        return new StateLine("heavymatica.target.other_half", TEXT);
+    }
+
     /** The line for a target's state; null for states that are never targets. */
     public static @Nullable StateLine state(CellState state, @Nullable Finish finish, boolean plannedWaterlogged) {
         return switch (state) {

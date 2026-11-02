@@ -382,7 +382,8 @@ public final class PlacementOverlay {
         lines.add(hint(RemoteKeys.WHEEL, "heavymatica.overlay.hint.capture_menu"));
     }
 
-    private static Component layersText(Placement placement) {
+    /** The layer setting, the shown layers and the placement's height. */
+    static Component layersText(Placement placement) {
         int height = placement.height();
         Layers.Range range = Layers.visible(placement, PlacementSession.feetLayer(placement));
         return switch (placement.layers().mode()) {

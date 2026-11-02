@@ -8,6 +8,10 @@ corner blocks, then move the active corner with the arrows and numpad + / - (Shi
 Shift + scroll. Capture on the wheel saves the area as a local `.litematic` library entry, ready to upload. Export in
 the library writes any entry into `.minecraft/schematics/` for other tools.
 
+While building a locked placement, the up / down arrows move its layer window and numpad + / - resize it (or change the
+follow offset), also without the remote in hand; the action bar then shows the new layers. Everything else on a
+placement still needs the remote.
+
 ## License
 
 - The cloud (`src/cloud`) and the websites (`src/web`) are licensed under the
