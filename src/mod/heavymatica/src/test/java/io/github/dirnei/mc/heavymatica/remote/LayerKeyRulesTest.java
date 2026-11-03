@@ -8,35 +8,56 @@ import org.junit.jupiter.api.Test;
 class LayerKeyRulesTest {
 
     @Test
-    void activeWithTheRemote() {
+    void layerKeysActiveWithTheRemote() {
         assertTrue(LayerKeyRules.active(false, true, false));
     }
 
     @Test
-    void activeWithoutTheRemoteOnALockedPlacement() {
+    void layerKeysActiveWithoutTheRemoteOnALockedPlacement() {
         assertTrue(LayerKeyRules.active(false, false, true));
-        assertTrue(LayerKeyRules.withoutRemote(false, false, true, false));
     }
 
     @Test
-    void inactiveWithoutTheRemoteOnAnUnlockedPlacement() {
+    void layerKeysInactiveWithoutTheRemoteOnAnUnlockedPlacement() {
         assertFalse(LayerKeyRules.active(false, false, false));
-        assertFalse(LayerKeyRules.withoutRemote(false, false, false, false));
     }
 
     @Test
-    void inactiveBehindAScreen() {
+    void layerKeysInactiveBehindAScreen() {
         assertFalse(LayerKeyRules.active(true, true, true));
-        assertFalse(LayerKeyRules.withoutRemote(true, false, true, false));
     }
 
     @Test
-    void theRemoteKeepsItsOwnHandling() {
-        assertFalse(LayerKeyRules.withoutRemote(false, true, true, false));
+    void wheelKeysActiveWithTheRemote() {
+        assertTrue(LayerKeyRules.wheelActive(false, true, false, false));
+        assertTrue(LayerKeyRules.wheelActive(false, true, false, true));
     }
 
     @Test
-    void notWhileCapturing() {
-        assertFalse(LayerKeyRules.withoutRemote(false, false, true, true));
+    void wheelKeysActiveWithoutTheRemoteWithASelection() {
+        assertTrue(LayerKeyRules.wheelActive(false, false, true, false));
+    }
+
+    @Test
+    void wheelKeysNeedTheRemoteWithoutASelection() {
+        assertFalse(LayerKeyRules.wheelActive(false, false, false, false));
+    }
+
+    @Test
+    void wheelKeysNeedTheRemoteInCaptureMode() {
+        assertFalse(LayerKeyRules.wheelActive(false, false, true, true));
+        assertFalse(LayerKeyRules.wheelAllowed(false, true, true));
+    }
+
+    @Test
+    void wheelKeysInactiveBehindAScreen() {
+        assertFalse(LayerKeyRules.wheelActive(true, true, true, false));
+    }
+
+    @Test
+    void openWheelStaysOpenWithASelectionAfterTheRemoteIsPutAway() {
+        assertTrue(LayerKeyRules.wheelAllowed(false, true, false));
+        assertTrue(LayerKeyRules.wheelAllowed(true, false, false));
+        assertFalse(LayerKeyRules.wheelAllowed(false, false, false));
     }
 }

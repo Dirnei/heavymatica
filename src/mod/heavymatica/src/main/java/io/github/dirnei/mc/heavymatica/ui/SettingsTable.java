@@ -66,6 +66,7 @@ final class SettingsTable {
             new Setting(Section.BUILDING, "targeting.mistakePointer", Control.CHOICE, 0, 0),
             new Setting(Section.HUD, "overlay.side", Control.CHOICE, 0, 0),
             new Setting(Section.HUD, "overlay.compact", Control.TOGGLE, 0, 0),
+            new Setting(Section.HUD, "overlay.pinned", Control.TOGGLE, 0, 0),
             new Setting(Section.HUD, "targeting.hudRange", Control.SLIDER, 0, 128),
             new Setting(Section.LIBRARY, "cloud.access", Control.CHOICE, 0, 0),
             new Setting(Section.LIBRARY, "cache.cacheSizeMiB", Control.NUMBER, 64, 65_536),

@@ -10,6 +10,7 @@ import io.github.dirnei.mc.heavymatica.account.DevSessionJoin;
 import io.github.dirnei.mc.heavymatica.account.GameSessionJoin;
 import io.github.dirnei.mc.heavymatica.account.SessionJoin;
 import io.github.dirnei.mc.heavymatica.account.SessionStore;
+import io.github.dirnei.mc.heavymatica.build.BuildOptionsHud;
 import io.github.dirnei.mc.heavymatica.build.BuildInput;
 import io.github.dirnei.mc.heavymatica.build.BuildKeys;
 import io.github.dirnei.mc.heavymatica.cache.SchematicCache;
@@ -95,6 +96,7 @@ public final class HeavymaticaClient {
         modEventBus.addListener((RegisterGuiLayersEvent event) -> new PlacementOverlay(HeavymaticaClient::placements).register(event));
         modEventBus.addListener((RegisterGuiLayersEvent event) -> new TargetHud(HeavymaticaClient::placements, HeavymaticaClient::targeting).register(event));
         modEventBus.addListener((RegisterGuiLayersEvent event) -> new PointerHud(HeavymaticaClient::mistakePointer).register(event));
+        modEventBus.addListener((RegisterGuiLayersEvent event) -> new BuildOptionsHud(HeavymaticaClient::placements).register(event));
         modEventBus.addListener(WheelAfterglow::register);
         NeoForge.EVENT_BUS.addListener(HeavymaticaClient::tick);
         ThumbnailSpike.registerIfRequested();

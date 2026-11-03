@@ -1,6 +1,6 @@
 package io.github.dirnei.mc.heavymatica.remote;
 
-/** When the layer keys act, free of the game. */
+/** When the layer keys and the wheel keys act, free of the game. */
 public final class LayerKeyRules {
 
     private LayerKeyRules() {
@@ -11,8 +11,13 @@ public final class LayerKeyRules {
         return !screenOpen && (remoteHeld || lockedSelected);
     }
 
-    /** True when the layer keys act although no remote is held, so only the layer handling runs. */
-    public static boolean withoutRemote(boolean screenOpen, boolean remoteHeld, boolean lockedSelected, boolean capturing) {
-        return !screenOpen && !remoteHeld && lockedSelected && !capturing;
+    /** True while the wheel key and the wheel action keys act: no screen open, and a remote held or a placement selected outside capture mode. */
+    public static boolean wheelActive(boolean screenOpen, boolean remoteHeld, boolean selected, boolean capturing) {
+        return !screenOpen && wheelAllowed(remoteHeld, selected, capturing);
+    }
+
+    /** True while an open wheel may stay open: a remote held, or a placement selected outside capture mode. */
+    public static boolean wheelAllowed(boolean remoteHeld, boolean selected, boolean capturing) {
+        return remoteHeld || selected && !capturing;
     }
 }

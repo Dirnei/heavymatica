@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -46,6 +47,7 @@ public final class RadialMenuScreen extends Screen {
 
     private final RadialMenu menu;
     private final Consumer<Outcome.Run> commands;
+    private final BooleanSupplier allowed;
     private final Input before;
     private @Nullable ClientInput playerInput;
     private final WheelAnimation animation;
@@ -61,12 +63,16 @@ public final class RadialMenuScreen extends Screen {
     /** Holding the key sends repeated presses, which must not count as a second tap. */
     private boolean wheelKeyHeld;
 
-    /** @param before the player's movement input of the last tick, for sneak and sprint in toggle mode */
-    public RadialMenuScreen(RadialMenu menu, Consumer<Outcome.Run> commands, Input before) {
+    /**
+     * @param before  the player's movement input of the last tick, for sneak and sprint in toggle mode
+     * @param allowed whether the wheel may stay open, checked every tick
+     */
+    public RadialMenuScreen(RadialMenu menu, Consumer<Outcome.Run> commands, Input before, BooleanSupplier allowed) {
         super(Component.translatable("key.heavymatica.wheel"));
         this.menu = menu;
         this.commands = commands;
         this.before = before;
+        this.allowed = allowed;
         this.wheelKeyHeld = physicallyDown(RemoteKeys.WHEEL);
         this.animation = new WheelAnimation(HeavymaticaConfig.wheelAnimations(), Util.getMillis());
         this.sounds = HeavymaticaConfig.wheelSounds();
@@ -115,7 +121,7 @@ public final class RadialMenuScreen extends Screen {
 
     @Override
     public void tick() {
-        if (minecraft.player == null || !Remotes.held()) {
+        if (minecraft.player == null || !allowed.getAsBoolean()) {
             onClose();
         }
     }

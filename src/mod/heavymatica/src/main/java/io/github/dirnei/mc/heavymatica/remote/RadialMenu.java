@@ -27,14 +27,15 @@ public final class RadialMenu {
     }
 
     /**
-     * The selected placement, what paste allows, and the Easy Place, placement restriction and mistake pointer settings
-     * as the wheel opened.
+     * The selected placement, what paste allows, and the Easy Place, placement restriction, mistake pointer and pinned
+     * overlay settings as the wheel opened.
      *
      * @param unknownBlocks whether it has blocks the game does not know
      * @param unknownShown  whether unknown blocks are shown
+     * @param remoteHeld    whether a remote was in the main hand as the wheel opened
      */
     public record Selection(State state, String name, Layers.Mode layers, boolean inHand, boolean unknownBlocks, boolean unknownShown, Paste paste,
-                            boolean easyPlace, boolean restriction, PointerMode pointer) {
+                            boolean easyPlace, boolean restriction, PointerMode pointer, boolean pinned, boolean remoteHeld) {
 
         public static final Selection NONE = new Selection(State.NONE, "", Layers.Mode.OFF, false);
 
@@ -47,19 +48,27 @@ public final class RadialMenu {
         }
 
         public Selection(State state, String name, Layers.Mode layers, boolean inHand, boolean unknownBlocks, boolean unknownShown, Paste paste) {
-            this(state, name, layers, inHand, unknownBlocks, unknownShown, paste, false, false, PointerMode.OFF);
+            this(state, name, layers, inHand, unknownBlocks, unknownShown, paste, false, false, PointerMode.OFF, false, true);
         }
 
         public Selection with(Paste paste) {
-            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction, pointer);
+            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction, pointer, pinned, remoteHeld);
         }
 
         public Selection withBuild(boolean easyPlace, boolean restriction) {
-            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction, pointer);
+            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction, pointer, pinned, remoteHeld);
         }
 
         public Selection with(PointerMode pointer) {
-            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction, pointer);
+            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction, pointer, pinned, remoteHeld);
+        }
+
+        public Selection withPinned(boolean pinned) {
+            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction, pointer, pinned, remoteHeld);
+        }
+
+        public Selection withRemoteHeld(boolean remoteHeld) {
+            return new Selection(state, name, layers, inHand, unknownBlocks, unknownShown, paste, easyPlace, restriction, pointer, pinned, remoteHeld);
         }
     }
 
@@ -114,6 +123,7 @@ public final class RadialMenu {
         PASTE,
         OPACITY,
         UNKNOWN_BLOCKS,
+        PIN_OVERLAY,
         START_CAPTURE,
         CAPTURE,
         SWAP_CORNER,
@@ -141,6 +151,14 @@ public final class RadialMenu {
         public Segment(Entry entry, boolean enabled, boolean current) {
             this(entry, enabled, current, 0);
         }
+
+        /** True for a segment that switches something on or off and that thing is on, so its glass is tinted. */
+        public boolean tinted() {
+            return current && switch (entry) {
+                case IN_HAND, EASY_PLACE, RESTRICTION, UNKNOWN_BLOCKS, PIN_OVERLAY, MISTAKES -> true;
+                default -> false;
+            };
+        }
     }
 
     public enum Command {
@@ -160,6 +178,7 @@ public final class RadialMenu {
         OPEN_MATERIALS,
         SET_OPACITY,
         TOGGLE_UNKNOWN_BLOCKS,
+        TOGGLE_PIN_OVERLAY,
         START_CAPTURE,
         CAPTURE,
         SWAP_CORNER,
@@ -263,15 +282,15 @@ public final class RadialMenu {
         return switch (page) {
             case MAIN -> capture.on() ? List.of(new Segment(Entry.CAPTURE, capture.corners() == 2, false),
                     new Segment(Entry.SWAP_CORNER, capture.corners() == 2, false), new Segment(Entry.RESET_CORNERS, capture.corners() > 0, false),
-                    segment(Entry.CANCEL_CAPTURE)) : withUndoPaste(withBringBack(withPaste(withOptionsForUnknownBlocks(switch (selection.state()) {
+                    segment(Entry.CANCEL_CAPTURE)) : withUndoPaste(withBringBack(withPaste(withOptions(withoutCaptureUnlessHeld(switch (selection.state()) {
                 case NONE -> List.of(new Segment(Entry.MATERIALS, false, false), segment(Entry.OPACITY), segment(Entry.LIBRARY),
                         segment(Entry.START_CAPTURE));
                 case FOLLOWING -> List.of(segment(Entry.CANCEL), segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY));
                 case ANCHORED -> List.of(segment(Entry.LOCK), segment(Entry.REMOVE), segment(Entry.MATERIALS), segment(Entry.OPACITY),
                         segment(Entry.LIBRARY), segment(Entry.START_CAPTURE));
-                case LOCKED -> List.of(segment(Entry.UNLOCK), segment(Entry.OPTIONS), segment(Entry.LAYERS),
+                case LOCKED -> List.of(new Segment(Entry.UNLOCK, selection.remoteHeld(), false), segment(Entry.OPTIONS), segment(Entry.LAYERS),
                         segment(Entry.MATERIALS), segment(Entry.OPACITY), segment(Entry.LIBRARY), segment(Entry.START_CAPTURE));
-            }))));
+            })))));
             case OPACITY -> opacity.steps().stream()
                     .map(step -> new Segment(Entry.OPACITY_STEP, true, OpacitySteps.matches(step, opacity.current()), step))
                     .toList();
@@ -311,12 +330,14 @@ public final class RadialMenu {
         return List.copyOf(segments);
     }
 
-    /**
-     * A following or anchored placement only has options when it has unknown blocks, so Options goes after Opacity then;
-     * a locked placement always has Options.
-     */
-    private List<Segment> withOptionsForUnknownBlocks(List<Segment> main) {
-        if (selection.state() == State.NONE || selection.state() == State.LOCKED || !selection.unknownBlocks()) {
+    /** Capture mode works only with the remote, so a wheel opened without it offers no Start capture. */
+    private List<Segment> withoutCaptureUnlessHeld(List<Segment> main) {
+        return selection.remoteHeld() ? main : main.stream().filter(segment -> segment.entry() != Entry.START_CAPTURE).toList();
+    }
+
+    /** A following or anchored placement gets Options after Opacity; a locked placement has it already. */
+    private List<Segment> withOptions(List<Segment> main) {
+        if (selection.state() == State.NONE || selection.state() == State.LOCKED) {
             return main;
         }
         List<Segment> segments = new ArrayList<>(main.size() + 1);
@@ -329,9 +350,9 @@ public final class RadialMenu {
         return List.copyOf(segments);
     }
 
-    /** The locked placement's build options, then Unknown blocks when it has some, with Mistakes always last. */
+    /** The locked placement's build options, then Unknown blocks when it has some and Pin overlay, with Mistakes always last. */
     private List<Segment> optionsSegments() {
-        List<Segment> segments = new ArrayList<>(5);
+        List<Segment> segments = new ArrayList<>(6);
         boolean locked = selection.state() == State.LOCKED;
         if (locked) {
             segments.add(new Segment(Entry.IN_HAND, true, selection.inHand()));
@@ -341,6 +362,7 @@ public final class RadialMenu {
         if (selection.unknownBlocks()) {
             segments.add(new Segment(Entry.UNKNOWN_BLOCKS, true, selection.unknownShown()));
         }
+        segments.add(new Segment(Entry.PIN_OVERLAY, true, selection.pinned()));
         if (locked) {
             segments.add(new Segment(Entry.MISTAKES, true, selection.pointer() != PointerMode.OFF));
         }
@@ -428,6 +450,7 @@ public final class RadialMenu {
             case UNDO_PASTE -> run(Command.UNDO_PASTE);
             case OPACITY -> turnTo(Page.OPACITY);
             case UNKNOWN_BLOCKS -> run(Command.TOGGLE_UNKNOWN_BLOCKS);
+            case PIN_OVERLAY -> run(Command.TOGGLE_PIN_OVERLAY);
             case START_CAPTURE -> run(Command.START_CAPTURE);
             case CAPTURE -> run(Command.CAPTURE);
             case SWAP_CORNER -> run(Command.SWAP_CORNER);

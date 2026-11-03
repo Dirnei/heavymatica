@@ -9,8 +9,11 @@ Shift + scroll. Capture on the wheel saves the area as a local `.litematic` libr
 the library writes any entry into `.minecraft/schematics/` for other tools.
 
 While building a locked placement, the up / down arrows move its layer window and numpad + / - resize it (or change the
-follow offset), also without the remote in hand; the action bar then shows the new layers. Everything else on a
-placement still needs the remote.
+follow offset), also without the remote in hand; the action bar then shows the new layers. With a placement selected,
+the wheel (V) also opens without the remote, and everything on it works except Unlock and Capture; moving, rotating,
+mirroring and anchoring a placement still need the remote. Options on the wheel can pin the placement overlay so it
+stays on screen without the remote. Toggles that are on show green on the wheel, and while Easy Place or placement
+restriction is on near a locked placement, their icons sit above the hotbar.
 
 ## License
 

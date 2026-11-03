@@ -113,6 +113,9 @@ final class WheelPainter {
             double to = mid + sector / 2;
             double gap = count > 1 ? GAP : 0;
             mesh.sector(inner, outer, from, to, gap, fade(WheelStyle.BODY_INNER, a), fade(WheelStyle.BODY_OUTER, a));
+            if (segment.tinted()) {
+                mesh.sector(inner, outer, from, to, gap, fade(WheelStyle.ON_INNER, a), fade(WheelStyle.ON_OUTER, a));
+            }
             int accent = WheelStyle.kind(segment.entry()).accent();
             if (h > 0.01 && segment.enabled()) {
                 mesh.sector(inner, outer, from, to, gap, fade(WheelStyle.withAlpha(accent, (int) (WheelStyle.HOVER_FILL_INNER * h)), a),

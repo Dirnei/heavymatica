@@ -23,7 +23,7 @@ public final class BuildKeys {
         @Override
         public boolean conflicts(IKeyConflictContext other) {
             return other == this || other == KeyConflictContext.IN_GAME || other == RemoteKeys.HOLDING_REMOTE
-                    || other == RemoteKeys.LAYER_KEYS;
+                    || other == RemoteKeys.LAYER_KEYS || other == RemoteKeys.WITH_SELECTION;
         }
     };
 

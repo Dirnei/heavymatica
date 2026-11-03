@@ -29,6 +29,8 @@ public final class WheelStyle {
     public static final int CENTRE = GlassStyle.CENTRE;
     public static final int DIM_CENTRE = 0x6104060A;
     public static final int DIM_EDGE = 0x1F04060A;
+    public static final int ON_INNER = withAlpha(GlassStyle.CONFIRM, 0x30);
+    public static final int ON_OUTER = withAlpha(GlassStyle.CONFIRM, 0x70);
     public static final int HOVER_FILL_INNER = 0x1A;
     public static final int HOVER_FILL_OUTER = 0x6B;
     public static final int TEXT = GlassStyle.TEXT;

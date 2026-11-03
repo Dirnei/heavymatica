@@ -73,6 +73,10 @@ public final class HeavymaticaConfig {
             .comment("Show only the placement's name and state in the overlay, without details and key hints.")
             .define("compact", false);
 
+    private static final ModConfigSpec.BooleanValue OVERLAY_PINNED = BUILDER
+            .comment("Keep the placement overlay on screen without the remote while a placement is selected.")
+            .define("pinned", false);
+
     private static final ModConfigSpec.EnumValue<RadialMenu.Mode> WHEEL_MODE = BUILDER
             .pop()
             .comment("How the placement wheel works. HOLD: hold the wheel key, point and let go. TOGGLE: tap the key to open, click to pick.")
@@ -203,6 +207,16 @@ public final class HeavymaticaConfig {
 
     public static boolean overlayCompact() {
         return OVERLAY_COMPACT.get();
+    }
+
+    public static boolean overlayPinned() {
+        return OVERLAY_PINNED.get();
+    }
+
+    /** Pins or unpins the placement overlay and writes the config file. */
+    public static void setOverlayPinned(boolean pinned) {
+        OVERLAY_PINNED.set(pinned);
+        OVERLAY_PINNED.save();
     }
 
     public static RadialMenu.Mode wheelMode() {

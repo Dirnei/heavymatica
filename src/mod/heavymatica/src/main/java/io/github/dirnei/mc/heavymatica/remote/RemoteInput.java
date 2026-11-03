@@ -11,6 +11,7 @@ import io.github.dirnei.mc.heavymatica.placement.PlacementController.Target;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Relative;
 import io.github.dirnei.mc.heavymatica.placement.Placements;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,7 @@ public final class RemoteInput {
 
     public void register() {
         RemoteKeys.lockedSelected(this::lockedSelected);
+        RemoteKeys.selection(() -> session.placements().selected().isPresent(), () -> capture.session().on());
         NeoForge.EVENT_BUS.addListener(this::interaction);
         NeoForge.EVENT_BUS.addListener(this::scroll);
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Pre event) -> claimSharedKeys());
@@ -69,9 +71,15 @@ public final class RemoteInput {
         return session.placements().selected().map(Placement::locked).orElse(false);
     }
 
-    private boolean layerKeysWithoutRemote(Minecraft minecraft) {
-        return minecraft.player != null
-                && LayerKeyRules.withoutRemote(minecraft.screen != null, Remotes.held(), lockedSelected(), capture.session().on());
+    /** True when a placement is selected outside capture mode but no remote is held, so only the keys that work without it act. */
+    private boolean keysWithoutRemote(Minecraft minecraft) {
+        return minecraft.player != null && !Remotes.held()
+                && LayerKeyRules.wheelActive(minecraft.screen != null, false, session.placements().selected().isPresent(), capture.session().on());
+    }
+
+    /** True while an open wheel may stay open. */
+    private boolean wheelAllowed() {
+        return LayerKeyRules.wheelAllowed(Remotes.held(), session.placements().selected().isPresent(), capture.session().on());
     }
 
     /** The current dimension's ID, or an empty string outside a world. */
@@ -135,8 +143,8 @@ public final class RemoteInput {
         List<KeyMapping> claimed;
         if (minecraft.player != null && minecraft.screen == null && Remotes.held()) {
             claimed = RemoteKeys.ALL;
-        } else if (layerKeysWithoutRemote(minecraft)) {
-            claimed = RemoteKeys.LAYER;
+        } else if (keysWithoutRemote(minecraft)) {
+            claimed = withoutRemoteKeys(lockedSelected());
         } else {
             return;
         }
@@ -181,8 +189,8 @@ public final class RemoteInput {
         if (!minecraft.options.keyUse.isDown()) {
             useHandled = false;
         }
-        if (layerKeysWithoutRemote(minecraft)) {
-            layerKeysWithoutRemote(minecraft.player);
+        if (keysWithoutRemote(minecraft)) {
+            keysWithoutRemote(minecraft.player);
             return;
         }
         if (minecraft.player == null || minecraft.screen != null || !Remotes.held()) {
@@ -281,23 +289,64 @@ public final class RemoteInput {
         }
     }
 
+    /** The keys that act without the remote: the wheel keys, and the layer keys on a locked placement. */
+    private static List<KeyMapping> withoutRemoteKeys(boolean locked) {
+        if (!locked) {
+            return RemoteKeys.WITH_SELECTED;
+        }
+        List<KeyMapping> keys = new ArrayList<>(RemoteKeys.WITH_SELECTED);
+        keys.addAll(RemoteKeys.LAYER);
+        return keys;
+    }
+
     /**
-     * Without the remote on a locked placement only the layer keys act, and the action bar shows a change since the
-     * overlay is hidden; every other remote key is dropped.
+     * Without the remote, with a placement selected outside capture mode, the wheel and its action keys act, and on a
+     * locked placement the layer keys too; the action bar shows a layer change since the overlay may be hidden. Lock
+     * only locks, since an unlocked placement is moved with the remote. Every other remote key is dropped.
      */
-    private void layerKeysWithoutRemote(LocalPlayer player) {
+    private void keysWithoutRemote(LocalPlayer player) {
+        Placement selected = session.placements().selected().orElseThrow();
+        List<KeyMapping> active = withoutRemoteKeys(selected.locked());
         for (KeyMapping key : RemoteKeys.ALL) {
-            if (!RemoteKeys.LAYER.contains(key)) {
+            if (!active.contains(key)) {
                 while (key.consumeClick()) {
-                    // Only the layer keys act without the remote.
+                    // Needs the remote.
                 }
+                heldTicks.remove(key);
             }
         }
-        Placement selected = session.placements().selected().orElse(null);
-        if (selected == null) {
+        PlacementController controller = session.controller();
+        while (RemoteKeys.LOCK.consumeClick()) {
+            if (selected.locked()) {
+                player.sendOverlayMessage(Component.translatable("heavymatica.unlock.needs_remote"));
+            } else {
+                controller.lock();
+            }
+        }
+        while (RemoteKeys.REMOVE.consumeClick()) {
+            controller.remove(System.currentTimeMillis());
+        }
+        while (RemoteKeys.MATERIALS.consumeClick()) {
+            openMaterials.run();
+        }
+        boolean wheel = false;
+        while (RemoteKeys.WHEEL.consumeClick()) {
+            wheel = true;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (wheel && minecraft.screen == null) {
+            openWheel(player, selected);
+        }
+        if (minecraft.screen != null || !selected.locked()) {
+            while (RemoteKeys.IN_HAND.consumeClick()) {
+                // Only a locked placement has an in-hand filter.
+            }
             return;
         }
-        layerChanges(session.controller(), PlacementSession.feetLayer(selected), shift(Minecraft.getInstance()));
+        while (RemoteKeys.IN_HAND.consumeClick()) {
+            controller.toggleInHand();
+        }
+        layerChanges(controller, PlacementSession.feetLayer(selected), shift(minecraft));
         session.placements().selected().filter(placement -> !placement.layers().equals(selected.layers()))
                 .ifPresent(placement -> player.sendOverlayMessage(PlacementOverlay.layersText(placement)));
     }
@@ -338,12 +387,13 @@ public final class RemoteInput {
                 }, selected.name(), selected.layers().mode(), selected.inHand(), session.unknownBlocks(selected).any(),
                         HeavymaticaConfig.ghostShowUnknownBlocks());
         selection = selection.with(new RadialMenu.Paste(CreativePaste.available(), paste.running(), paste.undoable()))
-                .withBuild(HeavymaticaConfig.easyPlace(), HeavymaticaConfig.placementRestriction()).with(HeavymaticaConfig.mistakePointer());
+                .withBuild(HeavymaticaConfig.easyPlace(), HeavymaticaConfig.placementRestriction()).with(HeavymaticaConfig.mistakePointer())
+                .withPinned(HeavymaticaConfig.overlayPinned()).withRemoteHeld(Remotes.held());
         RadialMenu.Capture captureState = capture.session().box()
                 .map(box -> new RadialMenu.Capture(true, capture.session().capturing() ? 0 : box.corners())).orElse(RadialMenu.Capture.OFF);
         Minecraft.getInstance().setScreen(new RadialMenuScreen(new RadialMenu(HeavymaticaConfig.wheelMode(), selection,
                 new RadialMenu.Opacity(HeavymaticaConfig.ghostOpacitySteps(), HeavymaticaConfig.ghostOpacity()), session.canBringBack(), captureState),
-                this::run, player.input.keyPresses));
+                this::run, player.input.keyPresses, this::wheelAllowed));
     }
 
     /** Runs a wheel command; the wheel has closed already. */
@@ -365,6 +415,11 @@ public final class RemoteInput {
                     .ifPresent(placement -> controller.setLayerMode(command.layerMode(), PlacementSession.feetLayer(placement)));
             case SET_OPACITY -> HeavymaticaConfig.setGhostOpacity(run.value());
             case TOGGLE_UNKNOWN_BLOCKS -> HeavymaticaConfig.setGhostShowUnknownBlocks(!HeavymaticaConfig.ghostShowUnknownBlocks());
+            case TOGGLE_PIN_OVERLAY -> {
+                HeavymaticaConfig.setOverlayPinned(!HeavymaticaConfig.overlayPinned());
+                Minecraft.getInstance().player.sendOverlayMessage(
+                        Component.translatable(HeavymaticaConfig.overlayPinned() ? "heavymatica.overlay.pinned.on" : "heavymatica.overlay.pinned.off"));
+            }
             case START_CAPTURE -> capture.start();
             case CAPTURE -> capture.capture();
             case SWAP_CORNER -> capture.swap();

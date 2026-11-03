@@ -156,10 +156,15 @@ public final class PlacementOverlay {
     private void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
         Minecraft minecraft = Minecraft.getInstance();
         PlacementSession session = sessions.get();
-        if (session == null || minecraft.options.hideGui || minecraft.screen != null || minecraft.player == null || !Remotes.held()) {
+        if (session == null || minecraft.player == null) {
             return;
         }
-        List<Line> lines = lines(minecraft, session);
+        boolean remoteHeld = Remotes.held();
+        if (!OverlayRules.shows(minecraft.options.hideGui, minecraft.screen != null, remoteHeld, HeavymaticaConfig.overlayPinned(),
+                session.placements().selected().isPresent(), session.capture().on())) {
+            return;
+        }
+        List<Line> lines = lines(minecraft, session, remoteHeld);
         Font font = minecraft.font;
         int maxWidth = Math.max(150, graphics.guiWidth() / 3);
         int inner = Math.min(maxWidth - 2 * PADDING, Math.max(120, lines.stream().mapToInt(line -> width(font, line)).max().orElse(0)));
@@ -224,10 +229,11 @@ public final class PlacementOverlay {
 
     /** The overlay's lines as text, for development checks. */
     public static List<String> textForDevelopment(Minecraft minecraft, PlacementSession session) {
-        return lines(minecraft, session).stream().filter(line -> line.kind() != Kind.SEPARATOR).map(Line::plain).toList();
+        return lines(minecraft, session, Remotes.held()).stream().filter(line -> line.kind() != Kind.SEPARATOR).map(Line::plain).toList();
     }
 
-    static List<Line> lines(Minecraft minecraft, PlacementSession session) {
+    /** @param remoteHeld without the remote only the layer-key hints of a locked placement show */
+    static List<Line> lines(Minecraft minecraft, PlacementSession session, boolean remoteHeld) {
         List<Line> lines = new ArrayList<>();
         CreativePaste paste = HeavymaticaClient.paste();
         if (paste != null) {
@@ -295,6 +301,16 @@ public final class PlacementOverlay {
         if (session.unavailable(placement)) {
             lines.add(Line.text(Component.translatable("heavymatica.overlay.unavailable"), WARNING));
         }
+        if (!remoteHeld) {
+            if (placement.locked()) {
+                layerHints(placement, lines);
+                boundHint(lines, RemoteKeys.CYCLE_LAYERS, "heavymatica.overlay.hint.cycle_layers");
+            }
+            if (lines.getLast() == SEPARATOR) {
+                lines.removeLast();
+            }
+            return lines;
+        }
         if (session.controller().removePending(System.currentTimeMillis())) {
             lines.add(new Line(name(RemoteKeys.REMOVE), Component.translatable("heavymatica.overlay.remove_again"), WARNING));
             return lines;
@@ -304,13 +320,7 @@ public final class PlacementOverlay {
             return lines;
         }
         if (placement.locked()) {
-            Layers.Mode mode = placement.layers().mode();
-            if (mode == Layers.Mode.FROM_TO) {
-                lines.add(new Line(pair(RemoteKeys.MOVE_FORWARD, RemoteKeys.MOVE_BACK), Component.translatable("heavymatica.overlay.hint.window"), TEXT));
-                lines.add(new Line(pair(RemoteKeys.MOVE_UP, RemoteKeys.MOVE_DOWN), Component.translatable("heavymatica.overlay.hint.window_size"), TEXT));
-            } else if (mode == Layers.Mode.FOLLOW) {
-                lines.add(new Line(pair(RemoteKeys.MOVE_UP, RemoteKeys.MOVE_DOWN), Component.translatable("heavymatica.overlay.hint.follow_height"), TEXT));
-            }
+            layerHints(placement, lines);
             lines.add(hint(RemoteKeys.WHEEL, "heavymatica.overlay.hint.menu"));
             boundHint(lines, RemoteKeys.CYCLE_LAYERS, "heavymatica.overlay.hint.cycle_layers");
             boundHint(lines, RemoteKeys.IN_HAND, "heavymatica.overlay.hint.in_hand");
@@ -498,6 +508,16 @@ public final class PlacementOverlay {
 
     private static Component pair(KeyMapping first, KeyMapping second) {
         return Component.empty().append(name(first)).append(" / ").append(name(second));
+    }
+
+    private static void layerHints(Placement placement, List<Line> lines) {
+        Layers.Mode mode = placement.layers().mode();
+        if (mode == Layers.Mode.FROM_TO) {
+            lines.add(new Line(pair(RemoteKeys.MOVE_FORWARD, RemoteKeys.MOVE_BACK), Component.translatable("heavymatica.overlay.hint.window"), TEXT));
+            lines.add(new Line(pair(RemoteKeys.MOVE_UP, RemoteKeys.MOVE_DOWN), Component.translatable("heavymatica.overlay.hint.window_size"), TEXT));
+        } else if (mode == Layers.Mode.FOLLOW) {
+            lines.add(new Line(pair(RemoteKeys.MOVE_UP, RemoteKeys.MOVE_DOWN), Component.translatable("heavymatica.overlay.hint.follow_height"), TEXT));
+        }
     }
 
     private static Line hint(KeyMapping key, String text) {

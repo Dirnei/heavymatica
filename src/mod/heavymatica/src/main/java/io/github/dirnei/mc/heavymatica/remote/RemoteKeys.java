@@ -13,7 +13,8 @@ import org.lwjgl.glfw.GLFW;
 /**
  * The placement keys. Most live in {@link #HOLDING_REMOTE}, so they only act while a remote is in the main hand and no
  * screen is open; the layer keys live in {@link #LAYER_KEYS}, which also acts without the remote while the selected
- * placement is locked. Shift is read when a key is pressed rather than bound, so rebinding keeps the Shift variants.
+ * placement is locked, and the wheel and its action keys in {@link #WITH_SELECTION}, which also acts without the remote
+ * while a placement is selected outside capture mode. Shift is read when a key is pressed rather than bound, so rebinding keeps the Shift variants.
  * The actions on the wheel have no default key.
  */
 public final class RemoteKeys {
@@ -26,11 +27,13 @@ public final class RemoteKeys {
 
         @Override
         public boolean conflicts(IKeyConflictContext other) {
-            return other == this || other == LAYER_KEYS;
+            return other == this || other == LAYER_KEYS || other == WITH_SELECTION;
         }
     };
 
     private static BooleanSupplier lockedSelected = () -> false;
+    private static BooleanSupplier selected = () -> false;
+    private static BooleanSupplier capturing = () -> false;
 
     public static final IKeyConflictContext LAYER_KEYS = new IKeyConflictContext() {
         @Override
@@ -40,7 +43,19 @@ public final class RemoteKeys {
 
         @Override
         public boolean conflicts(IKeyConflictContext other) {
-            return other == this || other == HOLDING_REMOTE;
+            return other == this || other == HOLDING_REMOTE || other == WITH_SELECTION;
+        }
+    };
+
+    public static final IKeyConflictContext WITH_SELECTION = new IKeyConflictContext() {
+        @Override
+        public boolean isActive() {
+            return LayerKeyRules.wheelActive(Minecraft.getInstance().screen != null, Remotes.held(), selected.getAsBoolean(), capturing.getAsBoolean());
+        }
+
+        @Override
+        public boolean conflicts(IKeyConflictContext other) {
+            return other == this || other == HOLDING_REMOTE || other == LAYER_KEYS;
         }
     };
 
@@ -52,11 +67,11 @@ public final class RemoteKeys {
     public static final KeyMapping MOVE_DOWN = key("move_down", LAYER_KEYS, GLFW.GLFW_KEY_KP_SUBTRACT);
     public static final KeyMapping ROTATE = key("rotate", GLFW.GLFW_KEY_R);
     public static final KeyMapping MIRROR = key("mirror", GLFW.GLFW_KEY_M);
-    public static final KeyMapping WHEEL = key("wheel", GLFW.GLFW_KEY_V);
-    public static final KeyMapping REMOVE = key("remove", GLFW.GLFW_KEY_UNKNOWN);
-    public static final KeyMapping LOCK = key("lock", GLFW.GLFW_KEY_UNKNOWN);
-    public static final KeyMapping IN_HAND = key("in_hand", GLFW.GLFW_KEY_UNKNOWN);
-    public static final KeyMapping MATERIALS = key("materials", GLFW.GLFW_KEY_UNKNOWN);
+    public static final KeyMapping WHEEL = key("wheel", WITH_SELECTION, GLFW.GLFW_KEY_V);
+    public static final KeyMapping REMOVE = key("remove", WITH_SELECTION, GLFW.GLFW_KEY_UNKNOWN);
+    public static final KeyMapping LOCK = key("lock", WITH_SELECTION, GLFW.GLFW_KEY_UNKNOWN);
+    public static final KeyMapping IN_HAND = key("in_hand", WITH_SELECTION, GLFW.GLFW_KEY_UNKNOWN);
+    public static final KeyMapping MATERIALS = key("materials", WITH_SELECTION, GLFW.GLFW_KEY_UNKNOWN);
     public static final KeyMapping CYCLE_LAYERS = key("cycle_layers", LAYER_KEYS, GLFW.GLFW_KEY_UNKNOWN);
     public static final KeyMapping SWAP_CORNER = key("swap_corner", GLFW.GLFW_KEY_UNKNOWN);
 
@@ -71,6 +86,15 @@ public final class RemoteKeys {
 
     public static void register(RegisterKeyMappingsEvent event) {
         ALL.forEach(event::register);
+    }
+
+    /** The wheel key and the wheel action keys, which also act without the remote while a placement is selected. */
+    public static final List<KeyMapping> WITH_SELECTED = List.of(WHEEL, REMOVE, LOCK, IN_HAND, MATERIALS);
+
+    /** Tells the wheel keys whether a placement is selected and whether capture mode is on. */
+    public static void selection(BooleanSupplier selectedNow, BooleanSupplier capturingNow) {
+        selected = selectedNow;
+        capturing = capturingNow;
     }
 
     /** Tells the layer keys whether the selected placement is locked. */

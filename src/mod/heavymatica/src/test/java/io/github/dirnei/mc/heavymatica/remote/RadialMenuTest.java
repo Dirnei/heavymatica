@@ -60,8 +60,8 @@ class RadialMenuTest {
     @Test
     void segmentsFollowTheState() {
         assertEquals(List.of(Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE), entries(menu(Mode.HOLD, Selection.NONE)));
-        assertEquals(List.of(Entry.CANCEL, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY), entries(menu(Mode.HOLD, FOLLOWING)));
-        assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
+        assertEquals(List.of(Entry.CANCEL, Entry.MATERIALS, Entry.OPACITY, Entry.OPTIONS, Entry.LIBRARY), entries(menu(Mode.HOLD, FOLLOWING)));
+        assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.MATERIALS, Entry.OPACITY, Entry.OPTIONS, Entry.LIBRARY, Entry.START_CAPTURE),
                 entries(menu(Mode.HOLD, ANCHORED)));
         assertEquals(List.of(Entry.UNLOCK, Entry.OPTIONS, Entry.LAYERS, Entry.MATERIALS, Entry.OPACITY, Entry.LIBRARY, Entry.START_CAPTURE),
                 entries(menu(Mode.HOLD, LOCKED)));
@@ -78,7 +78,7 @@ class RadialMenuTest {
     }
 
     @Test
-    void unknownBlocksPutOptionsAfterOpacityWhenNotLocked() {
+    void optionsComesAfterOpacityWhenNotLocked() {
         assertEquals(List.of(Entry.CANCEL, Entry.MATERIALS, Entry.OPACITY, Entry.OPTIONS, Entry.LIBRARY),
                 entries(menu(Mode.HOLD, withUnknown(FOLLOWING, true))));
         assertEquals(List.of(Entry.LOCK, Entry.REMOVE, Entry.MATERIALS, Entry.OPACITY, Entry.OPTIONS, Entry.LIBRARY, Entry.START_CAPTURE),
@@ -89,16 +89,16 @@ class RadialMenuTest {
 
     @Test
     void unknownBlocksAreInOptionsInEveryPlacementState() {
-        assertEquals(List.of(Entry.UNKNOWN_BLOCKS), entries(options(withUnknown(FOLLOWING, true))));
-        assertEquals(List.of(Entry.UNKNOWN_BLOCKS), entries(options(withUnknown(ANCHORED, true))));
-        assertEquals(List.of(Entry.IN_HAND, Entry.EASY_PLACE, Entry.RESTRICTION, Entry.UNKNOWN_BLOCKS, Entry.MISTAKES),
+        assertEquals(List.of(Entry.UNKNOWN_BLOCKS, Entry.PIN_OVERLAY), entries(options(withUnknown(FOLLOWING, true))));
+        assertEquals(List.of(Entry.UNKNOWN_BLOCKS, Entry.PIN_OVERLAY), entries(options(withUnknown(ANCHORED, true))));
+        assertEquals(List.of(Entry.IN_HAND, Entry.EASY_PLACE, Entry.RESTRICTION, Entry.UNKNOWN_BLOCKS, Entry.PIN_OVERLAY, Entry.MISTAKES),
                 entries(options(withUnknown(LOCKED, true))));
     }
 
     @Test
     void noUnknownBlocksSegmentWithoutUnknownBlocksOrSelection() {
-        assertEquals(-1, index(menu(Mode.HOLD, ANCHORED), Entry.OPTIONS));
-        assertEquals(-1, index(menu(Mode.HOLD, FOLLOWING), Entry.OPTIONS));
+        assertEquals(List.of(Entry.PIN_OVERLAY), entries(options(ANCHORED)));
+        assertEquals(List.of(Entry.PIN_OVERLAY), entries(options(FOLLOWING)));
         assertEquals(-1, index(menu(Mode.HOLD, Selection.NONE), Entry.OPTIONS));
         assertEquals(-1, index(options(LOCKED), Entry.UNKNOWN_BLOCKS));
         assertEquals(-1, index(menu(Mode.HOLD, withUnknown(ANCHORED, true)), Entry.UNKNOWN_BLOCKS));
@@ -152,23 +152,83 @@ class RadialMenuTest {
         assertEquals(Page.OPTIONS, menu.page());
         assertEquals(new Label("heavymatica.wheel.options", ""), menu.label());
         assertEquals(List.of(new Segment(Entry.IN_HAND, true, false), new Segment(Entry.EASY_PLACE, true, false),
-                new Segment(Entry.RESTRICTION, true, true), new Segment(Entry.MISTAKES, true, false)), menu.segments());
-        RadialMenu all = menu(Mode.TOGGLE, new Selection(State.LOCKED, "Castle Gate", Layers.Mode.OFF, true).withBuild(true, false));
+                new Segment(Entry.RESTRICTION, true, true), new Segment(Entry.PIN_OVERLAY, true, false), new Segment(Entry.MISTAKES, true, false)),
+                menu.segments());
+        RadialMenu all = menu(Mode.TOGGLE, new Selection(State.LOCKED, "Castle Gate", Layers.Mode.OFF, true).withBuild(true, false).withPinned(true));
         all.click(index(all, Entry.OPTIONS));
-        assertEquals(List.of(true, true, false, false), all.segments().stream().map(Segment::current).toList());
+        assertEquals(List.of(true, true, false, true, false), all.segments().stream().map(Segment::current).toList());
     }
 
     @Test
     void optionsPicksToggleTheSetting() {
-        for (Entry entry : List.of(Entry.IN_HAND, Entry.EASY_PLACE, Entry.RESTRICTION)) {
+        for (Entry entry : List.of(Entry.IN_HAND, Entry.EASY_PLACE, Entry.RESTRICTION, Entry.PIN_OVERLAY)) {
             RadialMenu menu = menu(Mode.TOGGLE, LOCKED);
             menu.click(index(menu, Entry.OPTIONS));
             Command expected = switch (entry) {
                 case IN_HAND -> Command.TOGGLE_IN_HAND;
                 case EASY_PLACE -> Command.TOGGLE_EASY_PLACE;
+                case PIN_OVERLAY -> Command.TOGGLE_PIN_OVERLAY;
                 default -> Command.TOGGLE_RESTRICTION;
             };
             assertEquals(run(expected), menu.click(index(menu, entry)));
+        }
+    }
+
+    @Test
+    void pinOverlayIsInOptionsInEveryPlacementState() {
+        for (Selection selection : List.of(FOLLOWING, ANCHORED, LOCKED)) {
+            RadialMenu menu = options(selection.withPinned(true));
+            assertEquals(new Segment(Entry.PIN_OVERLAY, true, true), menu.segments().get(index(menu, Entry.PIN_OVERLAY)));
+            assertEquals(run(Command.TOGGLE_PIN_OVERLAY), menu.click(index(menu, Entry.PIN_OVERLAY)));
+        }
+    }
+
+    @Test
+    void togglesThatAreOnAreTinted() {
+        RadialMenu menu = options(new Selection(State.LOCKED, "Castle Gate", Layers.Mode.OFF, true).withBuild(true, false).withPinned(true)
+                .with(PointerMode.MISTAKES));
+        assertEquals(List.of(true, true, false, true, true), menu.segments().stream().map(Segment::tinted).toList());
+        RadialMenu off = options(new Selection(State.LOCKED, "Castle Gate", Layers.Mode.OFF, false));
+        assertEquals(List.of(false, false, false, false, false), off.segments().stream().map(Segment::tinted).toList());
+    }
+
+    @Test
+    void pickerSegmentsAreNeverTinted() {
+        RadialMenu layers = menu(Mode.TOGGLE, LOCKED);
+        layers.click(index(layers, Entry.LAYERS));
+        assertEquals(List.of(false, false, false), layers.segments().stream().map(Segment::tinted).toList());
+        RadialMenu mistakes = options(LOCKED.with(PointerMode.MISTAKES));
+        mistakes.click(index(mistakes, Entry.MISTAKES));
+        assertEquals(List.of(false, false, false), mistakes.segments().stream().map(Segment::tinted).toList());
+    }
+
+    @Test
+    void unlockNeedsTheRemote() {
+        RadialMenu without = menu(Mode.TOGGLE, LOCKED.withRemoteHeld(false));
+        Segment unlock = without.segments().get(index(without, Entry.UNLOCK));
+        assertEquals(false, unlock.enabled());
+        assertEquals(Outcome.STAY, without.click(index(without, Entry.UNLOCK)));
+        assertEquals("heavymatica.wheel.hint.unlock.disabled", WheelText.hintKey(unlock));
+        RadialMenu with = menu(Mode.TOGGLE, LOCKED);
+        assertEquals(true, with.segments().get(index(with, Entry.UNLOCK)).enabled());
+    }
+
+    @Test
+    void everythingElseWorksWithoutTheRemote() {
+        RadialMenu lock = menu(Mode.TOGGLE, ANCHORED.withRemoteHeld(false));
+        assertEquals(run(Command.LOCK), lock.click(index(lock, Entry.LOCK)));
+        RadialMenu options = options(LOCKED.withRemoteHeld(false));
+        assertEquals(run(Command.TOGGLE_EASY_PLACE), options.click(index(options, Entry.EASY_PLACE)));
+        RadialMenu layers = menu(Mode.TOGGLE, LOCKED.withRemoteHeld(false));
+        assertEquals(Outcome.STAY, layers.click(index(layers, Entry.LAYERS)));
+        assertEquals(Page.LAYERS, layers.page());
+    }
+
+    @Test
+    void noCaptureWithoutTheRemote() {
+        for (Selection selection : List.of(ANCHORED, LOCKED)) {
+            assertEquals(-1, index(menu(Mode.HOLD, selection.withRemoteHeld(false)), Entry.START_CAPTURE));
+            assertEquals(true, entries(menu(Mode.HOLD, selection)).contains(Entry.START_CAPTURE));
         }
     }
 
@@ -352,7 +412,8 @@ class RadialMenuTest {
         for (Selection selection : List.of(Selection.NONE, FOLLOWING, ANCHORED, LOCKED)) {
             RadialMenu menu = menu(Mode.TOGGLE, selection);
             int opacity = index(menu, Entry.OPACITY);
-            assertEquals(index(menu, Entry.LIBRARY) - 1, opacity);
+            int after = selection.state() == State.FOLLOWING || selection.state() == State.ANCHORED ? 2 : 1;
+            assertEquals(index(menu, Entry.LIBRARY) - after, opacity);
             assertEquals(new Segment(Entry.OPACITY, true, false), menu.segments().get(opacity));
             assertEquals(Outcome.STAY, menu.click(opacity));
             assertEquals(Page.OPACITY, menu.page());
