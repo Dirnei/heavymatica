@@ -86,11 +86,15 @@ Right-clicking with the remote (without sneaking) when no placement is FOLLOWING
 - **THEN** nothing changes
 
 ### Requirement: Right-click on no ghost opens the library
-Right-clicking with the remote (without sneaking) when no placement is FOLLOWING and the line of sight hits no ghost SHALL open the library.
+Right-clicking with the remote (without sneaking) when no placement is FOLLOWING and the line of sight hits no ghost SHALL deselect the selected placement, leaving it where it is. When no placement is selected, the same click SHALL open the library.
 
 #### Scenario: Open the library with the remote
-- **WHEN** a player holding the remote right-clicks at a spot with no ghost
+- **WHEN** no placement is selected and a player holding the remote right-clicks at a spot with no ghost
 - **THEN** the library screen opens
+
+#### Scenario: Deselect with the remote
+- **WHEN** the anchored placement `Gate` is selected and the player right-clicks at the sky with the remote
+- **THEN** no placement is selected, `Gate` stays where it is, and the library does not open
 
 ### Requirement: Moving relative to the camera
 While a remote is held and the selected placement is ANCHORED, the arrow keys SHALL move it one block in the direction the player faces, snapped to the nearest horizontal direction: up away from the player, down toward them, left and right sideways. With Shift held, each press SHALL move 10 blocks. Holding a key SHALL repeat the move.

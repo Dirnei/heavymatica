@@ -113,7 +113,7 @@ While there is a ghost target and no screen is open, the client SHALL show a sma
 - **THEN** no targeting HUD shows
 
 ### Requirement: Target state in the HUD
-The HUD SHALL show the target's state on its own line, in the comparison colours: missing; wrong block in red, naming the found block; wrong orientation in orange, with the found block's orientation; too many in orange, with the found and the planned amount; extra in magenta, for a two-item block on a planned empty base, naming the content to remove; wrong water in cyan, saying whether water is needed or must go; needs finishing in yellow, naming the step; not enough yet, with how many more are needed, or, for a two-item block on its empty base, naming the content to add; and not compared yet, muted, while the position is unknown.
+The HUD SHALL show the target's state on its own line, in the comparison colours: missing; wrong block in red, naming the found block; wrong orientation in orange, with the found block's orientation, or, when only the open state of a door, trapdoor or fence gate differs, saying to open it or to close it; too many in orange, with the found and the planned amount; extra in magenta, for a two-item block on a planned empty base, naming the content to remove; wrong water in cyan, saying whether water is needed or must go; needs finishing in yellow, naming the step; not enough yet, with how many more are needed, or, for a two-item block on its empty base, naming the content to add, or, for a single chest where a half of a double chest is planned, saying that the other half is still needed; and not compared yet, muted, while the position is unknown.
 
 #### Scenario: Wrong block
 - **WHEN** the target expects oak planks and the world has dirt there
@@ -146,6 +146,22 @@ The HUD SHALL show the target's state on its own line, in the comparison colours
 #### Scenario: Plant in a planned empty pot
 - **WHEN** the target expects an empty flower pot and the world has a potted dead bush there
 - **THEN** the HUD shows a magenta line saying the dead bush must go
+
+#### Scenario: Gate to open
+- **WHEN** the target expects an open oak fence gate and the world has the same gate closed there
+- **THEN** the HUD shows an orange line saying to open it
+
+#### Scenario: Door to close
+- **WHEN** the target expects a closed iron door and the world has the same door open there
+- **THEN** the HUD shows an orange line saying to close it
+
+#### Scenario: Chest waiting for its other half
+- **WHEN** the target expects the left half of a double chest and the world has a single chest in the planned facing there
+- **THEN** the HUD shows a line saying the other half of the chest is still needed
+
+#### Scenario: Chest that should stay single
+- **WHEN** the target expects a single chest and the world has the left half of a double chest there
+- **THEN** the HUD shows an orange line naming the found chest type
 
 ### Requirement: Other placements in the HUD
 When the target belongs to a placement that is not selected, the HUD SHALL also show that placement's name.
