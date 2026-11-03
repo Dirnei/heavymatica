@@ -59,7 +59,7 @@ public final class EasyPlace {
         WorldComparison comparison = target == null ? null : session.comparison(target.placement());
         ItemStack held = player.getMainHandItem();
         boolean candidate = comparison != null && target.plannedIndex() >= 0 && candidate(comparison, target.plannedIndex(), held);
-        BuildRules.EasyPlaceClick click = new BuildRules.EasyPlaceClick(true, minecraft.screen != null, player.isShiftKeyDown(), player.isSpectator(),
+        BuildRules.EasyPlaceClick click = new BuildRules.EasyPlaceClick(true, minecraft.screen != null, player.isSpectator(),
                 Remotes.isRemote(held), target == null ? null : target.state(), target != null && target.inReach(), candidate,
                 target != null && target.found() != null && WorldComparison.waitsForOtherHalf(target.planned(), target.found()));
         if (!BuildRules.easyPlaces(click)) {
@@ -105,15 +105,17 @@ public final class EasyPlace {
     /**
      * Rotation, click, real rotation. The client player has the click's rotation during the click so the client's own
      * prediction places the same state, and gets its own back before the next frame, so the camera never moves. A
-     * sneaking click is wrapped the same way in a sneaking input and the real one.
+     * click whose sneaking differs from the player's is wrapped the same way in an input with the click's sneaking and the
+     * real one, so the server places what the search predicted whether or not the player sneaks.
      */
     private static InteractionResult send(Minecraft minecraft, LocalPlayer player, Click click, GhostTarget target) {
         ClientPacketListener connection = minecraft.getConnection();
         float yaw = player.getYRot();
         float pitch = player.getXRot();
         Input input = player.input.keyPresses;
-        if (click.sneaking()) {
-            player.input.keyPresses = VanillaPlacement.sneaking(input, true);
+        boolean wrapped = click.sneaking() != input.shift();
+        if (wrapped) {
+            player.input.keyPresses = VanillaPlacement.sneaking(input, click.sneaking());
             connection.send(new ServerboundPlayerInputPacket(player.input.keyPresses));
         }
         if (click.turned()) {
@@ -129,7 +131,7 @@ public final class EasyPlace {
                 player.setXRot(pitch);
                 connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
             }
-            if (click.sneaking()) {
+            if (wrapped) {
                 player.input.keyPresses = input;
                 connection.send(new ServerboundPlayerInputPacket(player.getLastSentInput()));
             }

@@ -10,56 +10,51 @@ import org.junit.jupiter.api.Test;
 class EasyPlaceTest {
 
     /** Easy Place on, matching item on a missing ghost within reach. */
-    private static final EasyPlaceClick MATCHING = new EasyPlaceClick(true, false, false, false, false, CellState.MISSING, true, true, false);
+    private static final EasyPlaceClick MATCHING = new EasyPlaceClick(true, false, false, false, CellState.MISSING, true, true, false);
 
     @Test
     void matchingItemOnAGhostActs() {
         assertTrue(BuildRules.easyPlaces(MATCHING));
-        assertTrue(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, false, false, CellState.INCOMPLETE, true, true, false)));
+        assertTrue(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, false, CellState.INCOMPLETE, true, true, false)));
     }
 
     @Test
     void offDoesNotAct() {
-        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(false, false, false, false, false, CellState.MISSING, true, true, false)));
-    }
-
-    @Test
-    void sneakingDoesNotAct() {
-        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, true, false, false, CellState.MISSING, true, true, false)));
+        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(false, false, false, false, CellState.MISSING, true, true, false)));
     }
 
     @Test
     void spectatorDoesNotAct() {
-        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, true, false, CellState.MISSING, true, true, false)));
+        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, true, false, CellState.MISSING, true, true, false)));
     }
 
     @Test
     void remoteHeldDoesNotAct() {
-        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, false, true, CellState.MISSING, true, true, false)));
+        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, true, CellState.MISSING, true, true, false)));
     }
 
     @Test
     void screenOpenDoesNotAct() {
-        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, true, false, false, false, CellState.MISSING, true, true, false)));
+        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, true, false, false, CellState.MISSING, true, true, false)));
     }
 
     @Test
     void outOfReachDoesNotAct() {
-        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, false, false, CellState.MISSING, false, true, false)));
+        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, false, CellState.MISSING, false, true, false)));
     }
 
     @Test
     void noOrNonGhostTargetDoesNotAct() {
-        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, false, false, null, false, false, false)));
+        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, false, null, false, false, false)));
         for (CellState state : new CellState[] {CellState.MATCHING, CellState.WRONG_BLOCK, CellState.WRONG_ORIENTATION, CellState.TOO_MANY,
                 CellState.NEEDS_FINISHING, CellState.UNKNOWN, CellState.CANT_CHECK}) {
-            assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, false, false, state, true, true, false)), state.name());
+            assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, false, state, true, true, false)), state.name());
         }
     }
 
     @Test
     void wrongItemDoesNotAct() {
-        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, false, false, CellState.MISSING, true, false, false)));
+        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, false, CellState.MISSING, true, false, false)));
     }
 
     @Test
@@ -87,6 +82,6 @@ class EasyPlaceTest {
 
     @Test
     void singleChestWaitingForItsOtherHalfDoesNotAct() {
-        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, false, false, CellState.INCOMPLETE, true, true, true)));
+        assertFalse(BuildRules.easyPlaces(new EasyPlaceClick(true, false, false, false, CellState.INCOMPLETE, true, true, true)));
     }
 }
