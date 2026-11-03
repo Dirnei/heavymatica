@@ -15,8 +15,6 @@ import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 
 /**
  * Vanilla's block shader with translucent blending, depth test on and depth write off, so real blocks hide ghosts.
- * Culling is off: faces between neighbouring ghosts are left out of the mesh, so from inside a ghost wall only back
- * faces remain.
  * Each ghost pipeline has a depth-only twin drawn first, so only the nearest ghost surface gets blended. The alpha
  * comes from the colour modulator. The masked variants read each vertex's cell index from its lightmap coordinates and
  * drop cells whose bit in {@code GhostMask} is clear. Mistake boxes are plain coloured quads with the same depth
@@ -31,7 +29,6 @@ public final class GhostPipeline {
             .withShaderDefine("ALPHA_CUTOUT", 0.01F)
             .withColorTargetState(NO_COLOR)
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
-            .withCull(false)
             .build();
 
     public static final RenderPipeline GHOST_MASKED_DEPTH = RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
@@ -41,7 +38,6 @@ public final class GhostPipeline {
             .withShaderDefine("ALPHA_CUTOUT", 0.01F)
             .withColorTargetState(NO_COLOR)
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
-            .withCull(false)
             .build();
 
     public static final RenderPipeline GHOST = RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
@@ -49,7 +45,6 @@ public final class GhostPipeline {
             .withShaderDefine("ALPHA_CUTOUT", 0.01F)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
-            .withCull(false)
             .build();
 
     public static final RenderPipeline GHOST_MASKED = RenderPipeline.builder(RenderPipelines.BLOCK_SNIPPET)
@@ -59,7 +54,6 @@ public final class GhostPipeline {
             .withShaderDefine("ALPHA_CUTOUT", 0.01F)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
-            .withCull(false)
             .build();
 
     public static final RenderPipeline MISTAKE_BOX = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)

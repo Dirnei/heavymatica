@@ -42,6 +42,7 @@ final class GhostRenderer {
     private final PlacementSession session;
     private final GhostMeshes meshes;
     private final BooleanSupplier remoteHeld;
+    private final InsideGhost inside = new InsideGhost();
     private int lastMeshes;
     private int lastOutlinesOnly;
     private String lastCells = "";
@@ -101,6 +102,7 @@ final class GhostRenderer {
         int outlinesOnly = 0;
         StringBuilder cellsDrawn = new StringBuilder();
         Set<UUID> throughCells = new HashSet<>();
+        Set<UUID> insideDrawn = new HashSet<>();
         InHandFilter filter = InHandFilter.current();
         for (Placement placement : session.placements().inDimension(dimension)) {
             if (placement.following() && !holding) {
@@ -131,11 +133,19 @@ final class GhostRenderer {
                         double value = alpha.applyAsDouble(block);
                         return value < opacity ? value : 0.0;
                     }, 0.0F, mask);
+                    ComparisonState state = comparison.state();
+                    inside.draw(placement, model, bounds, camera, modelView, offset, true,
+                            planned -> eyeShows(state, layers, bounds, camera),
+                            (x, y, z, planned) -> layers.contains(y) && state.state(state.index(x, y, z)).showsGhost()
+                                    ? (float) alpha.applyAsDouble(planned.getBlock()) : 0.0F);
+                    insideDrawn.add(placement.id());
                     throughCells.add(placement.id());
                     cellsDrawn.append(" ").append(placement.name()).append(" layers ").append(layers.from()).append('-').append(layers.to())
                             .append(": ").append(full).append(" full, ").append(dimmed).append(" dimmed");
                 } else {
                     mesh.draw(modelView, offset, opacity, placeholderOpacity);
+                    inside.draw(placement, model, bounds, camera, modelView, offset, false, planned -> true, (x, y, z, planned) -> opacity);
+                    insideDrawn.add(placement.id());
                 }
             } else {
                 outlinesOnly++;
@@ -149,11 +159,20 @@ final class GhostRenderer {
                     bounds.minX() - camera.x, bounds.minY() - camera.y, bounds.minZ() - camera.z, color, isSelected ? lineWidth * 2.0F : lineWidth);
         }
         buffers.endBatch(RenderTypes.lines());
+        inside.retain(insideDrawn);
         lastMeshes = meshesDrawn;
         lastOutlinesOnly = outlinesOnly;
         lastCells = cellsDrawn.toString();
         drawnThroughCells = throughCells;
         inHand = filter;
+    }
+
+    /** True when the cell the camera is in shows its ghost: in the visible layers and not built yet. */
+    private static boolean eyeShows(ComparisonState state, Layers.Range layers, Bounds bounds, Vec3 camera) {
+        int x = (int) Math.floor(camera.x - bounds.minX());
+        int y = (int) Math.floor(camera.y - bounds.minY());
+        int z = (int) Math.floor(camera.z - bounds.minZ());
+        return layers.contains(y) && state.stateOrUnknown(x, y, z).showsGhost();
     }
 
     /** The placements whose ghosts the last frame drew cell by cell, with the comparison mask and the boxes. */

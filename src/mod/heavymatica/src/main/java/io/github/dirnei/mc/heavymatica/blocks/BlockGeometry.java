@@ -1,6 +1,9 @@
 package io.github.dirnei.mc.heavymatica.blocks;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.block.BlockQuadOutput;
@@ -11,6 +14,7 @@ import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
@@ -21,6 +25,7 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.MapColor;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * The geometry of one block of a schematic view, in view coordinates: its block model, the display model of a block
@@ -44,7 +49,16 @@ public final class BlockGeometry {
     };
     private CardinalLighting lighting = CardinalLighting.DEFAULT;
     private int modelQuads;
+    private @Nullable Set<BakedQuad> recording;
+    private @Nullable Set<BakedQuad> skipping;
     private final BlockQuadOutput modelOutput = (x, y, z, quad, instance) -> {
+        if (recording != null) {
+            recording.add(quad);
+            return;
+        }
+        if (skipping != null && skipping.contains(quad)) {
+            return;
+        }
         VertexConsumer buffer = output.buffer(TextureAtlas.LOCATION_BLOCKS, quad.materialInfo().layer());
         float correction = quad.materialInfo().shade() ? FaceShade.correction(lighting, quad.direction()) : 1.0F;
         (correction == 1.0F ? buffer : new ScaledColorVertices(buffer, correction)).putBlockBakedQuad(x, y, z, quad, instance);
@@ -82,6 +96,33 @@ public final class BlockGeometry {
             wrote = true;
         }
         return wrote;
+    }
+
+    /**
+     * Writes only the model faces of the block at {@code pos} that {@code covered} culls and {@code open} does not, such
+     * as the faces toward a neighbour that {@code open} reads as air. Returns whether it wrote anything.
+     */
+    public boolean emitUncovered(BlockAndTintGetter covered, BlockAndTintGetter open, BlockPos pos, BlockState state, TexturedOutput out) {
+        if (state.getRenderShape() == RenderShape.INVISIBLE) {
+            return false;
+        }
+        output = out;
+        lighting = open.cardinalLighting();
+        Set<BakedQuad> shown = Collections.newSetFromMap(new IdentityHashMap<>());
+        recording = shown;
+        try {
+            renderer.tesselateBlock(modelOutput, pos.getX(), pos.getY(), pos.getZ(), covered, pos, state, models.get(state), state.getSeed(pos));
+        } finally {
+            recording = null;
+        }
+        skipping = shown;
+        modelQuads = 0;
+        try {
+            renderer.tesselateBlock(modelOutput, pos.getX(), pos.getY(), pos.getZ(), open, pos, state, models.get(state), state.getSeed(pos));
+        } finally {
+            skipping = null;
+        }
+        return modelQuads > 0;
     }
 
     private void fluid(BlockAndTintGetter view, BlockPos pos, BlockState state, FluidState fluid, TexturedOutput out) {
