@@ -78,6 +78,13 @@ public final class Placements {
         });
     }
 
+    public void deselect() {
+        if (selected != null) {
+            selected = null;
+            changed();
+        }
+    }
+
     public void remove(UUID id) {
         if (placements.removeIf(placement -> placement.id().equals(id))) {
             if (id.equals(selected)) {

@@ -22,6 +22,7 @@ public final class PlacementController {
         ANCHORED,
         RELEASED,
         SELECTED,
+        DESELECTED,
         OPEN_LIBRARY,
         NOTHING,
     }
@@ -90,6 +91,11 @@ public final class PlacementController {
         }
         Optional<Placement> hit = placements.firstHit(dimension, ray);
         if (hit.isEmpty()) {
+            if (selected.isPresent()) {
+                placements.deselect();
+                pending = null;
+                return Use.DESELECTED;
+            }
             return Use.OPEN_LIBRARY;
         }
         if (selected.isPresent() && selected.get().id().equals(hit.get().id())) {

@@ -24,6 +24,7 @@ public final class KeyHintRules {
         MIRROR,
         RELEASE,
         MENU,
+        DESELECT,
         LOCK,
         UNLOCK,
         REMOVE,
@@ -106,6 +107,7 @@ public final class KeyHintRules {
                 }
                 layerHints(situation, hints);
                 hints.add(Hint.MENU);
+                hints.add(Hint.DESELECT);
                 bound(situation, WheelKey.IN_HAND, Hint.IN_HAND, hints);
                 bound(situation, WheelKey.MATERIALS, Hint.MATERIALS, hints);
                 bound(situation, WheelKey.LOCK, Hint.UNLOCK, hints);
@@ -129,6 +131,7 @@ public final class KeyHintRules {
                 hints.add(Hint.MIRROR);
                 hints.add(Hint.RELEASE);
                 hints.add(Hint.MENU);
+                hints.add(Hint.DESELECT);
                 bound(situation, WheelKey.LOCK, Hint.LOCK, hints);
                 bound(situation, WheelKey.REMOVE, Hint.REMOVE, hints);
                 bound(situation, WheelKey.MATERIALS, Hint.MATERIALS, hints);

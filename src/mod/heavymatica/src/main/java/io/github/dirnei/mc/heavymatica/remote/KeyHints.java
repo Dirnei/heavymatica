@@ -191,6 +191,7 @@ public final class KeyHints {
             case RELEASE -> new Row(Component.translatable("heavymatica.overlay.key.sneak_use", minecraft.options.keyShift.getTranslatedKeyMessage(),
                     minecraft.options.keyUse.getTranslatedKeyMessage()), Component.translatable("heavymatica.overlay.hint.release"), muted);
             case MENU -> hint(RemoteKeys.WHEEL, "heavymatica.overlay.hint.menu");
+            case DESELECT -> hint(minecraft.options.keyUse, "heavymatica.overlay.hint.deselect");
             case LOCK -> hint(RemoteKeys.LOCK, "heavymatica.overlay.hint.lock");
             case UNLOCK -> hint(RemoteKeys.LOCK, "heavymatica.overlay.hint.unlock");
             case REMOVE -> hint(RemoteKeys.REMOVE, "heavymatica.overlay.hint.remove");

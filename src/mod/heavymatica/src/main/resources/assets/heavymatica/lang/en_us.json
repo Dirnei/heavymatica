@@ -160,6 +160,7 @@
   "heavymatica.overlay.hint.rotate": "rotate (Shift: back)",
   "heavymatica.overlay.hint.mirror": "mirror",
   "heavymatica.overlay.hint.release": "release",
+  "heavymatica.overlay.hint.deselect": "on empty space: deselect",
   "heavymatica.overlay.hint.cancel": "cancel",
   "heavymatica.overlay.hint.remove": "remove",
   "heavymatica.overlay.key.arrows": "Arrows",

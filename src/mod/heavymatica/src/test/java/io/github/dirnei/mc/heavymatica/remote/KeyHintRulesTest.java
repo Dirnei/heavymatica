@@ -50,13 +50,13 @@ class KeyHintRulesTest {
 
     @Test
     void anchoredWithDefaultBindingsHasNoLockOrRemove() {
-        assertEquals(List.of(Hint.MOVE, Hint.UP_DOWN, Hint.ROTATE, Hint.MIRROR, Hint.RELEASE, Hint.MENU),
+        assertEquals(List.of(Hint.MOVE, Hint.UP_DOWN, Hint.ROTATE, Hint.MIRROR, Hint.RELEASE, Hint.MENU, Hint.DESELECT),
                 KeyHintRules.hints(held(Selected.ANCHORED, Layers.Mode.OFF, NONE_BOUND)));
     }
 
     @Test
     void anchoredWithBoundLock() {
-        assertEquals(List.of(Hint.MOVE, Hint.UP_DOWN, Hint.ROTATE, Hint.MIRROR, Hint.RELEASE, Hint.MENU, Hint.LOCK),
+        assertEquals(List.of(Hint.MOVE, Hint.UP_DOWN, Hint.ROTATE, Hint.MIRROR, Hint.RELEASE, Hint.MENU, Hint.DESELECT, Hint.LOCK),
                 KeyHintRules.hints(held(Selected.ANCHORED, Layers.Mode.OFF, Set.of(WheelKey.LOCK))));
     }
 
@@ -64,10 +64,10 @@ class KeyHintRulesTest {
     void lockedStartsWithTheLayerHints() {
         Situation fromTo = held(Selected.LOCKED, Layers.Mode.FROM_TO, ALL_BOUND);
         assertTrue(KeyHintRules.header(fromTo));
-        assertEquals(List.of(Hint.WINDOW, Hint.WINDOW_SIZE, Hint.CYCLE_LAYERS, Hint.MENU, Hint.IN_HAND, Hint.MATERIALS, Hint.UNLOCK),
+        assertEquals(List.of(Hint.WINDOW, Hint.WINDOW_SIZE, Hint.CYCLE_LAYERS, Hint.MENU, Hint.DESELECT, Hint.IN_HAND, Hint.MATERIALS, Hint.UNLOCK),
                 KeyHintRules.hints(fromTo));
-        assertEquals(List.of(Hint.FOLLOW_HEIGHT, Hint.MENU), KeyHintRules.hints(held(Selected.LOCKED, Layers.Mode.FOLLOW, NONE_BOUND)));
-        assertEquals(List.of(Hint.MENU), KeyHintRules.hints(held(Selected.LOCKED, Layers.Mode.OFF, NONE_BOUND)));
+        assertEquals(List.of(Hint.FOLLOW_HEIGHT, Hint.MENU, Hint.DESELECT), KeyHintRules.hints(held(Selected.LOCKED, Layers.Mode.FOLLOW, NONE_BOUND)));
+        assertEquals(List.of(Hint.MENU, Hint.DESELECT), KeyHintRules.hints(held(Selected.LOCKED, Layers.Mode.OFF, NONE_BOUND)));
     }
 
     @Test

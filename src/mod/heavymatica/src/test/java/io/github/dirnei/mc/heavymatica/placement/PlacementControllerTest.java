@@ -116,9 +116,16 @@ class PlacementControllerTest {
     }
 
     @Test
-    void rightClickOnNoGhostOpensTheLibrary() {
+    void rightClickOnNoGhostOpensTheLibraryWhenNothingIsSelected() {
         assertEquals(Use.OPEN_LIBRARY, controller.use(false, OVERWORLD, SOUTH));
-        anchored("Gate", 6);
+    }
+
+    @Test
+    void rightClickOnNoGhostDeselects() {
+        Placement gate = anchored("Gate", 6);
+        assertEquals(Use.DESELECTED, controller.use(false, OVERWORLD, SKY));
+        assertTrue(placements.selected().isEmpty());
+        assertEquals(gate, placements.get(gate.id()).orElseThrow());
         assertEquals(Use.OPEN_LIBRARY, controller.use(false, OVERWORLD, SKY));
     }
 
