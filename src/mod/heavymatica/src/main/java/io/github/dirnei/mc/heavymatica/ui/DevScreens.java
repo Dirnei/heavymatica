@@ -352,6 +352,7 @@ public final class DevScreens {
                 PlacementSession session = HeavymaticaClient.placements();
                 if (session != null) {
                     Heavymatica.LOGGER.info("Dev overlay: {}", String.join(" | ", PlacementOverlay.textForDevelopment(minecraft, session)));
+                    Heavymatica.LOGGER.info("Dev key hints: {}", String.join(" | ", io.github.dirnei.mc.heavymatica.remote.KeyHints.textForDevelopment(session)));
                 }
             }
             case "logTarget" -> logTarget();

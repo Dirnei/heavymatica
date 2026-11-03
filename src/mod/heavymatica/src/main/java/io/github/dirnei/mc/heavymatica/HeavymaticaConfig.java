@@ -3,6 +3,7 @@ package io.github.dirnei.mc.heavymatica;
 import io.github.dirnei.mc.heavymatica.account.CloudAccess;
 import io.github.dirnei.mc.heavymatica.account.CloudAddress;
 import io.github.dirnei.mc.heavymatica.placement.OpacitySteps;
+import io.github.dirnei.mc.heavymatica.remote.KeyHintRules;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu;
 import io.github.dirnei.mc.heavymatica.targeting.PointerMode;
 import java.net.URI;
@@ -70,8 +71,12 @@ public final class HeavymaticaConfig {
             .defineEnum("side", OverlaySide.LEFT);
 
     private static final ModConfigSpec.BooleanValue OVERLAY_COMPACT = BUILDER
-            .comment("Show only the placement's name and state in the overlay, without details and key hints.")
+            .comment("Replaced by keyHints. When true at start, key hints are turned off and this goes back to false.")
             .define("compact", false);
+
+    private static final ModConfigSpec.BooleanValue OVERLAY_KEY_HINTS = BUILDER
+            .comment("Show the key hints in the bottom-right corner while the remote is held.")
+            .define("keyHints", true);
 
     private static final ModConfigSpec.BooleanValue OVERLAY_PINNED = BUILDER
             .comment("Keep the placement overlay on screen without the remote while a placement is selected.")
@@ -205,8 +210,18 @@ public final class HeavymaticaConfig {
         return OVERLAY_SIDE.get();
     }
 
-    public static boolean overlayCompact() {
-        return OVERLAY_COMPACT.get();
+    public static boolean overlayKeyHints() {
+        return OVERLAY_KEY_HINTS.get();
+    }
+
+    /** Carries the former compact overlay over into the key hints setting, once. */
+    public static void migrateCompactOverlay() {
+        if (!OVERLAY_COMPACT.get()) {
+            return;
+        }
+        OVERLAY_KEY_HINTS.set(KeyHintRules.keyHintsAfterMigration(true, OVERLAY_KEY_HINTS.get()));
+        OVERLAY_COMPACT.set(false);
+        OVERLAY_COMPACT.save();
     }
 
     public static boolean overlayPinned() {

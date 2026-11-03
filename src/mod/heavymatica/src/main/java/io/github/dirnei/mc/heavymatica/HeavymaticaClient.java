@@ -28,6 +28,7 @@ import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
 import io.github.dirnei.mc.heavymatica.placement.PlacementStore;
 import io.github.dirnei.mc.heavymatica.remote.FinishFeedback;
+import io.github.dirnei.mc.heavymatica.remote.KeyHints;
 import io.github.dirnei.mc.heavymatica.remote.PlacementOverlay;
 import io.github.dirnei.mc.heavymatica.remote.RemoteInput;
 import io.github.dirnei.mc.heavymatica.remote.RemoteKeys;
@@ -94,6 +95,7 @@ public final class HeavymaticaClient {
         modEventBus.addListener(HeavymaticaClient::setup);
         modEventBus.addListener(GhostPipeline::register);
         modEventBus.addListener((RegisterGuiLayersEvent event) -> new PlacementOverlay(HeavymaticaClient::placements).register(event));
+        modEventBus.addListener((RegisterGuiLayersEvent event) -> new KeyHints(HeavymaticaClient::placements).register(event));
         modEventBus.addListener((RegisterGuiLayersEvent event) -> new TargetHud(HeavymaticaClient::placements, HeavymaticaClient::targeting).register(event));
         modEventBus.addListener((RegisterGuiLayersEvent event) -> new PointerHud(HeavymaticaClient::mistakePointer).register(event));
         modEventBus.addListener((RegisterGuiLayersEvent event) -> new BuildOptionsHud(HeavymaticaClient::placements).register(event));
@@ -201,6 +203,7 @@ public final class HeavymaticaClient {
 
     private static void setup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
+            HeavymaticaConfig.migrateCompactOverlay();
             Minecraft minecraft = Minecraft.getInstance();
             ObjectMapper json = ApiClient.createDefaultObjectMapper();
             Path data = dataDirectory();

@@ -49,7 +49,7 @@ final class SettingsTable {
     }
 
     /** Config values that stay in the config file only. */
-    static final Set<String> FILE_ONLY = Set.of("cloud.cloudUrl", "cloud.devSessionJoinUrl");
+    static final Set<String> FILE_ONLY = Set.of("cloud.cloudUrl", "cloud.devSessionJoinUrl", "overlay.compact");
 
     static final List<Setting> ALL = List.of(
             new Setting(Section.REMOTE, "remote.item", Control.ITEM, 0, 0),
@@ -65,7 +65,7 @@ final class SettingsTable {
             new Setting(Section.BUILDING, "targeting.pickBlock", Control.TOGGLE, 0, 0),
             new Setting(Section.BUILDING, "targeting.mistakePointer", Control.CHOICE, 0, 0),
             new Setting(Section.HUD, "overlay.side", Control.CHOICE, 0, 0),
-            new Setting(Section.HUD, "overlay.compact", Control.TOGGLE, 0, 0),
+            new Setting(Section.HUD, "overlay.keyHints", Control.TOGGLE, 0, 0),
             new Setting(Section.HUD, "overlay.pinned", Control.TOGGLE, 0, 0),
             new Setting(Section.HUD, "targeting.hudRange", Control.SLIDER, 0, 128),
             new Setting(Section.LIBRARY, "cloud.access", Control.CHOICE, 0, 0),

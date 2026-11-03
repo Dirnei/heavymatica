@@ -12,8 +12,11 @@ While building a locked placement, the up / down arrows move its layer window an
 follow offset), also without the remote in hand; the action bar then shows the new layers. With a placement selected,
 the wheel (V) also opens without the remote, and everything on it works except Unlock and Capture; moving, rotating,
 mirroring and anchoring a placement still need the remote. Options on the wheel can pin the placement overlay so it
-stays on screen without the remote. Toggles that are on show green on the wheel, and while Easy Place or placement
-restriction is on near a locked placement, their icons sit above the hotbar.
+stays on screen without the remote. The overlay shows status only; the keys that work right now are listed in the
+bottom-right corner while the remote is held, headed by the layer setting on a locked placement (pinned without the
+remote, only that header and the layer keys show). "Show key hints" in the settings turns the list off. Toggles that
+are on show green on the wheel, and while Easy Place or placement restriction is on near a locked placement, their icons
+sit above the hotbar.
 
 ## License
 
