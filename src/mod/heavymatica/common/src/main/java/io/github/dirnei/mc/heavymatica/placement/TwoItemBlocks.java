@@ -1,5 +1,6 @@
 package io.github.dirnei.mc.heavymatica.placement;
 
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -71,7 +72,7 @@ public final class TwoItemBlocks {
 
     private static @Nullable Parts lookup(Block block) {
         if (block instanceof FlowerPotBlock pot && pot.getPotted() != Blocks.AIR) {
-            return parts(pot.getEmptyPot(), pot.getPotted(), pot.getPotted().asItem());
+            return parts(Platform.get().emptyFlowerPot(pot), pot.getPotted(), pot.getPotted().asItem());
         }
         if (block instanceof CandleCakeBlock) {
             Block candle = candlesByCake().get(block);

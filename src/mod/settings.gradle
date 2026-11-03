@@ -1,5 +1,9 @@
 pluginManagement {
     repositories {
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
         gradlePluginPortal()
     }
 }
@@ -11,4 +15,7 @@ plugins {
 
 rootProject.name = 'heavymatica_mods'
 
-include 'heavymatica'
+// Each mod has a loader-free common project and one project per loader that compiles common's sources into its jar.
+include 'heavymatica:common'
+include 'heavymatica:neoforge'
+include 'heavymatica:fabric'

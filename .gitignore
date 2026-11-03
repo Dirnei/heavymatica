@@ -46,6 +46,8 @@ Thumbs.db
 
 # Logs and local files
 *.log
+# Minecraft's log folder, also written by the mod's unit tests
+**/logs/
 *.launch
 appsettings.Local.json
 

@@ -1,0 +1,93 @@
+// The Fabric jar of Heavymatica: common's code plus the Fabric entry points, hooks and mixins. Shared configuration lives
+// in the root build.gradle.
+
+apply plugin: 'net.fabricmc.fabric-loom'
+
+loom {
+    accessWidenerPath = file('src/main/resources/heavymatica.classtweaker')
+
+    mods {
+        "${project.mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+
+    runs {
+        client {
+            client()
+            runDir 'runs/client'
+            // Dev clients talk to the local cloud, never to production by accident; HEAVYMATICA_CLOUD_URL picks another one.
+            property 'heavymatica.cloud.url', System.getenv('HEAVYMATICA_CLOUD_URL') ?: 'http://localhost:5180'
+            programArgs(*rootProject.ext.devClientArguments())
+            // Loom's dev launcher drops double quotes from property values, so they are escaped.
+            rootProject.ext.devSystemProperties().each { name, value -> property name, value.replace('"', '\\"') }
+        }
+        server {
+            server()
+            runDir 'runs/server'
+        }
+    }
+}
+
+// Runtime-only dependencies of the dev runs that the published mod does not declare.
+configurations {
+    localRuntime
+}
+configurations.runtimeClasspath.extendsFrom configurations.localRuntime
+
+dependencies {
+    minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+
+    // Optional integrations: -PwithJade runs with Jade, -PwithShaders with Sodium, Iris, Euphoria Patches and the
+    // Complementary Unbound pack, -PwithModMenu with Mod Menu.
+    compileOnly "maven.modrinth:jade:${jade_version}+fabric"
+    compileOnly "maven.modrinth:iris:${iris_version}-fabric"
+    compileOnly "maven.modrinth:modmenu:${rootProject.modmenu_version}"
+    if (providers.gradleProperty('withJade').isPresent()) {
+        localRuntime "maven.modrinth:jade:${jade_version}+fabric"
+    }
+    if (providers.gradleProperty('withShaders').isPresent()) {
+        localRuntime "maven.modrinth:sodium:${sodium_version}-fabric"
+        localRuntime "maven.modrinth:iris:${iris_version}-fabric"
+        localRuntime "maven.modrinth:euphoria-patches:${euphoria_patches_version}-fabric"
+    }
+    if (providers.gradleProperty('withModMenu').isPresent()) {
+        localRuntime "maven.modrinth:modmenu:${rootProject.modmenu_version}"
+    }
+
+    // Minecraft does not ship Jackson, so it is bundled into the mod jar, as is the settings file's TOML library.
+    include(implementation("com.fasterxml.jackson.core:jackson-databind:${jackson_version}"))
+    include(implementation("com.fasterxml.jackson.core:jackson-core:${jackson_version}"))
+    include(implementation("com.fasterxml.jackson.core:jackson-annotations:${jackson_annotations_version}"))
+    include(implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"))
+    // Nayuki's QR encoder (MIT) for the link code screen.
+    include(implementation("io.nayuki:qrcodegen:1.8.0"))
+    include(implementation("com.electronwill.night-config:core:${rootProject.night_config_version}"))
+    include(implementation("com.electronwill.night-config:toml:${rootProject.night_config_version}"))
+    compileOnly 'jakarta.annotation:jakarta.annotation-api:3.0.0'
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+}
+
+processResources {
+    def replaceProperties = [
+            minecraft_version    : rootProject.minecraft_version,
+            fabric_loader_version: rootProject.fabric_loader_version,
+            mod_id               : project.mod_id,
+            mod_name             : project.mod_name,
+            mod_description      : project.mod_description,
+            mod_license          : rootProject.mod_license,
+            mod_version          : project.version.toString(),
+            mod_authors          : rootProject.mod_authors,
+    ]
+    inputs.properties replaceProperties
+    filesMatching('fabric.mod.json') {
+        expand replaceProperties
+    }
+}
+
+if (providers.gradleProperty('withShaders').isPresent()) {
+    def downloadShaderPack = rootProject.ext.registerShaderPackDownload(project, project.file('runs/client/shaderpacks'))
+    tasks.matching { it.name == 'runClient' }.configureEach { dependsOn downloadShaderPack }
+}

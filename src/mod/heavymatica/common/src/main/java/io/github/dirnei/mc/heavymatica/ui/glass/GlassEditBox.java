@@ -1,9 +1,11 @@
 package io.github.dirnei.mc.heavymatica.ui.glass;
 
+import java.util.function.Predicate;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.StringUtil;
 
 /**
  * A text field drawn as a glass field, optionally with a search icon. The vanilla box sits inside the field without
@@ -20,6 +22,7 @@ public final class GlassEditBox extends EditBox {
     private final int fieldWidth;
     private final int fieldHeight;
     private final boolean search;
+    private Predicate<String> filter = text -> true;
 
     public GlassEditBox(Font font, int x, int y, int width, int height, Component hint, boolean search) {
         super(font, x + PAD + (search ? ICON : 0), y + (height - 8) / 2, Math.max(8, width - 2 * PAD - (search ? ICON : 0)), 9, hint);
@@ -31,6 +34,25 @@ public final class GlassEditBox extends EditBox {
         setBordered(false);
         setTextColor(GlassStyle.TEXT);
         setHint(hint.copy().withColor(GlassStyle.HINT & 0xFFFFFF));
+    }
+
+    /** Only typed text and values that pass the filter get into the box. */
+    public void setFilter(Predicate<String> filter) {
+        this.filter = filter;
+    }
+
+    @Override
+    public void setValue(String value) {
+        if (filter.test(value)) {
+            super.setValue(value);
+        }
+    }
+
+    @Override
+    public void insertText(String input) {
+        if (filter.test(StringUtil.filterText(input))) {
+            super.insertText(input);
+        }
     }
 
     /** Moves the whole field so its outer frame starts at {@code (x, y)}. */

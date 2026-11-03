@@ -61,7 +61,7 @@ public final class BlockColorExport {
         long pixels;
 
         void add(TextureAtlasSprite sprite, int tint) {
-            NativeImage image = sprite.contents().getOriginalImage();
+            NativeImage image = sprite.contents().originalImage;
             int width = Math.min(sprite.contents().width(), image.getWidth());
             int height = Math.min(sprite.contents().height(), image.getHeight());
             for (int y = 0; y < height; y++) {

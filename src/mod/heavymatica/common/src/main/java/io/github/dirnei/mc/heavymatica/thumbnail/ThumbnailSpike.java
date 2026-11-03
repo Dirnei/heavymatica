@@ -2,12 +2,11 @@ package io.github.dirnei.mc.heavymatica.thumbnail;
 
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.formats.SchematicReader;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import net.minecraft.client.Minecraft;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.common.NeoForge;
 
 /**
  * Development aid: when the {@code heavymatica.thumbnail.spike} system property (set from {@code HEAVYMATICA_THUMBNAIL_SPIKE} by the dev runs) names a schematic file, renders its thumbnail once the
@@ -25,7 +24,7 @@ public final class ThumbnailSpike {
         String file = System.getProperty("heavymatica.thumbnail.spike");
         if (file != null && !file.isBlank()) {
             Heavymatica.LOGGER.info("Thumbnail spike armed for {}", file);
-            NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> tick(Path.of(file)));
+            Platform.get().clientEvents().onTickEnd(() -> tick(Path.of(file)));
         }
     }
 

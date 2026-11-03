@@ -10,6 +10,7 @@ import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Bounds;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import io.github.dirnei.mc.heavymatica.targeting.GhostRay.Answer;
 import io.github.dirnei.mc.heavymatica.targeting.TargetRules.Candidate;
 import java.util.ArrayList;
@@ -24,8 +25,6 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.neoforged.neoforge.client.event.RenderFrameEvent;
-import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -70,7 +69,7 @@ public final class GhostTargeting {
     }
 
     public void register() {
-        NeoForge.EVENT_BUS.addListener((RenderFrameEvent.Pre event) -> computed = false);
+        Platform.get().clientEvents().onFrameStart(() -> computed = false);
     }
 
     /** This frame's target; null when there is none. */

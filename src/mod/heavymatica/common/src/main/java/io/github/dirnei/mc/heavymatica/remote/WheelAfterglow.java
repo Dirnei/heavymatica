@@ -1,12 +1,12 @@
 package io.github.dirnei.mc.heavymatica.remote;
 
 import io.github.dirnei.mc.heavymatica.Heavymatica;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -23,8 +23,8 @@ public final class WheelAfterglow {
     private WheelAfterglow() {
     }
 
-    public static void register(RegisterGuiLayersEvent event) {
-        event.registerAboveAll(ID, WheelAfterglow::render);
+    public static void register() {
+        Platform.get().hudLayers().top(ID, WheelAfterglow::render);
     }
 
     static void start(WheelPainter painter) {

@@ -1,13 +1,13 @@
 package io.github.dirnei.mc.heavymatica.remote;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import io.github.dirnei.mc.heavymatica.HeavymaticaClient;
+import io.github.dirnei.mc.heavymatica.platform.KeyContext;
+import io.github.dirnei.mc.heavymatica.platform.KeyRegistry;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -19,14 +19,14 @@ import org.lwjgl.glfw.GLFW;
  */
 public final class RemoteKeys {
 
-    public static final IKeyConflictContext HOLDING_REMOTE = new IKeyConflictContext() {
+    public static final KeyContext HOLDING_REMOTE = new KeyContext() {
         @Override
         public boolean isActive() {
             return Minecraft.getInstance().screen == null && Remotes.held();
         }
 
         @Override
-        public boolean conflicts(IKeyConflictContext other) {
+        public boolean conflicts(KeyContext other) {
             return other == this || other == LAYER_KEYS || other == WITH_SELECTION;
         }
     };
@@ -35,26 +35,26 @@ public final class RemoteKeys {
     private static BooleanSupplier selected = () -> false;
     private static BooleanSupplier capturing = () -> false;
 
-    public static final IKeyConflictContext LAYER_KEYS = new IKeyConflictContext() {
+    public static final KeyContext LAYER_KEYS = new KeyContext() {
         @Override
         public boolean isActive() {
             return LayerKeyRules.active(Minecraft.getInstance().screen != null, Remotes.held(), lockedSelected.getAsBoolean());
         }
 
         @Override
-        public boolean conflicts(IKeyConflictContext other) {
+        public boolean conflicts(KeyContext other) {
             return other == this || other == HOLDING_REMOTE || other == WITH_SELECTION;
         }
     };
 
-    public static final IKeyConflictContext WITH_SELECTION = new IKeyConflictContext() {
+    public static final KeyContext WITH_SELECTION = new KeyContext() {
         @Override
         public boolean isActive() {
             return LayerKeyRules.wheelActive(Minecraft.getInstance().screen != null, Remotes.held(), selected.getAsBoolean(), capturing.getAsBoolean());
         }
 
         @Override
-        public boolean conflicts(IKeyConflictContext other) {
+        public boolean conflicts(KeyContext other) {
             return other == this || other == HOLDING_REMOTE || other == LAYER_KEYS;
         }
     };
@@ -84,8 +84,8 @@ public final class RemoteKeys {
     private RemoteKeys() {
     }
 
-    public static void register(RegisterKeyMappingsEvent event) {
-        ALL.forEach(event::register);
+    public static void register(KeyRegistry keys) {
+        ALL.forEach(keys::register);
     }
 
     /** The wheel key and the wheel action keys, which also act without the remote while a placement is selected. */
@@ -106,7 +106,7 @@ public final class RemoteKeys {
         return key(name, HOLDING_REMOTE, key);
     }
 
-    private static KeyMapping key(String name, IKeyConflictContext context, int key) {
-        return new KeyMapping("key.heavymatica." + name, context, InputConstants.Type.KEYSYM, key, HeavymaticaClient.CATEGORY);
+    private static KeyMapping key(String name, KeyContext context, int key) {
+        return Platform.get().keys().create("key.heavymatica." + name, context, key, HeavymaticaClient.CATEGORY);
     }
 }

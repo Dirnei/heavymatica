@@ -4,6 +4,8 @@ import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
+import io.github.dirnei.mc.heavymatica.platform.HudLayers;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Entry;
 import io.github.dirnei.mc.heavymatica.remote.RemoteInput;
 import io.github.dirnei.mc.heavymatica.remote.WheelIcons;
@@ -15,8 +17,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jetbrains.annotations.Nullable;
 
 /** A small row above the hotbar with the icon of each build option that is on, near a locked placement. */
@@ -36,8 +36,8 @@ public final class BuildOptionsHud {
         this.sessions = sessions;
     }
 
-    public void register(RegisterGuiLayersEvent event) {
-        event.registerAbove(VanillaGuiLayers.HOTBAR, ID, this::render);
+    public void register() {
+        Platform.get().hudLayers().above(HudLayers.Vanilla.HOTBAR, ID, this::render);
     }
 
     private void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {

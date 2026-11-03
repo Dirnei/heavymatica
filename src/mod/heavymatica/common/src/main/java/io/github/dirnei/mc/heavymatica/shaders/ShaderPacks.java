@@ -1,12 +1,12 @@
 package io.github.dirnei.mc.heavymatica.shaders;
 
 import io.github.dirnei.mc.heavymatica.Heavymatica;
-import net.neoforged.fml.ModList;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 
 /** Whether a shader pack renders the world right now. Works without a shader mod installed. */
 public final class ShaderPacks {
 
-    private static final boolean IRIS = ModList.get().isLoaded("iris");
+    private static final boolean IRIS = Platform.get().isModLoaded("iris");
     private static boolean last;
 
     private ShaderPacks() {

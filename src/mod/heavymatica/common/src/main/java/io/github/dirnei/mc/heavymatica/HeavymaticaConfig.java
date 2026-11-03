@@ -5,137 +5,137 @@ import io.github.dirnei.mc.heavymatica.account.CloudAddress;
 import io.github.dirnei.mc.heavymatica.placement.OpacitySteps;
 import io.github.dirnei.mc.heavymatica.remote.KeyHintRules;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu;
+import io.github.dirnei.mc.heavymatica.settings.Setting;
+import io.github.dirnei.mc.heavymatica.settings.SettingsSchema;
 import io.github.dirnei.mc.heavymatica.targeting.PointerMode;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.resources.Identifier;
-import net.neoforged.neoforge.common.ModConfigSpec;
 
 /** Client config of Heavymatica, written to {@code config/heavymatica-client.toml}. */
 public final class HeavymaticaConfig {
 
-    private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
+    /** Every client setting; the loader binds it to its config file. */
+    public static final SettingsSchema SCHEMA = new SettingsSchema();
 
-    private static final ModConfigSpec.ConfigValue<String> CLOUD_URL = BUILDER
+    private static final Setting<String> CLOUD_URL = SCHEMA
             .comment("Address of the Heavymatica Cloud.")
             .push("cloud")
             .define("cloudUrl", "https://api.heavymatica.com", HeavymaticaConfig::isHttpUrl);
 
-    private static final ModConfigSpec.ConfigValue<String> DEV_SESSION_JOIN_URL = BUILDER
+    private static final Setting<String> DEV_SESSION_JOIN_URL = SCHEMA
             .comment("Development only: sign in through the cloud's DevMojang at this address instead of Mojang,",
                     "for example http://localhost:5180/dev/mojang. Leave empty to sign in with your Minecraft account.")
             .define("devSessionJoinUrl", "", value -> value instanceof String text && (text.isEmpty() || isHttpUrl(text)));
 
-    private static final ModConfigSpec.EnumValue<CloudAccess> CLOUD_ACCESS = BUILDER
+    private static final Setting<CloudAccess> CLOUD_ACCESS = SCHEMA
             .comment("Heavymatica Cloud: AUTO asks the cloud whether it is open when you open the library, ON always shows it,",
                     "OFF never contacts it.")
             .defineEnum("access", CloudAccess.AUTO);
 
-    private static final ModConfigSpec.IntValue CACHE_SIZE_MIB = BUILDER
+    private static final Setting<Integer> CACHE_SIZE_MIB = SCHEMA
             .pop()
             .comment("Size of the local cache of downloaded schematics and thumbnails, in MiB.")
             .push("cache")
             .defineInRange("cacheSizeMiB", 1024, 64, 65_536);
 
-    private static final ModConfigSpec.ConfigValue<String> REMOTE_ITEM = BUILDER
+    private static final Setting<String> REMOTE_ITEM = SCHEMA
             .pop()
             .comment("The item that works as the placement remote while held in the main hand, for example minecraft:blaze_rod.",
                     "Items in the item tag heavymatica:remotes always work too.")
             .push("remote")
             .define("item", "minecraft:stick", HeavymaticaConfig::isItemId);
 
-    private static final ModConfigSpec.DoubleValue GHOST_OPACITY = BUILDER
+    private static final Setting<Double> GHOST_OPACITY = SCHEMA
             .pop()
             .comment("Opacity of placement ghosts, from 0.05 (barely visible) to 1 (solid).")
             .push("ghost")
             .defineInRange("opacity", 0.4, OpacitySteps.MIN, OpacitySteps.MAX);
 
-    private static final ModConfigSpec.ConfigValue<List<? extends Number>> GHOST_OPACITY_STEPS = BUILDER
+    private static final Setting<List<? extends Number>> GHOST_OPACITY_STEPS = SCHEMA
             .comment("Opacities offered on the placement wheel, 2 to 8 values from 0.05 to 1.",
                     "Values out of range and duplicates are dropped; with fewer than 2 or more than 8 left, the default steps are used.")
             .defineList("opacitySteps", OpacitySteps.DEFAULT, () -> 0.5, value -> value instanceof Number);
 
-    private static final ModConfigSpec.BooleanValue GHOST_SHOW_UNKNOWN_BLOCKS = BUILDER
+    private static final Setting<Boolean> GHOST_SHOW_UNKNOWN_BLOCKS = SCHEMA
             .comment("Show blocks the game does not know (from mods that are not installed or newer versions) as missing-texture cubes.")
             .define("showUnknownBlocks", true);
 
-    private static final ModConfigSpec.IntValue GHOST_BLOCK_BUDGET = BUILDER
+    private static final Setting<Integer> GHOST_BLOCK_BUDGET = SCHEMA
             .comment("Visible ghost blocks drawn at most, across all placements. Placements beyond it show as outlines only.")
             .defineInRange("blockBudget", 300_000, 1_000, 10_000_000);
 
-    private static final ModConfigSpec.EnumValue<OverlaySide> OVERLAY_SIDE = BUILDER
+    private static final Setting<OverlaySide> OVERLAY_SIDE = SCHEMA
             .pop()
             .comment("Screen side of the placement overlay shown while the remote is held.")
             .push("overlay")
             .defineEnum("side", OverlaySide.LEFT);
 
-    private static final ModConfigSpec.BooleanValue OVERLAY_COMPACT = BUILDER
+    private static final Setting<Boolean> OVERLAY_COMPACT = SCHEMA
             .comment("Replaced by keyHints. When true at start, key hints are turned off and this goes back to false.")
             .define("compact", false);
 
-    private static final ModConfigSpec.BooleanValue OVERLAY_KEY_HINTS = BUILDER
+    private static final Setting<Boolean> OVERLAY_KEY_HINTS = SCHEMA
             .comment("Show the key hints in the bottom-right corner while the remote is held.")
             .define("keyHints", true);
 
-    private static final ModConfigSpec.BooleanValue OVERLAY_PINNED = BUILDER
+    private static final Setting<Boolean> OVERLAY_PINNED = SCHEMA
             .comment("Keep the placement overlay on screen without the remote while a placement is selected.")
             .define("pinned", false);
 
-    private static final ModConfigSpec.EnumValue<RadialMenu.Mode> WHEEL_MODE = BUILDER
+    private static final Setting<RadialMenu.Mode> WHEEL_MODE = SCHEMA
             .pop()
             .comment("How the placement wheel works. HOLD: hold the wheel key, point and let go. TOGGLE: tap the key to open, click to pick.")
             .push("wheel")
             .defineEnum("mode", RadialMenu.Mode.HOLD);
 
-    private static final ModConfigSpec.BooleanValue WHEEL_ANIMATIONS = BUILDER
+    private static final Setting<Boolean> WHEEL_ANIMATIONS = SCHEMA
             .comment("Animate the placement wheel as it opens, changes page, highlights and closes. Off shows each state at once.")
             .define("animations", true);
 
-    private static final ModConfigSpec.BooleanValue WHEEL_SOUNDS = BUILDER
+    private static final Setting<Boolean> WHEEL_SOUNDS = SCHEMA
             .comment("Play a quiet tick when the wheel highlights another segment, and a click when a segment is picked.")
             .define("sounds", true);
 
-    private static final ModConfigSpec.DoubleValue LAYERS_HOTBAR_OPACITY = BUILDER
+    private static final Setting<Double> LAYERS_HOTBAR_OPACITY = SCHEMA
             .pop()
             .push("layers")
             .comment("With the in-hand filter, the opacity of blocks matching other hotbar items, as a share of the ghost opacity.")
             .defineInRange("hotbarOpacity", 0.33, 0.05, 1.0);
 
-    private static final ModConfigSpec.IntValue COMPARISON_CELLS_PER_TICK = BUILDER
+    private static final Setting<Integer> COMPARISON_CELLS_PER_TICK = SCHEMA
             .pop()
             .push("comparison")
             .comment("Positions of locked placements compared with the world per tick, besides those within reach of the player.",
                     "Higher values notice other players' changes sooner and cost more time per tick.")
             .defineInRange("cellsPerTick", 20_000, 1_000, 1_000_000);
 
-    private static final ModConfigSpec.IntValue TARGETING_HUD_RANGE = BUILDER
+    private static final Setting<Integer> TARGETING_HUD_RANGE = SCHEMA
             .pop()
             .push("targeting")
             .comment("How far away, in blocks, the ghost under the crosshair is named in a small HUD below the crosshair. 0 turns the HUD off.")
             .defineInRange("hudRange", 32, 0, 128);
 
-    private static final ModConfigSpec.BooleanValue TARGETING_PICK_BLOCK = BUILDER
+    private static final Setting<Boolean> TARGETING_PICK_BLOCK = SCHEMA
             .comment("Pick block (middle click) on a ghost within reach picks the item for the planned block from the inventory.",
                     "Sneak while picking, or turn this off, to pick the block behind the ghost as usual.")
             .define("pickBlock", true);
 
-    private static final ModConfigSpec.EnumValue<PointerMode> TARGETING_MISTAKE_POINTER = BUILDER
+    private static final Setting<PointerMode> TARGETING_MISTAKE_POINTER = SCHEMA
             .comment("Mistake pointer: an arrow below the crosshair toward the nearest position of the selected locked placement that needs attention.",
                     "OFF, MISTAKES (boxed positions only) or MISTAKES_AND_MISSING (also positions still missing their block).")
             .defineEnum("mistakePointer", PointerMode.OFF);
 
-    private static final ModConfigSpec.BooleanValue BUILD_EASY_PLACE = BUILDER
+    private static final Setting<Boolean> BUILD_EASY_PLACE = SCHEMA
             .pop()
             .push("build")
             .comment("Easy Place: right-clicking a ghost within reach with its item places the planned block with the planned orientation.")
             .define("easyPlace", false);
 
-    private static final ModConfigSpec.BooleanValue BUILD_PLACEMENT_RESTRICTION = BUILDER
+    private static final Setting<Boolean> BUILD_PLACEMENT_RESTRICTION = SCHEMA
             .comment("Placement restriction: refuse block placements that would put a wrong block into a locked placement's visible layers.")
             .define("placementRestriction", false);
-
-    public static final ModConfigSpec SPEC;
 
     public enum OverlaySide {
         LEFT,
@@ -143,8 +143,7 @@ public final class HeavymaticaConfig {
     }
 
     static {
-        BUILDER.pop();
-        SPEC = BUILDER.build();
+        SCHEMA.pop();
     }
 
     private HeavymaticaConfig() {

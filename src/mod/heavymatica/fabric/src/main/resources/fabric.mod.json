@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${mod_version}",
+  "name": "${mod_name}",
+  "description": "${mod_description}",
+  "authors": ["${mod_authors}"],
+  "license": "${mod_license}",
+  "icon": "heavymatica.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["io.github.dirnei.mc.heavymatica.fabric.HeavymaticaFabricClient"],
+    "modmenu": ["io.github.dirnei.mc.heavymatica.fabric.ModMenuIntegration"],
+    "jade": ["io.github.dirnei.mc.heavymatica.targeting.jade.HeavymaticaJadePlugin"]
+  },
+  "mixins": ["heavymatica.mixins.json"],
+  "accessWidener": "heavymatica.classtweaker",
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}",
+    "java": ">=25"
+  },
+  "suggests": {
+    "jade": "*",
+    "iris": "*",
+    "modmenu": "*"
+  }
+}

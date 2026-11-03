@@ -4,6 +4,7 @@ import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.CarriedItems;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting.GhostTarget;
 import io.github.dirnei.mc.heavymatica.targeting.PickDecision.Action;
 import io.github.dirnei.mc.heavymatica.targeting.PickDecision.Candidate;
@@ -18,8 +19,6 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -38,7 +37,7 @@ public final class GhostPick {
     }
 
     public void register() {
-        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Pre event) -> tick());
+        Platform.get().clientEvents().onTickStart(this::tick);
     }
 
     private void tick() {

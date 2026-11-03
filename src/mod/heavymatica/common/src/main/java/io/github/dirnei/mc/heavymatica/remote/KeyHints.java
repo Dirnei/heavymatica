@@ -7,6 +7,8 @@ import io.github.dirnei.mc.heavymatica.capture.CaptureSession;
 import io.github.dirnei.mc.heavymatica.placement.Layers;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
+import io.github.dirnei.mc.heavymatica.platform.HudLayers;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import io.github.dirnei.mc.heavymatica.remote.KeyHintRules.Hint;
 import io.github.dirnei.mc.heavymatica.remote.KeyHintRules.Selected;
 import io.github.dirnei.mc.heavymatica.remote.KeyHintRules.Situation;
@@ -26,8 +28,6 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
@@ -56,8 +56,8 @@ public final class KeyHints {
         this.sessions = sessions;
     }
 
-    public void register(RegisterGuiLayersEvent event) {
-        event.registerAbove(VanillaGuiLayers.HOTBAR, ID, this::render);
+    public void register() {
+        Platform.get().hudLayers().above(HudLayers.Vanilla.HOTBAR, ID, this::render);
     }
 
     private void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
@@ -235,7 +235,7 @@ public final class KeyHints {
 
     /** The bound key's name; keypad keys get a "Num" prefix, since their names alone ("+") match main keys. */
     static Component name(KeyMapping key) {
-        InputConstants.Key bound = key.getKey();
+        InputConstants.Key bound = Platform.get().keys().boundKey(key);
         if (bound.getType() == InputConstants.Type.KEYSYM && bound.getValue() >= GLFW.GLFW_KEY_KP_0 && bound.getValue() <= GLFW.GLFW_KEY_KP_EQUAL) {
             return Component.translatable("heavymatica.overlay.key.numpad", key.getTranslatedKeyMessage());
         }

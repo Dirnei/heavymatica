@@ -11,6 +11,7 @@
 <p align="center">
   <a href="https://github.com/Dirnei/heavymatica/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/Dirnei/heavymatica?include_prereleases&label=release"></a>
   <img alt="Minecraft 26.1.2" src="https://img.shields.io/badge/Minecraft-26.1.2-62B47A">
+  <img alt="Fabric" src="https://img.shields.io/badge/loader-Fabric-DBD0B4">
   <img alt="NeoForge" src="https://img.shields.io/badge/loader-NeoForge-D7742F">
   <img alt="Client-side" src="https://img.shields.io/badge/side-client-blue">
   <a href="https://github.com/Dirnei/heavymatica/actions/workflows/build.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/Dirnei/heavymatica/build.yml?branch=main"></a>
@@ -50,12 +51,17 @@ single player, on another server or on another computer.
 
 ## Installing
 
-1. Install [NeoForge](https://neoforged.net/) for Minecraft 26.1.2.
-2. Download the latest jar from the [releases](https://github.com/Dirnei/heavymatica/releases) and put it into your
-   `mods` folder.
+Heavymatica runs on Fabric and on NeoForge, with the same features on both.
+
+1. Install [Fabric](https://fabricmc.net/use/) with [Fabric API](https://modrinth.com/mod/fabric-api), or
+   [NeoForge](https://neoforged.net/), for Minecraft 26.1.2.
+2. Download the latest jar for your loader (`heavymatica-fabric-…` or `heavymatica-neoforge-…`) from the
+   [releases](https://github.com/Dirnei/heavymatica/releases) and put it into your `mods` folder.
 3. Start the game, join a world and press `H` to open the library and sign in.
 
-Keys can be changed in Options → Controls, settings in the library (gear icon) or in Mods → Heavymatica → Config.
+Keys can be changed in Options → Controls, settings in the library (gear icon) or in the mods list: Mods → Heavymatica
+→ Config on NeoForge, Heavymatica's config button in [Mod Menu](https://modrinth.com/mod/modmenu) on Fabric. Both
+loaders keep the settings in `config/heavymatica-client.toml`.
 
 ## Feedback
 

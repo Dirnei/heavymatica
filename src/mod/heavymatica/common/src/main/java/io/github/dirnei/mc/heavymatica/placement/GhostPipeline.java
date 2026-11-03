@@ -8,10 +8,10 @@ import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.textures.TextureFormat;
 import io.github.dirnei.mc.heavymatica.Heavymatica;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import java.util.Optional;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
-import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 
 /**
  * Vanilla's block shader with translucent blending, depth test on and depth write off, so real blocks hide ghosts.
@@ -65,11 +65,12 @@ public final class GhostPipeline {
     private GhostPipeline() {
     }
 
-    public static void register(RegisterRenderPipelinesEvent event) {
-        event.registerPipeline(GHOST_DEPTH);
-        event.registerPipeline(GHOST_MASKED_DEPTH);
-        event.registerPipeline(GHOST);
-        event.registerPipeline(GHOST_MASKED);
-        event.registerPipeline(MISTAKE_BOX);
+    public static void register() {
+        Platform platform = Platform.get();
+        platform.registerPipeline(GHOST_DEPTH);
+        platform.registerPipeline(GHOST_MASKED_DEPTH);
+        platform.registerPipeline(GHOST);
+        platform.registerPipeline(GHOST_MASKED);
+        platform.registerPipeline(MISTAKE_BOX);
     }
 }

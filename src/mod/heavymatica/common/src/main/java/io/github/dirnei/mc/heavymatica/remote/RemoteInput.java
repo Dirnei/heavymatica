@@ -1,5 +1,7 @@
 package io.github.dirnei.mc.heavymatica.remote;
 
+import io.github.dirnei.mc.heavymatica.platform.ClientEvents;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.build.BuildInput;
 import io.github.dirnei.mc.heavymatica.capture.CaptureController;
@@ -25,9 +27,6 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.InputEvent;
-import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -61,10 +60,11 @@ public final class RemoteInput {
     public void register() {
         RemoteKeys.lockedSelected(this::lockedSelected);
         RemoteKeys.selection(() -> session.placements().selected().isPresent(), () -> capture.session().on());
-        NeoForge.EVENT_BUS.addListener(this::interaction);
-        NeoForge.EVENT_BUS.addListener(this::scroll);
-        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Pre event) -> claimSharedKeys());
-        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> tick());
+        ClientEvents events = Platform.get().clientEvents();
+        events.onUseItem(this::interaction);
+        events.onScroll(this::scroll);
+        events.onTickStart(this::claimSharedKeys);
+        events.onTickEnd(this::tick);
     }
 
     private boolean lockedSelected() {
@@ -108,21 +108,19 @@ public final class RemoteInput {
         return new Target(target.getX(), target.getY(), target.getZ());
     }
 
-    private void interaction(InputEvent.InteractionKeyMappingTriggered event) {
+    private ClientEvents.UseResult interaction(InteractionHand hand) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (!event.isUseItem() || minecraft.player == null || !Remotes.held()) {
-            return;
+        if (minecraft.player == null || !Remotes.held()) {
+            return ClientEvents.UseResult.PASS;
         }
-        event.setCanceled(true);
-        event.setSwingHand(false);
         // Vanilla repeats use while the button is held; only a fresh press counts.
-        if (event.getHand() != InteractionHand.MAIN_HAND || useHandled) {
-            return;
+        if (hand != InteractionHand.MAIN_HAND || useHandled) {
+            return ClientEvents.UseResult.CANCEL;
         }
         useHandled = true;
         if (capture.session().on()) {
             capture.click();
-            return;
+            return ClientEvents.UseResult.CANCEL;
         }
         LocalPlayer player = minecraft.player;
         Vec3 eye = player.getEyePosition();
@@ -132,6 +130,7 @@ public final class RemoteInput {
         if (result == PlacementController.Use.OPEN_LIBRARY) {
             openLibrary.run();
         }
+        return ClientEvents.UseResult.CANCEL;
     }
 
     /**
@@ -153,7 +152,7 @@ public final class RemoteInput {
                 continue;
             }
             for (KeyMapping mine : claimed) {
-                if (mine.getKey().equals(other.getKey())) {
+                if (Platform.get().keys().boundKey(mine).equals(Platform.get().keys().boundKey(other))) {
                     while (other.consumeClick()) {
                         // Dropped: the remote's binding handles this key.
                     }
@@ -172,15 +171,15 @@ public final class RemoteInput {
     }
 
     /** Shift + scroll swaps the active corner in capture mode, instead of changing the hotbar slot. */
-    private void scroll(InputEvent.MouseScrollingEvent event) {
+    private boolean scroll(double deltaY) {
         Minecraft minecraft = Minecraft.getInstance();
         if (!capture.session().on() || minecraft.player == null || minecraft.screen != null || !Remotes.held() || !shift(minecraft)) {
-            return;
+            return false;
         }
-        event.setCanceled(true);
-        if (event.getScrollDeltaY() != 0) {
+        if (deltaY != 0) {
             capture.swap();
         }
+        return true;
     }
 
     private void tick() {

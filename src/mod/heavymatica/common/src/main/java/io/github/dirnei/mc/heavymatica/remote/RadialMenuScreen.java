@@ -3,6 +3,7 @@ package io.github.dirnei.mc.heavymatica.remote;
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.OpacitySteps;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Entry;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Outcome;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu.Page;
@@ -311,7 +312,7 @@ public final class RadialMenuScreen extends Screen {
         if (heldForDevelopment.contains(mapping.getName())) {
             return true;
         }
-        InputConstants.Key key = mapping.getKey();
+        InputConstants.Key key = Platform.get().keys().boundKey(mapping);
         long window = Minecraft.getInstance().getWindow().handle();
         return switch (key.getType()) {
             case KEYSYM -> key.getValue() != InputConstants.UNKNOWN.getValue() && InputConstants.isKeyDown(Minecraft.getInstance().getWindow(), key.getValue());

@@ -1,9 +1,6 @@
 package io.github.dirnei.mc.heavymatica;
 
-import io.github.dirnei.mc.heavymatica.ui.SettingsScreen;
-import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mojang.blaze3d.platform.InputConstants;
 import io.github.dirnei.mc.heavymatica.account.CloudAccount;
 import io.github.dirnei.mc.heavymatica.account.CloudAvailability;
 import io.github.dirnei.mc.heavymatica.account.DevSessionJoin;
@@ -23,6 +20,9 @@ import io.github.dirnei.mc.heavymatica.library.StoredListing;
 import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.paste.CreativePaste;
 import io.github.dirnei.mc.heavymatica.placement.GhostPipeline;
+import io.github.dirnei.mc.heavymatica.platform.KeyContext;
+import io.github.dirnei.mc.heavymatica.platform.KeyRegistry;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import io.github.dirnei.mc.heavymatica.placement.PlacementController;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
@@ -55,27 +55,16 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.client.settings.KeyConflictContext;
-import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
-@Mod(value = Heavymatica.MOD_ID, dist = Dist.CLIENT)
+/** Heavymatica's client: its services, keys, HUD layers and events. The loader's client entry point drives it. */
 public final class HeavymaticaClient {
 
     public static final KeyMapping.Category CATEGORY = new KeyMapping.Category(Identifier.fromNamespaceAndPath(Heavymatica.MOD_ID, "heavymatica"));
 
-    public static final KeyMapping OPEN_LIBRARY = new KeyMapping("key.heavymatica.open_library", KeyConflictContext.IN_GAME,
-            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, CATEGORY);
+    public static final KeyMapping OPEN_LIBRARY = Platform.get().keys().create("key.heavymatica.open_library", KeyContext.IN_GAME,
+            GLFW.GLFW_KEY_H, CATEGORY);
 
     private static @Nullable CloudAccount account;
     private static @Nullable CloudAvailability availability;
@@ -87,20 +76,25 @@ public final class HeavymaticaClient {
     private static @Nullable CaptureController capture;
     private static @Nullable CreativePaste paste;
 
-    public HeavymaticaClient(IEventBus modEventBus, ModContainer container) {
-        container.registerConfig(ModConfig.Type.CLIENT, HeavymaticaConfig.SPEC);
-        container.registerExtensionPoint(IConfigScreenFactory.class, (mod, modList) -> new SettingsScreen(modList));
-        modVersion = container.getModInfo().getVersion().toString();
-        modEventBus.addListener(HeavymaticaClient::registerKeys);
-        modEventBus.addListener(HeavymaticaClient::setup);
-        modEventBus.addListener(GhostPipeline::register);
-        modEventBus.addListener((RegisterGuiLayersEvent event) -> new PlacementOverlay(HeavymaticaClient::placements).register(event));
-        modEventBus.addListener((RegisterGuiLayersEvent event) -> new KeyHints(HeavymaticaClient::placements).register(event));
-        modEventBus.addListener((RegisterGuiLayersEvent event) -> new TargetHud(HeavymaticaClient::placements, HeavymaticaClient::targeting).register(event));
-        modEventBus.addListener((RegisterGuiLayersEvent event) -> new PointerHud(HeavymaticaClient::mistakePointer).register(event));
-        modEventBus.addListener((RegisterGuiLayersEvent event) -> new BuildOptionsHud(HeavymaticaClient::placements).register(event));
-        modEventBus.addListener(WheelAfterglow::register);
-        NeoForge.EVENT_BUS.addListener(HeavymaticaClient::tick);
+    private HeavymaticaClient() {
+    }
+
+    /** Registers keys, HUD layers, render pipelines and events. The loader calls this while it constructs the mod. */
+    public static void construct(String version) {
+        modVersion = version;
+        KeyRegistry keys = Platform.get().keys();
+        keys.registerCategory(CATEGORY);
+        keys.register(OPEN_LIBRARY);
+        RemoteKeys.register(keys);
+        BuildKeys.register(keys);
+        GhostPipeline.register();
+        new PlacementOverlay(HeavymaticaClient::placements).register();
+        new KeyHints(HeavymaticaClient::placements).register();
+        new TargetHud(HeavymaticaClient::placements, HeavymaticaClient::targeting).register();
+        new PointerHud(HeavymaticaClient::mistakePointer).register();
+        new BuildOptionsHud(HeavymaticaClient::placements).register();
+        WheelAfterglow.register();
+        Platform.get().clientEvents().onTickEnd(HeavymaticaClient::tick);
         ThumbnailSpike.registerIfRequested();
         DevScreens.registerIfRequested();
     }
@@ -194,56 +188,48 @@ public final class HeavymaticaClient {
         }
     }
 
-    private static void registerKeys(RegisterKeyMappingsEvent event) {
-        event.registerCategory(CATEGORY);
-        event.register(OPEN_LIBRARY);
-        RemoteKeys.register(event);
-        BuildKeys.register(event);
+    /** Starts the client services. The loader calls this on the game thread once the game is set up. */
+    public static void setup() {
+        HeavymaticaConfig.migrateCompactOverlay();
+        Minecraft minecraft = Minecraft.getInstance();
+        ObjectMapper json = ApiClient.createDefaultObjectMapper();
+        Path data = dataDirectory();
+        SessionJoin join = HeavymaticaConfig.devSessionJoinUrl().<SessionJoin>map(DevSessionJoin::new).orElseGet(GameSessionJoin::new);
+        Library[] holder = new Library[1];
+        account = new CloudAccount(HeavymaticaConfig.cloudUrl(), minecraft::execute, Util.backgroundExecutor(), HeavymaticaClient::player, join,
+                new SessionStore(data.resolve("sessions"), json), () -> {
+                    if (holder[0] != null) {
+                        holder[0].signedOut();
+                    }
+                });
+        CloudAvailability cloud = new CloudAvailability(account::fetchStatus, modVersion, HeavymaticaConfig::cloudAccess, minecraft::execute,
+                CloudAvailability.TIMEOUT);
+        availability = cloud;
+        account.contactWhen(() -> cloud.mayContact() && !cloud.tooOld());
+        library = new Library(account, cloud, HeavymaticaClient::playerId, new LocalLibrary(data.resolve("local"), json, Clock.systemUTC()),
+                new StoredListing(data.resolve("library"), json),
+                new SchematicCache(data.resolve("cache"), HeavymaticaConfig.cacheSizeBytes(), Clock.systemUTC(), json),
+                minecraft::execute, Util.backgroundExecutor());
+        holder[0] = library;
+        placements = new PlacementSession(new PlacementStore(data.resolve("placements"), json), library, Remotes::held);
+        placements.register();
+        placements.onFinish(FinishFeedback::finished);
+        targeting = new GhostTargeting(placements);
+        targeting.register();
+        new GhostPick(placements, targeting).register();
+        mistakePointer = new MistakePointer(placements);
+        mistakePointer.register();
+        capture = new CaptureController(placements.capture(), HeavymaticaClient::library);
+        paste = new CreativePaste(placements);
+        paste.register();
+        new RemoteInput(placements, HeavymaticaClient::openLibrary, HeavymaticaClient::openMaterials, capture, paste).register();
+        new BuildInput(placements, targeting).register();
+        new CaptureRenderer(placements.capture()).register();
+        account.restore();
+        library.loadStored();
     }
 
-    private static void setup(FMLClientSetupEvent event) {
-        event.enqueueWork(() -> {
-            HeavymaticaConfig.migrateCompactOverlay();
-            Minecraft minecraft = Minecraft.getInstance();
-            ObjectMapper json = ApiClient.createDefaultObjectMapper();
-            Path data = dataDirectory();
-            SessionJoin join = HeavymaticaConfig.devSessionJoinUrl().<SessionJoin>map(DevSessionJoin::new).orElseGet(GameSessionJoin::new);
-            Library[] holder = new Library[1];
-            account = new CloudAccount(HeavymaticaConfig.cloudUrl(), minecraft::execute, Util.backgroundExecutor(), HeavymaticaClient::player, join,
-                    new SessionStore(data.resolve("sessions"), json), () -> {
-                        if (holder[0] != null) {
-                            holder[0].signedOut();
-                        }
-                    });
-            CloudAvailability cloud = new CloudAvailability(account::fetchStatus, modVersion, HeavymaticaConfig::cloudAccess, minecraft::execute,
-                    CloudAvailability.TIMEOUT);
-            availability = cloud;
-            account.contactWhen(() -> cloud.mayContact() && !cloud.tooOld());
-            library = new Library(account, cloud, HeavymaticaClient::playerId, new LocalLibrary(data.resolve("local"), json, Clock.systemUTC()),
-                    new StoredListing(data.resolve("library"), json),
-                    new SchematicCache(data.resolve("cache"), HeavymaticaConfig.cacheSizeBytes(), Clock.systemUTC(), json),
-                    minecraft::execute, Util.backgroundExecutor());
-            holder[0] = library;
-            placements = new PlacementSession(new PlacementStore(data.resolve("placements"), json), library, Remotes::held);
-            placements.register();
-            placements.onFinish(FinishFeedback::finished);
-            targeting = new GhostTargeting(placements);
-            targeting.register();
-            new GhostPick(placements, targeting).register();
-            mistakePointer = new MistakePointer(placements);
-            mistakePointer.register();
-            capture = new CaptureController(placements.capture(), HeavymaticaClient::library);
-            paste = new CreativePaste(placements);
-            paste.register();
-            new RemoteInput(placements, HeavymaticaClient::openLibrary, HeavymaticaClient::openMaterials, capture, paste).register();
-            new BuildInput(placements, targeting).register();
-            new CaptureRenderer(placements.capture()).register();
-            account.restore();
-            library.loadStored();
-        });
-    }
-
-    private static void tick(ClientTickEvent.Post event) {
+    private static void tick() {
         Minecraft minecraft = Minecraft.getInstance();
         while (OPEN_LIBRARY.consumeClick()) {
             openLibrary();

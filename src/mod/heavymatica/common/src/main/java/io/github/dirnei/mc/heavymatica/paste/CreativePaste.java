@@ -6,6 +6,7 @@ import io.github.dirnei.mc.heavymatica.placement.GhostView;
 import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import net.minecraft.client.Minecraft;
@@ -17,11 +18,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.server.ServerStoppingEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -55,10 +51,10 @@ public final class CreativePaste {
                 record.finish().finished(placement, System.currentTimeMillis());
             }
         });
-        NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) -> serverTick(event.getServer()));
-        NeoForge.EVENT_BUS.addListener((ServerStoppingEvent event) -> stop());
-        NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) -> stop());
-        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> clientTick());
+        Platform.get().serverEvents().onTickEnd(this::serverTick);
+        Platform.get().serverEvents().onStopping(this::stop);
+        Platform.get().clientEvents().onLogout(this::stop);
+        Platform.get().clientEvents().onTickEnd(this::clientTick);
     }
 
     /** True while the player is in creative mode in a world whose server runs in this game, also when opened to LAN. */

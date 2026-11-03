@@ -17,6 +17,8 @@ import io.github.dirnei.mc.heavymatica.placement.PlacementSource;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
 import io.github.dirnei.mc.heavymatica.placement.UnknownBlocks;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
+import io.github.dirnei.mc.heavymatica.platform.HudLayers;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import io.github.dirnei.mc.heavymatica.ui.glass.Glass;
 import io.github.dirnei.mc.heavymatica.ui.glass.GlassStyle;
 import java.util.ArrayList;
@@ -32,8 +34,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -114,8 +114,8 @@ public final class PlacementOverlay {
         this.sessions = sessions;
     }
 
-    public void register(RegisterGuiLayersEvent event) {
-        event.registerAbove(VanillaGuiLayers.HOTBAR, ID, this::render);
+    public void register() {
+        Platform.get().hudLayers().above(HudLayers.Vanilla.HOTBAR, ID, this::render);
     }
 
     private static int height(Line line) {

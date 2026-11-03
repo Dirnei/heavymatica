@@ -1,5 +1,7 @@
 package io.github.dirnei.mc.heavymatica.build;
 
+import io.github.dirnei.mc.heavymatica.platform.ClientEvents;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.remote.Remotes;
@@ -8,9 +10,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.InputEvent;
-import net.neoforged.neoforge.common.NeoForge;
 
 /**
  * The use key and the toggle keys of the hand-building helpers. A right-click is the remote's while one is held (its
@@ -30,30 +29,28 @@ public final class BuildInput {
 
     /** Register after the remote's input, so it keeps the use key while a remote is held. */
     public void register() {
-        NeoForge.EVENT_BUS.addListener(this::interaction);
-        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> tick());
+        Platform.get().clientEvents().onUseItem(this::interaction);
+        Platform.get().clientEvents().onTickEnd(BuildInput::tick);
     }
 
-    private void interaction(InputEvent.InteractionKeyMappingTriggered event) {
+    private ClientEvents.UseResult interaction(InteractionHand hand) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
-        if (!event.isUseItem() || player == null || Remotes.held()) {
-            return;
+        if (player == null || Remotes.held()) {
+            return ClientEvents.UseResult.PASS;
         }
-        if (event.getHand() == InteractionHand.MAIN_HAND) {
+        if (hand == InteractionHand.MAIN_HAND) {
             EasyPlace.Outcome outcome = easyPlace.click(minecraft, player);
             if (outcome != EasyPlace.Outcome.NOT_OURS) {
-                event.setCanceled(true);
-                event.setSwingHand(outcome == EasyPlace.Outcome.PLACED_SWING);
-                return;
+                return outcome == EasyPlace.Outcome.PLACED_SWING ? ClientEvents.UseResult.CANCEL_AND_SWING : ClientEvents.UseResult.CANCEL;
             }
         }
-        Component refusal = restriction.refusal(minecraft, player, event.getHand());
+        Component refusal = restriction.refusal(minecraft, player, hand);
         if (refusal != null) {
-            event.setCanceled(true);
-            event.setSwingHand(false);
             player.sendOverlayMessage(refusal);
+            return ClientEvents.UseResult.CANCEL;
         }
+        return ClientEvents.UseResult.PASS;
     }
 
     private static void tick() {

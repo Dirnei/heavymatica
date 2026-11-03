@@ -1,0 +1,101 @@
+// The NeoForge jar of Heavymatica: common's code plus the NeoForge entry points and hooks. Shared configuration lives in
+// the root build.gradle.
+
+apply plugin: 'net.neoforged.moddev'
+
+neoForge {
+    version = rootProject.neo_version
+
+    mods {
+        "${project.mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+
+    // Puts NeoForge and Minecraft on the test classpath for the settings tests.
+    unitTest {
+        enable()
+        testedMod = mods."${project.mod_id}"
+    }
+
+    runs {
+        client {
+            client()
+            gameDirectory = project.file('runs/client')
+            // Dev clients talk to the local cloud, never to production by accident; HEAVYMATICA_CLOUD_URL picks another one.
+            systemProperty 'heavymatica.cloud.url', System.getenv('HEAVYMATICA_CLOUD_URL') ?: 'http://localhost:5180'
+            programArguments.addAll(rootProject.ext.devClientArguments())
+        }
+        server {
+            server()
+            programArgument '--nogui'
+            gameDirectory = project.file('runs/server')
+        }
+        configureEach {
+            logLevel = org.slf4j.event.Level.INFO
+            rootProject.ext.devSystemProperties().each { name, value -> systemProperty name, value }
+        }
+    }
+}
+
+def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
+    def replaceProperties = [
+            minecraft_version      : rootProject.minecraft_version,
+            minecraft_version_range: rootProject.minecraft_version_range,
+            neo_version            : rootProject.neo_version,
+            loader_version_range   : rootProject.loader_version_range,
+            mod_id                 : project.mod_id,
+            mod_name               : project.mod_name,
+            mod_description        : project.mod_description,
+            mod_license            : rootProject.mod_license,
+            mod_version            : project.version.toString(),
+            mod_authors            : rootProject.mod_authors,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from 'src/main/templates'
+    into 'build/generated/sources/modMetadata'
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+// Runtime-only dependencies of the dev runs that the published mod does not declare.
+configurations {
+    localRuntime
+}
+configurations.runtimeClasspath.extendsFrom configurations.localRuntime
+
+dependencies {
+    // -PwithJade runs with Jade, -PwithShaders with Sodium, Iris, Euphoria Patches and the Complementary Unbound pack.
+    compileOnly "maven.modrinth:jade:${jade_version}+neoforge"
+    compileOnly "maven.modrinth:iris:${iris_version}-neoforge"
+    if (providers.gradleProperty('withJade').isPresent()) {
+        localRuntime "maven.modrinth:jade:${jade_version}+neoforge"
+    }
+    if (providers.gradleProperty('withShaders').isPresent()) {
+        localRuntime "maven.modrinth:sodium:${sodium_version}-neoforge"
+        localRuntime "maven.modrinth:iris:${iris_version}-neoforge"
+        localRuntime "maven.modrinth:euphoria-patches:${euphoria_patches_version}-neoforge"
+    }
+    // Minecraft does not ship Jackson, so it is bundled into the mod jar.
+    jarJar(implementation("com.fasterxml.jackson.core:jackson-databind:${jackson_version}"))
+    jarJar(implementation("com.fasterxml.jackson.core:jackson-core:${jackson_version}"))
+    jarJar(implementation("com.fasterxml.jackson.core:jackson-annotations:${jackson_annotations_version}"))
+    jarJar(implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"))
+    // Nayuki's QR encoder (MIT) for the link code screen.
+    jarJar(implementation("io.nayuki:qrcodegen:1.8.0"))
+    compileOnly 'jakarta.annotation:jakarta.annotation-api:3.0.0'
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+}
+
+if (providers.gradleProperty('withShaders').isPresent()) {
+    def downloadShaderPack = rootProject.ext.registerShaderPackDownload(project, project.file('runs/client/shaderpacks'))
+    tasks.matching { it.name == 'runClient' }.configureEach { dependsOn downloadShaderPack }
+}
+
+tasks.named('test', Test).configure {
+    // The default settings file both loaders must write; the common tests check the Fabric writer against it.
+    def golden = project.file('../common/src/test/resources/settings/heavymatica-client.default.toml')
+    inputs.file(golden)
+    systemProperty 'heavymatica.settings.golden', golden.absolutePath
+}

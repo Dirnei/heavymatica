@@ -1,5 +1,6 @@
 package io.github.dirnei.mc.heavymatica.targeting;
 
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import io.github.dirnei.mc.heavymatica.ui.glass.Glass;
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.placement.CellState;
@@ -14,7 +15,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -36,8 +36,8 @@ public final class PointerHud {
         this.pointer = pointer;
     }
 
-    public void register(RegisterGuiLayersEvent event) {
-        event.registerAbove(TargetHud.ID, ID, this::render);
+    public void register() {
+        Platform.get().hudLayers().above(TargetHud.ID, ID, this::render);
     }
 
     private void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {

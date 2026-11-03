@@ -1,0 +1,88 @@
+#Address of the Heavymatica Cloud.
+[cloud]
+	cloudUrl = "https://api.heavymatica.com"
+	#Development only: sign in through the cloud's DevMojang at this address instead of Mojang,
+	#for example http://localhost:5180/dev/mojang. Leave empty to sign in with your Minecraft account.
+	devSessionJoinUrl = ""
+	#Heavymatica Cloud: AUTO asks the cloud whether it is open when you open the library, ON always shows it,
+	#OFF never contacts it.
+	#Allowed Values: AUTO, ON, OFF
+	access = "AUTO"
+
+#Size of the local cache of downloaded schematics and thumbnails, in MiB.
+[cache]
+	# Default: 1024
+	# Range: 64 ~ 65536
+	cacheSizeMiB = 1024
+
+#The item that works as the placement remote while held in the main hand, for example minecraft:blaze_rod.
+#Items in the item tag heavymatica:remotes always work too.
+[remote]
+	item = "minecraft:stick"
+
+#Opacity of placement ghosts, from 0.05 (barely visible) to 1 (solid).
+[ghost]
+	# Default: 0.4
+	# Range: 0.05 ~ 1.0
+	opacity = 0.4
+	#Opacities offered on the placement wheel, 2 to 8 values from 0.05 to 1.
+	#Values out of range and duplicates are dropped; with fewer than 2 or more than 8 left, the default steps are used.
+	opacitySteps = [0.2, 0.4, 0.6, 0.8, 1.0]
+	#Show blocks the game does not know (from mods that are not installed or newer versions) as missing-texture cubes.
+	showUnknownBlocks = true
+	#Visible ghost blocks drawn at most, across all placements. Placements beyond it show as outlines only.
+	# Default: 300000
+	# Range: 1000 ~ 10000000
+	blockBudget = 300000
+
+#Screen side of the placement overlay shown while the remote is held.
+[overlay]
+	#Allowed Values: LEFT, RIGHT
+	side = "LEFT"
+	#Replaced by keyHints. When true at start, key hints are turned off and this goes back to false.
+	compact = false
+	#Show the key hints in the bottom-right corner while the remote is held.
+	keyHints = true
+	#Keep the placement overlay on screen without the remote while a placement is selected.
+	pinned = false
+
+#How the placement wheel works. HOLD: hold the wheel key, point and let go. TOGGLE: tap the key to open, click to pick.
+[wheel]
+	#Allowed Values: HOLD, TOGGLE
+	mode = "HOLD"
+	#Animate the placement wheel as it opens, changes page, highlights and closes. Off shows each state at once.
+	animations = true
+	#Play a quiet tick when the wheel highlights another segment, and a click when a segment is picked.
+	sounds = true
+
+[layers]
+	#With the in-hand filter, the opacity of blocks matching other hotbar items, as a share of the ghost opacity.
+	# Default: 0.33
+	# Range: 0.05 ~ 1.0
+	hotbarOpacity = 0.33
+
+[comparison]
+	#Positions of locked placements compared with the world per tick, besides those within reach of the player.
+	#Higher values notice other players' changes sooner and cost more time per tick.
+	# Default: 20000
+	# Range: 1000 ~ 1000000
+	cellsPerTick = 20000
+
+[targeting]
+	#How far away, in blocks, the ghost under the crosshair is named in a small HUD below the crosshair. 0 turns the HUD off.
+	# Default: 32
+	# Range: 0 ~ 128
+	hudRange = 32
+	#Pick block (middle click) on a ghost within reach picks the item for the planned block from the inventory.
+	#Sneak while picking, or turn this off, to pick the block behind the ghost as usual.
+	pickBlock = true
+	#Mistake pointer: an arrow below the crosshair toward the nearest position of the selected locked placement that needs attention.
+	#OFF, MISTAKES (boxed positions only) or MISTAKES_AND_MISSING (also positions still missing their block).
+	#Allowed Values: OFF, MISTAKES, MISTAKES_AND_MISSING
+	mistakePointer = "OFF"
+
+[build]
+	#Easy Place: right-clicking a ghost within reach with its item places the planned block with the planned orientation.
+	easyPlace = false
+	#Placement restriction: refuse block placements that would put a wrong block into a locked placement's visible layers.
+	placementRestriction = false

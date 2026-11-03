@@ -6,6 +6,8 @@ import io.github.dirnei.mc.heavymatica.formats.SchematicModel;
 import io.github.dirnei.mc.heavymatica.formats.SchematicReader;
 import io.github.dirnei.mc.heavymatica.library.Library;
 import io.github.dirnei.mc.heavymatica.library.LocalLibrary;
+import io.github.dirnei.mc.heavymatica.platform.ClientEvents;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,10 +30,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.storage.LevelResource;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -74,11 +72,12 @@ public final class PlacementSession {
     }
 
     public void register() {
-        NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingIn event) -> joined());
-        NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) -> left());
-        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> tick());
-        NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent.AfterTranslucentBlocks event) -> renderer.renderInLevel(event.getModelViewMatrix()));
-        NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent.AfterLevel event) -> renderer.renderAfterLevel(event.getModelViewMatrix()));
+        ClientEvents events = Platform.get().clientEvents();
+        events.onLogin(this::joined);
+        events.onLogout(this::left);
+        events.onTickEnd(this::tick);
+        events.afterTranslucentBlocks((poseStack, modelView) -> renderer.renderInLevel(modelView));
+        events.afterLevel(renderer::renderAfterLevel);
     }
 
     public Placements placements() {

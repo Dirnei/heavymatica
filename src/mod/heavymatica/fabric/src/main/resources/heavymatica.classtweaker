@@ -1,0 +1,20 @@
+classTweaker	v1	official
+
+# The same vanilla members as NeoForge's accesstransformer.cfg.
+# The texture of a render type, for display models that submit without a sprite (mob heads).
+accessible	field	net/minecraft/client/renderer/rendertype/RenderType	state	Lnet/minecraft/client/renderer/rendertype/RenderSetup;
+accessible	field	net/minecraft/client/renderer/rendertype/RenderSetup	textures	Ljava/util/Map;
+accessible	class	net/minecraft/client/renderer/rendertype/RenderSetup$TextureBinding
+# Lets the client predict and search block placements with the held item's own placement logic.
+accessible	method	net/minecraft/world/item/BlockItem	getPlacementState	(Lnet/minecraft/world/item/context/BlockPlaceContext;)Lnet/minecraft/world/level/block/state/BlockState;
+accessible	method	net/minecraft/world/item/StandingAndWallBlockItem	getPlacementState	(Lnet/minecraft/world/item/context/BlockPlaceContext;)Lnet/minecraft/world/level/block/state/BlockState;
+accessible	method	net/minecraft/world/item/GameMasterBlockItem	getPlacementState	(Lnet/minecraft/world/item/context/BlockPlaceContext;)Lnet/minecraft/world/level/block/state/BlockState;
+# Pipeline snippets for the ghost pipelines, a sprite's source image for the block colour export, the slider's drag
+# state for the glass slider, and the GUI's scissor stack and render state for the wheel's mesh.
+accessible	field	net/minecraft/client/renderer/RenderPipelines	BLOCK_SNIPPET	Lcom/mojang/blaze3d/pipeline/RenderPipeline$Snippet;
+accessible	field	net/minecraft/client/renderer/RenderPipelines	DEBUG_FILLED_SNIPPET	Lcom/mojang/blaze3d/pipeline/RenderPipeline$Snippet;
+accessible	field	net/minecraft/client/renderer/texture/SpriteContents	originalImage	Lcom/mojang/blaze3d/platform/NativeImage;
+accessible	field	net/minecraft/client/gui/components/AbstractSliderButton	dragging	Z
+accessible	field	net/minecraft/client/gui/GuiGraphicsExtractor	scissorStack	Lnet/minecraft/client/gui/GuiGraphicsExtractor$ScissorStack;
+accessible	class	net/minecraft/client/gui/GuiGraphicsExtractor$ScissorStack
+accessible	field	net/minecraft/client/gui/GuiGraphicsExtractor	guiRenderState	Lnet/minecraft/client/renderer/state/gui/GuiRenderState;

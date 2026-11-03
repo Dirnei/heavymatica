@@ -7,12 +7,11 @@ import io.github.dirnei.mc.heavymatica.placement.Placement;
 import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform.Bounds;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -45,7 +44,7 @@ public final class MistakePointer {
     }
 
     public void register() {
-        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> tick());
+        Platform.get().clientEvents().onTickEnd(this::tick);
     }
 
     /** The last search, or null while the pointer is off or no locked placement with a comparison is selected. */

@@ -37,9 +37,11 @@ jobs:
         working-directory: src/mod
         run: ./gradlew build --no-daemon
 
-      - name: Upload mod jar
+      - name: Upload mod jars
         uses: actions/upload-artifact@v4
         with:
           name: heavymatica
-          path: src/mod/heavymatica/build/libs/heavymatica-*.jar
+          path: |
+            src/mod/heavymatica/neoforge/build/libs/heavymatica-neoforge-*.jar
+            src/mod/heavymatica/fabric/build/libs/heavymatica-fabric-*.jar
           if-no-files-found: error

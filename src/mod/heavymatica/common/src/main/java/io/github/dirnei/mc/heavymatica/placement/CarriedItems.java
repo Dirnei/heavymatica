@@ -1,22 +1,22 @@
 package io.github.dirnei.mc.heavymatica.placement;
 
 import io.github.dirnei.mc.heavymatica.Heavymatica;
+import io.github.dirnei.mc.heavymatica.platform.ItemContainers;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.access.ItemAccess;
-import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.Nullable;
 
 /**
  * The items a player carries: the main inventory, the hotbar and the offhand, plus everything inside carried items
- * that expose NeoForge's item capability (shulker boxes, bundles, backpacks that keep their items on the stack). The
- * handlers are only read, never inserted into or extracted from. Game thread only.
+ * that expose their contents through the loader's item container API (shulker boxes, bundles, backpacks that keep their
+ * items on the stack). The containers are only read, never inserted into or extracted from. Game thread only.
  */
 public final class CarriedItems {
 
@@ -44,7 +44,7 @@ public final class CarriedItems {
             return;
         }
         counts.merge(stack.getItem(), stack.getCount(), Integer::sum);
-        Map<Item, Integer> inside = contents(ItemAccess.forPlayerSlot(player, slot), stack, 1);
+        Map<Item, Integer> inside = contents(() -> Platform.get().itemContainers().ofPlayerSlot(player, slot), stack, 1);
         if (inside != null) {
             inside.forEach((item, count) -> counts.merge(item, count, Integer::sum));
         }
@@ -62,7 +62,7 @@ public final class CarriedItems {
             if (stack.isEmpty()) {
                 continue;
             }
-            Map<Item, Integer> inside = contents(ItemAccess.forPlayerSlot(player, index), stack, 1);
+            Map<Item, Integer> inside = contents(() -> Platform.get().itemContainers().ofPlayerSlot(player, index), stack, 1);
             if (inside != null && inside.containsKey(item)) {
                 return stack;
             }
@@ -70,25 +70,29 @@ public final class CarriedItems {
         return null;
     }
 
-    /** What a stack holds, nested contents included; null when it holds nothing or its handler fails. */
-    private static @Nullable Map<Item, Integer> contents(ItemAccess access, ItemStack stack, int depth) {
-        ResourceHandler<ItemResource> handler = handler(access, stack);
-        if (handler == null) {
+    /** What a stack holds, nested contents included; null when it holds nothing or its container fails. */
+    private static @Nullable Map<Item, Integer> contents(Supplier<ItemContainers.@Nullable Container> access, ItemStack stack, int depth) {
+        ItemContainers.Container container = container(access, stack);
+        if (container == null) {
             return null;
         }
         Map<Item, Integer> inside = new IdentityHashMap<>();
         try {
-            for (int index = 0; index < handler.size(); index++) {
-                ItemResource resource = handler.getResource(index);
-                long amount = handler.getAmountAsLong(index);
-                if (resource.isEmpty() || amount <= 0) {
+            for (int index = 0; index < container.size(); index++) {
+                long amount = container.amount(index);
+                if (amount <= 0) {
                     continue;
                 }
-                inside.merge(resource.getItem(), (int) Math.min(Integer.MAX_VALUE, amount), Integer::sum);
+                Item item = container.item(index);
+                if (item == Items.AIR) {
+                    continue;
+                }
+                inside.merge(item, (int) Math.min(Integer.MAX_VALUE, amount), Integer::sum);
                 if (depth < MAX_DEPTH) {
-                    Map<Item, Integer> nested = contents(ItemAccess.forHandlerIndex(handler, index), resource.toStack(), depth + 1);
+                    int slot = index;
+                    Map<Item, Integer> nested = contents(() -> container.nested(slot), container.stack(index), depth + 1);
                     if (nested != null) {
-                        nested.forEach((item, count) -> inside.merge(item, count, Integer::sum));
+                        nested.forEach((nestedItem, count) -> inside.merge(nestedItem, count, Integer::sum));
                     }
                 }
             }
@@ -99,9 +103,9 @@ public final class CarriedItems {
         return inside;
     }
 
-    private static @Nullable ResourceHandler<ItemResource> handler(ItemAccess access, ItemStack stack) {
+    private static ItemContainers.@Nullable Container container(Supplier<ItemContainers.@Nullable Container> access, ItemStack stack) {
         try {
-            return access.getCapability(Capabilities.Item.ITEM);
+            return access.get();
         } catch (RuntimeException e) {
             Heavymatica.LOGGER.debug("Could not look into {}", stack, e);
             return null;

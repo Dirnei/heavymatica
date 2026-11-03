@@ -3,6 +3,7 @@ package io.github.dirnei.mc.heavymatica.ui;
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
 import io.github.dirnei.mc.heavymatica.placement.OpacitySteps;
+import io.github.dirnei.mc.heavymatica.settings.Setting;
 import io.github.dirnei.mc.heavymatica.ui.glass.Glass;
 import io.github.dirnei.mc.heavymatica.ui.glass.GlassButton;
 import io.github.dirnei.mc.heavymatica.ui.glass.GlassChoice;
@@ -30,7 +31,6 @@ import net.minecraft.util.Util;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.neoforged.neoforge.common.ModConfigSpec;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -126,12 +126,12 @@ public final class SettingsScreen extends GlassScreen {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> ModConfigSpec.ConfigValue<T> value(String path) {
-        return (ModConfigSpec.ConfigValue<T>) HeavymaticaConfig.SPEC.getValues().get(path);
+    private static <T> Setting<T> value(String path) {
+        return (Setting<T>) Objects.requireNonNull(HeavymaticaConfig.SCHEMA.setting(path), path);
     }
 
     private static <T> void set(String path, T newValue) {
-        ModConfigSpec.ConfigValue<T> value = value(path);
+        Setting<T> value = value(path);
         if (!Objects.equals(value.get(), newValue)) {
             value.set(newValue);
             value.save();
@@ -144,17 +144,17 @@ public final class SettingsScreen extends GlassScreen {
         Component name = Component.translatable(setting.nameKey());
         return switch (setting.control()) {
             case TOGGLE -> {
-                ModConfigSpec.ConfigValue<Boolean> value = value(path);
+                Setting<Boolean> value = value(path);
                 yield List.of(new GlassToggle(0, 0, name, value.get(), on -> set(path, on)));
             }
             case CHOICE -> List.of(choice(path, name));
             case PERCENT -> {
-                ModConfigSpec.ConfigValue<Double> value = value(path);
+                Setting<Double> value = value(path);
                 yield List.of(new GlassSlider(0, 0, controlWidth, name, setting.min(), setting.max(), 0.01, value.get(),
                         share -> Math.round(share * 100) + "%", share -> set(path, Math.round(share * 100) / 100.0)));
             }
             case SLIDER -> {
-                ModConfigSpec.ConfigValue<Integer> value = value(path);
+                Setting<Integer> value = value(path);
                 yield List.of(new GlassSlider(0, 0, controlWidth, name, setting.min(), setting.max(), 1, value.get(),
                         number -> Component.translatable("heavymatica.settings.blocks", Math.round(number)).getString(),
                         number -> set(path, (int) Math.round(number))));
@@ -167,7 +167,7 @@ public final class SettingsScreen extends GlassScreen {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private AbstractWidget choice(String path, Component name) {
-        ModConfigSpec.ConfigValue<Enum> value = value(path);
+        Setting<Enum> value = value(path);
         Enum current = value.get();
         List<Enum> options = Arrays.asList((Enum[]) current.getDeclaringClass().getEnumConstants());
         List<Component> labels = options.stream()
@@ -177,7 +177,7 @@ public final class SettingsScreen extends GlassScreen {
     }
 
     private AbstractWidget number(SettingsTable.Setting setting, Component name, int controlWidth) {
-        ModConfigSpec.ConfigValue<Integer> value = value(setting.path());
+        Setting<Integer> value = value(setting.path());
         GlassEditBox box = new GlassEditBox(font, 0, 0, Math.min(controlWidth, 90), GlassEditBox.HEIGHT, name, false);
         box.setValue(Integer.toString(value.get()));
         box.setFilter(text -> text.chars().allMatch(Character::isDigit) && text.length() <= 9);
@@ -258,8 +258,8 @@ public final class SettingsScreen extends GlassScreen {
     }
 
     private static <T> void resetToDefault(String path) {
-        ModConfigSpec.ConfigValue<T> value = value(path);
-        set(path, value.getDefault());
+        Setting<T> value = value(path);
+        set(path, value.defaultValue());
     }
 
     /** Puts each row's widgets at its row's place in the scrolled list, and hides the ones out of view. */

@@ -1,5 +1,7 @@
 package io.github.dirnei.mc.heavymatica.targeting;
 
+import io.github.dirnei.mc.heavymatica.platform.HudLayers;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import io.github.dirnei.mc.heavymatica.ui.glass.Glass;
 import io.github.dirnei.mc.heavymatica.Heavymatica;
 import io.github.dirnei.mc.heavymatica.HeavymaticaConfig;
@@ -22,8 +24,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -60,8 +60,8 @@ public final class TargetHud {
         shownByJade = true;
     }
 
-    public void register(RegisterGuiLayersEvent event) {
-        event.registerAbove(VanillaGuiLayers.CROSSHAIR, ID, this::render);
+    public void register() {
+        Platform.get().hudLayers().above(HudLayers.Vanilla.CROSSHAIR, ID, this::render);
     }
 
     /** The bottom edge of the HUD as drawn this frame, or -1 when it is hidden; read by layers drawn after it. */

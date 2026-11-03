@@ -2,14 +2,13 @@ package io.github.dirnei.mc.heavymatica.capture;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.ShapeRenderer;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import net.neoforged.neoforge.common.NeoForge;
 
 /** Draws the capture box: a marker on each set corner, the active one brighter, and the outline both corners span. */
 public final class CaptureRenderer {
@@ -27,10 +26,10 @@ public final class CaptureRenderer {
     }
 
     public void register() {
-        NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent.AfterTranslucentBlocks event) -> render(event));
+        Platform.get().clientEvents().afterTranslucentBlocks((poseStack, modelView) -> render(poseStack));
     }
 
-    private void render(RenderLevelStageEvent event) {
+    private void render(PoseStack pose) {
         CaptureBox box = session.box().orElse(null);
         Minecraft minecraft = Minecraft.getInstance();
         if (box == null || minecraft.level == null) {
@@ -38,7 +37,6 @@ public final class CaptureRenderer {
         }
         Vec3 camera = minecraft.gameRenderer.getMainCamera().position();
         float lineWidth = minecraft.gameRenderer.getGameRenderState().windowRenderState.appropriateLineWidth;
-        PoseStack pose = event.getPoseStack();
         MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
         VertexConsumer lines = buffers.getBuffer(RenderTypes.lines());
         box.bounds().ifPresent(bounds -> cube(pose, lines, camera, bounds.minX(), bounds.minY(), bounds.minZ(), bounds.width(), bounds.height(),

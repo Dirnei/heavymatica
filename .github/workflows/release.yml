@@ -94,11 +94,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build the release jar
+      - name: Build the release jars
         working-directory: src/mod
-        run: ./gradlew :heavymatica:build -Prelease_version_heavymatica=${{ needs.meta.outputs.version }} --no-daemon
+        run: ./gradlew :heavymatica:neoforge:build :heavymatica:fabric:build -Prelease_version_heavymatica=${{ needs.meta.outputs.version }} --no-daemon
 
-      - name: Publish to GitHub, CurseForge and Modrinth
+      - name: Publish the NeoForge jar to GitHub, CurseForge and Modrinth
         uses: Kira-NT/mc-publish@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -107,12 +107,34 @@ jobs:
           curseforge-token: ${{ vars.CURSEFORGE_ID_HEAVYMATICA != '' && secrets.CURSEFORGE_TOKEN || '' }}
           modrinth-id: ${{ vars.MODRINTH_ID_HEAVYMATICA }}
           modrinth-token: ${{ vars.MODRINTH_ID_HEAVYMATICA != '' && secrets.MODRINTH_TOKEN || '' }}
-          files: src/mod/heavymatica/build/libs/heavymatica-${{ needs.meta.outputs.version }}.jar
+          files: src/mod/heavymatica/neoforge/build/libs/heavymatica-neoforge-${{ needs.meta.outputs.version }}.jar
           name: Heavymatica ${{ needs.meta.outputs.version }}
-          version: ${{ needs.meta.outputs.version }}
+          version: ${{ needs.meta.outputs.version }}+neoforge
           version-type: ${{ needs.meta.outputs.type }}
           changelog: ${{ needs.meta.outputs.notes }}
           loaders: neoforge
           game-versions: ${{ needs.meta.outputs.mc }}
           java: 25
           dependencies: jade(optional)
+
+      - name: Publish the Fabric jar to GitHub, CurseForge and Modrinth
+        uses: Kira-NT/mc-publish@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-tag: ${{ github.ref_name }}
+          curseforge-id: ${{ vars.CURSEFORGE_ID_HEAVYMATICA }}
+          curseforge-token: ${{ vars.CURSEFORGE_ID_HEAVYMATICA != '' && secrets.CURSEFORGE_TOKEN || '' }}
+          modrinth-id: ${{ vars.MODRINTH_ID_HEAVYMATICA }}
+          modrinth-token: ${{ vars.MODRINTH_ID_HEAVYMATICA != '' && secrets.MODRINTH_TOKEN || '' }}
+          files: src/mod/heavymatica/fabric/build/libs/heavymatica-fabric-${{ needs.meta.outputs.version }}.jar
+          name: Heavymatica ${{ needs.meta.outputs.version }}
+          version: ${{ needs.meta.outputs.version }}+fabric
+          version-type: ${{ needs.meta.outputs.type }}
+          changelog: ${{ needs.meta.outputs.notes }}
+          loaders: fabric
+          game-versions: ${{ needs.meta.outputs.mc }}
+          java: 25
+          dependencies: |
+            fabric-api(required)
+            jade(optional)
+            modmenu(optional)

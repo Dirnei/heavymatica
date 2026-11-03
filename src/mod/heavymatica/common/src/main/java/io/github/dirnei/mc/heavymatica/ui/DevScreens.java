@@ -27,6 +27,7 @@ import io.github.dirnei.mc.heavymatica.placement.PlacementSession;
 import io.github.dirnei.mc.heavymatica.placement.PlacementTransform;
 import io.github.dirnei.mc.heavymatica.placement.TwoItemBlocks;
 import io.github.dirnei.mc.heavymatica.placement.WorldComparison;
+import io.github.dirnei.mc.heavymatica.platform.Platform;
 import io.github.dirnei.mc.heavymatica.remote.PlacementOverlay;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenu;
 import io.github.dirnei.mc.heavymatica.remote.RadialMenuScreen;
@@ -67,8 +68,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import org.jetbrains.annotations.Nullable;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.common.NeoForge;
 
 /**
  * Development aid: runs a script of UI steps once the game has loaded, so screens can be checked on a real client
@@ -168,6 +167,8 @@ import net.neoforged.neoforge.common.NeoForge;
  *     <li>{@code layerWindow=<bottom>,<top>}: show only layers bottom to top of the selected locked placement</li>
  *     <li>{@code shaders=<true|false>}: turn Iris shaders on or off as the Iris screen does; {@code shaderPack=<name>}: select
  *     a pack of the shaderpacks folder and reload; both do nothing without Iris</li>
+ *     <li>{@code modConfig=<mod id>}: open that mod's config screen from the open mods list, as its config button does</li>
+ *     <li>{@code scrollWorld=<rows>}: scroll the mouse wheel in the world, through the game's mouse handling</li>
  *     <li>{@code quit}: stop the game</li>
  * </ul>
  */
@@ -186,7 +187,7 @@ public final class DevScreens {
         if (script != null && !script.isBlank()) {
             Arrays.stream(script.split(";")).map(String::trim).filter(step -> !step.isEmpty()).forEach(STEPS::add);
             Heavymatica.LOGGER.info("Dev screen script: {}", STEPS);
-            NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> tick());
+            Platform.get().clientEvents().onTickEnd(DevScreens::tick);
         }
     }
 
@@ -267,7 +268,7 @@ public final class DevScreens {
                     screen.showSectionForDevelopment(argument);
                 }
             }
-            case "mods" -> minecraft.setScreen(new net.neoforged.neoforge.client.gui.ModListScreen(minecraft.screen));
+            case "mods" -> minecraft.setScreen(Platform.get().dev().modsScreen(minecraft.screen));
             case "selectMod" -> selectMod(minecraft, argument);
             case "select" -> {
                 if (minecraft.screen instanceof LibraryScreen screen) {
@@ -313,7 +314,7 @@ public final class DevScreens {
                     Heavymatica.LOGGER.info("Dev: in a world on {}", minecraft.getCurrentServer() == null ? "singleplayer" : minecraft.getCurrentServer().ip);
                 }
             }
-            case "pressLibraryKey" -> KeyMapping.click(HeavymaticaClient.OPEN_LIBRARY.getKey());
+            case "pressLibraryKey" -> KeyMapping.click(Platform.get().keys().boundKey(HeavymaticaClient.OPEN_LIBRARY));
             case "command" -> {
                 var server = minecraft.getSingleplayerServer();
                 if (server != null) {
@@ -321,9 +322,9 @@ public final class DevScreens {
                 }
             }
             case "hotbar" -> minecraft.player.getInventory().setSelectedSlot(Integer.parseInt(argument));
-            case "press" -> KeyMapping.click(mapping(minecraft, argument).getKey());
-            case "down" -> KeyMapping.set(mapping(minecraft, argument).getKey(), true);
-            case "up" -> KeyMapping.set(mapping(minecraft, argument).getKey(), false);
+            case "press" -> Platform.get().dev().press(mapping(minecraft, argument));
+            case "down" -> Platform.get().dev().hold(mapping(minecraft, argument), true);
+            case "up" -> Platform.get().dev().hold(mapping(minecraft, argument), false);
             case "logPlacements" -> logPlacements();
             case "logComparison" -> logComparison();
             case "logFinish" -> logFinish();
@@ -395,22 +396,7 @@ public final class DevScreens {
                     HeavymaticaConfig.cloudAccess(), HeavymaticaClient.availability().answer(), HeavymaticaClient.account().status());
             case "cloudAccess" -> HeavymaticaConfig.setCloudAccess(io.github.dirnei.mc.heavymatica.account.CloudAccess.valueOf(argument));
             case "hideGui" -> minecraft.options.hideGui = Boolean.parseBoolean(argument);
-            case "logConflicts" -> {
-                for (KeyMapping mine : minecraft.options.keyMappings) {
-                    if (!mine.getName().startsWith("key.heavymatica.")) {
-                        continue;
-                    }
-                    for (KeyMapping other : minecraft.options.keyMappings) {
-                        if (other != mine && mine.same(other) || other.hasKeyModifierConflict(mine)) {
-                            Heavymatica.LOGGER.info("Dev conflict: {} ({}, {}) with {} ({}, {}): same {}, modifier {}, contexts {} / {}, modifiers {} / {}",
-                                    mine.getName(), mine.getKey().getName(), mine.getKeyConflictContext(), other.getName(), other.getKey().getName(),
-                                    other.getKeyConflictContext(), mine.same(other), other.hasKeyModifierConflict(mine),
-                                    mine.getKeyConflictContext().conflicts(other.getKeyConflictContext()),
-                                    other.getKeyConflictContext().conflicts(mine.getKeyConflictContext()), mine.getKeyModifier(), other.getKeyModifier());
-                        }
-                    }
-                }
-            }
+            case "logConflicts" -> Platform.get().dev().logKeyConflicts(minecraft);
             case "controls" -> minecraft.setScreen(new net.minecraft.client.gui.screens.options.controls.KeyBindsScreen(null, minecraft.options));
             case "scroll" -> minecraft.screen.mouseScrolled(minecraft.screen.width / 2.0, minecraft.screen.height / 2.0, 0, -Double.parseDouble(argument));
             case "look" -> {
@@ -465,12 +451,12 @@ public final class DevScreens {
             }
             case "wheelRelease" -> {
                 if (minecraft.screen instanceof RadialMenuScreen wheel) {
-                    wheel.keyReleased(new KeyEvent(RemoteKeys.WHEEL.getKey().getValue(), 0, 0));
+                    wheel.keyReleased(new KeyEvent(Platform.get().keys().boundKey(RemoteKeys.WHEEL).getValue(), 0, 0));
                 }
             }
             case "wheelKey" -> {
                 if (minecraft.screen instanceof RadialMenuScreen wheel) {
-                    wheel.keyPressed(new KeyEvent(RemoteKeys.WHEEL.getKey().getValue(), 0, 0));
+                    wheel.keyPressed(new KeyEvent(Platform.get().keys().boundKey(RemoteKeys.WHEEL).getValue(), 0, 0));
                 }
             }
             case "escape" -> {
@@ -511,6 +497,21 @@ public final class DevScreens {
                 }
             }
             case "shift" -> RemoteInput.holdShiftForDevelopment(Boolean.parseBoolean(argument));
+            case "modConfig" -> {
+                if (minecraft.screen != null) {
+                    Platform.get().dev().openModConfig(minecraft.screen, argument);
+                }
+            }
+            case "scrollWorld" -> {
+                try {
+                    java.lang.reflect.Method onScroll = net.minecraft.client.MouseHandler.class.getDeclaredMethod("onScroll", long.class, double.class,
+                            double.class);
+                    onScroll.setAccessible(true);
+                    onScroll.invoke(minecraft.mouseHandler, minecraft.getWindow().handle(), 0.0, Double.parseDouble(argument));
+                } catch (ReflectiveOperationException e) {
+                    Heavymatica.LOGGER.error("Dev scrollWorld failed", e);
+                }
+            }
             case "gameScroll" -> gameScroll(minecraft, Double.parseDouble(argument));
             case "logCapture" -> logCapture(minecraft);
             case "logLocal" -> logLocal();
@@ -994,24 +995,8 @@ public final class DevScreens {
     /** Clicks through the screen's normal input handling, like the mouse would. */
     /** Selects a mod in the mods list, as a click on its row would. */
     private static void selectMod(Minecraft minecraft, String modId) {
-        if (!(minecraft.screen instanceof net.neoforged.neoforge.client.gui.ModListScreen screen)) {
-            return;
-        }
-        try {
-            for (java.lang.reflect.Field field : screen.getClass().getDeclaredFields()) {
-                if (field.getType().getSimpleName().equals("ModListWidget")) {
-                    field.setAccessible(true);
-                    net.minecraft.client.gui.components.AbstractSelectionList<?> list = (net.minecraft.client.gui.components.AbstractSelectionList<?>) field.get(screen);
-                    for (Object entry : list.children()) {
-                        Object info = entry.getClass().getMethod("getInfo").invoke(entry);
-                        if (modId.equals(info.getClass().getMethod("getModId").invoke(info))) {
-                            screen.getClass().getMethod("setSelected", entry.getClass()).invoke(screen, entry);
-                        }
-                    }
-                }
-            }
-        } catch (ReflectiveOperationException e) {
-            Heavymatica.LOGGER.error("Dev selectMod failed", e);
+        if (minecraft.screen != null) {
+            Platform.get().dev().selectMod(minecraft.screen, modId);
         }
     }
 

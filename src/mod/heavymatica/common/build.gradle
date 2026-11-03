@@ -1,6 +1,15 @@
-// Heavymatica core mod. Shared configuration lives in the root build.gradle.
+// Loader-free code of Heavymatica, compiled into the neoforge and fabric jars. Shared configuration lives in the root
+// build.gradle.
 
+apply plugin: 'net.neoforged.moddev'
 apply plugin: 'org.openapi.generator'
+
+neoForge {
+    // Vanilla Minecraft only: common code must not see any loader.
+    neoFormVersion = rootProject.neoform_version
+    accessTransformers.from(file('../neoforge/src/main/resources/META-INF/accesstransformer.cfg'))
+    addModdingDependenciesTo(sourceSets.test)
+}
 
 // The cloud client is generated from the contract and never committed.
 def generatedClient = layout.buildDirectory.dir('generated/openapi')
@@ -8,7 +17,7 @@ def generatedClient = layout.buildDirectory.dir('generated/openapi')
 openApiGenerate {
     generatorName = 'java'
     library = 'native'
-    inputSpec = file('../../api/heavymatica-cloud.v1.yaml').absolutePath
+    inputSpec = file('../../../api/heavymatica-cloud.v1.yaml').absolutePath
     outputDir = generatedClient.get().asFile.absolutePath
     packageName = 'io.github.dirnei.mc.heavymatica.cloud'
     apiPackage = 'io.github.dirnei.mc.heavymatica.cloud.api'
@@ -35,77 +44,26 @@ openApiGenerate {
 sourceSets.main.java.srcDir generatedClient.map { it.dir('src/main/java') }
 tasks.named('compileJava') { dependsOn 'openApiGenerate' }
 tasks.named('openApiGenerate') { dependsOn ':lintContract' }
-
-// Jade and Iris are optional client integrations: compiled against, never bundled. Add -PwithJade to run with Jade in
-// dev runs, -PwithShaders to run with Sodium, Iris, Euphoria Patches and the Complementary Unbound shader pack.
-repositories {
-    exclusiveContent {
-        forRepository {
-            maven {
-                name = 'Modrinth'
-                url = 'https://api.modrinth.com/maven'
-            }
-        }
-        filter {
-            includeGroup 'maven.modrinth'
-        }
+artifacts {
+    commonJava(generatedClient.map { it.dir('src/main/java') }) {
+        builtBy 'openApiGenerate'
     }
 }
 
-// Runtime-only dependencies of the dev runs that the published mod does not declare.
-configurations {
-    localRuntime
-}
-configurations.runtimeClasspath.extendsFrom configurations.localRuntime
-
+// Jade and Iris are optional client integrations, compiled against and never bundled. Each loader project compiles
+// these sources again against its own builds of them.
 dependencies {
-    compileOnly "maven.modrinth:jade:${jade_version}"
-    if (providers.gradleProperty('withJade').isPresent()) {
-        localRuntime "maven.modrinth:jade:${jade_version}"
-    }
-    compileOnly "maven.modrinth:iris:${iris_version}"
-    if (providers.gradleProperty('withShaders').isPresent()) {
-        localRuntime "maven.modrinth:sodium:${sodium_version}"
-        localRuntime "maven.modrinth:iris:${iris_version}"
-        localRuntime "maven.modrinth:euphoria-patches:${euphoria_patches_version}"
-    }
-    // Minecraft does not ship Jackson, so it is bundled into the mod jar.
-    jarJar(implementation("com.fasterxml.jackson.core:jackson-databind:${jackson_version}"))
-    jarJar(implementation("com.fasterxml.jackson.core:jackson-core:${jackson_version}"))
-    jarJar(implementation("com.fasterxml.jackson.core:jackson-annotations:${jackson_annotations_version}"))
-    jarJar(implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"))
-    // Nayuki's QR encoder (MIT) for the link code screen.
-    jarJar(implementation("io.nayuki:qrcodegen:1.8.0"))
+    compileOnly "maven.modrinth:jade:${jade_version}+neoforge"
+    compileOnly "maven.modrinth:iris:${iris_version}-neoforge"
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jackson_version}"
+    implementation "com.fasterxml.jackson.core:jackson-core:${jackson_version}"
+    implementation "com.fasterxml.jackson.core:jackson-annotations:${jackson_annotations_version}"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"
+    implementation 'io.nayuki:qrcodegen:1.8.0'
+    // The TOML settings file for loaders without a config system; NeoForge ships it, the Fabric jar bundles it.
+    compileOnly "com.electronwill.night-config:toml:${rootProject.night_config_version}"
+    testImplementation "com.electronwill.night-config:toml:${rootProject.night_config_version}"
     // Source-retention annotations of the generated code.
     compileOnly 'jakarta.annotation:jakarta.annotation-api:3.0.0'
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
-}
-
-// Fetches the Complementary Unbound shader pack for -PwithShaders dev runs. runs/ is git-ignored, so it is never committed.
-def downloadShaderPack = tasks.register('downloadShaderPack') {
-    def packVersion = project.complementary_unbound_version
-    def packDir = project.file('runs/client/shaderpacks')
-    outputs.dir(packDir)
-    doLast {
-        if (packDir.listFiles()?.any { it.name.endsWith("_${packVersion}.zip") }) {
-            return
-        }
-        def versions = new groovy.json.JsonSlurper().parse(
-                new URI('https://api.modrinth.com/v2/project/complementary-unbound/version').toURL())
-        def version = versions.find { it.version_number == packVersion }
-        if (version == null) {
-            throw new GradleException("Complementary Unbound ${packVersion} not found on Modrinth")
-        }
-        def file = version.files.find { it.primary } ?: version.files[0]
-        def target = new File(packDir, file.filename as String)
-        if (target.exists()) {
-            return
-        }
-        packDir.mkdirs()
-        new URI(file.url as String).toURL().withInputStream { input -> target.withOutputStream { it << input } }
-        logger.lifecycle("Downloaded ${target.name}")
-    }
-}
-if (providers.gradleProperty('withShaders').isPresent()) {
-    tasks.matching { it.name == 'runClient' }.configureEach { dependsOn downloadShaderPack }
 }

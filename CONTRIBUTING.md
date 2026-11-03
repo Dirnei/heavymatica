@@ -9,7 +9,7 @@ src/
   api/           OpenAPI contract of the Heavymatica Cloud (source of truth, code is generated from it)
   cloud/         .NET solution: the cloud service, its tests and the Aspire AppHost
   web/player/    the player website (Astro with Svelte islands), served by the cloud
-  mod/           Gradle build of the NeoForge mods
+  mod/           Gradle build of the mods: per mod a loader-free common project and one project per loader
   conformance/   schematic sample files and expected results, shared by the cloud and mod tests
   branding/      the logo source and its exports (`python src/branding/generate.py`)
 openspec/        specs and changes
@@ -18,8 +18,29 @@ openspec/        specs and changes
 ## Building
 
 - Cloud: `dotnet build src/cloud/Heavymatica.slnx`, run locally with `aspire run` from `src/cloud`.
-- Mod: `./gradlew build` from `src/mod`.
+- Mod: `./gradlew build` from `src/mod` builds and tests both jars: `heavymatica/neoforge/build/libs` and
+  `heavymatica/fabric/build/libs`.
 - Contract lint: `npx @stoplight/spectral-cli lint src/api/heavymatica-cloud.v1.yaml` from the repository root.
+
+## Mod projects
+
+`src/mod/heavymatica` holds three Gradle projects:
+
+- `common`: all features and their tests. It compiles against vanilla Minecraft only, so no loader API may appear here.
+  What a loader has to provide (events, HUD layers, key mappings, render pipelines, carried containers) goes through
+  the interfaces in `io.github.dirnei.mc.heavymatica.platform`, found with `Platform.get()`.
+- `neoforge`: the NeoForge entry points and those interfaces on NeoForge's events. Settings are NeoForge's own config,
+  built from the shared settings schema in `HeavymaticaConfig`.
+- `fabric`: the same on Fabric API, with small mixins where Fabric API has no matching event. Settings are written by
+  `TomlSettingsFile` in the same format as NeoForge's.
+
+Both loader projects compile `common`'s sources into their own jar. Vanilla members that need wider access are listed
+twice: in `neoforge/src/main/resources/META-INF/accesstransformer.cfg` and in
+`fabric/src/main/resources/heavymatica.classtweaker`. `NeoForgeSettingsTest` and `TomlSettingsFileTest` check that both
+loaders write the same default settings file (`common/src/test/resources/settings/heavymatica-client.default.toml`).
+
+Dev runs take `-PwithJade`, `-PwithShaders` (Sodium, Iris, Euphoria Patches and Complementary Unbound) and, on Fabric,
+`-PwithModMenu`, for example `./gradlew :heavymatica:fabric:runClient -PwithModMenu`.
 
 ## Releasing
 
@@ -39,8 +60,10 @@ git push origin heavymatica-v0.3.0
 - With no `feat` or `fix` commit and no message, the release fails before anything is uploaded.
 - Changes outside `src/mod/heavymatica` that alter the jar, such as `src/mod/build.gradle`, `src/mod/gradle.properties`
   or the contract in `src/api`, are not listed. Mention them in the tag message.
-- `.github/workflows/release.yml` builds and tests the tagged commit, then creates the GitHub release with the jar and
-  uploads it to CurseForge and Modrinth. Versions 0.x are published as alpha; from 1.0 a version containing `alpha` or
+- `.github/workflows/release.yml` builds and tests the tagged commit, then creates the GitHub release with the Fabric
+  and the NeoForge jar and uploads both to CurseForge and Modrinth, each marked with its loader. On Modrinth the
+  version numbers carry the loader (`0.3.0+fabric`, `0.3.0+neoforge`), since each jar is its own version there. A
+  failing build of either jar stops the whole release. Versions 0.x are published as alpha; from 1.0 a version containing `alpha` or
   `beta` is published as that, anything else as release.
 - Repository settings: variables `CURSEFORGE_ID_HEAVYMATICA` and `MODRINTH_ID_HEAVYMATICA` with secrets
   `CURSEFORGE_TOKEN` and `MODRINTH_TOKEN`. A platform without its project ID variable is skipped.
@@ -54,9 +77,10 @@ Every push and pull request is built and tested by `.github/workflows/build.yml`
 1. Start the cloud: `aspire run` (or `dotnet run --project Heavymatica.Cloud.AppHost`) from `src/cloud`. MongoDB, MinIO and the
    service start together; the service listens on http://localhost:5180.
 2. Point the dev client at the cloud's DevMojang, since dev clients have no Microsoft session: in
-   `src/mod/heavymatica/runs/client/config/heavymatica-client.toml` set
+   `src/mod/heavymatica/neoforge/runs/client/config/heavymatica-client.toml` (or `fabric/runs/...`) set
    `devSessionJoinUrl = "http://localhost:5180/dev/mojang"`.
-3. Start the client: `./gradlew :heavymatica:runClient` from `src/mod`, then open the library with `H` in a world.
+3. Start the client: `./gradlew :heavymatica:neoforge:runClient` or `./gradlew :heavymatica:fabric:runClient` from
+   `src/mod`, then open the library with `H` in a world. Each loader has its own run folder, `heavymatica/<loader>/runs`.
 
 Dev client runs always talk to `http://localhost:5180`, whatever the config file says: released mods default to
 `https://api.heavymatica.com`, and the dev run overrides it so it never reaches production by accident. Set
@@ -149,14 +173,15 @@ The dev client runs take a few environment variables, so screens can be checked 
 | `HEAVYMATICA_QUICKPLAY_WORLD` | Opens this singleplayer world on start, for example `Testworld`. |
 | `HEAVYMATICA_DEV_USER` | Plays as another offline player, `<name>[,<uuid>]`. A UUID the cloud has not seen signs in as an unknown Minecraft account. |
 
-Example: `HEAVYMATICA_DEV_SCREEN="signin;library;wait=60;screenshot=library;quit" ./gradlew :heavymatica:runClient`
+Example: `HEAVYMATICA_DEV_SCREEN="signin;library;wait=60;screenshot=library;quit" ./gradlew :heavymatica:fabric:runClient`
 
-Client settings can also be changed in the game: the gear in the library, or Mods → Heavymatica → Config. The cloud address
+Client settings can also be changed in the game: the gear in the library, Mods → Heavymatica → Config on NeoForge, or
+Mod Menu's config button on Fabric (dev runs with `-PwithModMenu`). The cloud address
 and `devSessionJoinUrl` stay in the config file only.
 
 For screen checks, `details` opens the selected entry's details page, `materials` the materials screen and `pick=<block>` its
 block picker (the first row when empty), `settings` and `settingsSection=<section>` the settings screen, and `mods` with
-`selectMod=<mod id>` the mods list.
+`selectMod=<mod id>` and `modConfig=<mod id>` the mods list (Mod Menu on Fabric).
 
 For building checks, `anchorLocal=<name>`, `alignSelected=<x>,<y>,<z>` and `lockSelected` set up a locked placement from a
 local entry, `lookAt=<x>,<y>,<z>` aims the crosshair, `logClientBlock`, `logHit` and `logBuild` log the world block, vanilla's hit

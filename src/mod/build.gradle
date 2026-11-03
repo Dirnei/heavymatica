@@ -1,5 +1,6 @@
 plugins {
     id 'net.neoforged.moddev' version '2.0.148' apply false
+    id 'net.fabricmc.fabric-loom' version '1.19.3' apply false
     id 'org.openapi.generator' version '7.26.0' apply false
     id 'idea'
 }
@@ -11,6 +12,17 @@ tasks.named('wrapper', Wrapper).configure {
 allprojects {
     repositories {
         mavenCentral()
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = 'Modrinth'
+                    url = 'https://api.modrinth.com/maven'
+                }
+            }
+            filter {
+                includeGroup 'maven.modrinth'
+            }
+        }
     }
 }
 
@@ -37,96 +49,23 @@ def lintContract = tasks.register('lintContract', Exec) {
     onlyIf { !skipContractLint }
 }
 
-// Shared configuration for the mod projects. Each subproject only adds what differs:
-// its mod id and name (gradle.properties) and its dependencies (build.gradle).
-subprojects {
+// Shared configuration for the mod projects: <mod>/common, <mod>/neoforge and <mod>/fabric. A mod's id, name and dev
+// version live in <mod>/gradle.properties and are inherited by its projects.
+def modProjects = subprojects.findAll { it.parent != rootProject }
+
+configure(modProjects) {
     apply plugin: 'java-library'
-    apply plugin: 'net.neoforged.moddev'
     apply plugin: 'idea'
 
-    version = findProperty("release_version_${project.name}") ?: project.mod_version
+    version = findProperty("release_version_${project.parent.name}") ?: project.mod_version
     group = rootProject.mod_group_id
 
     base {
-        archivesName = project.mod_id
+        archivesName = "${project.mod_id}-${project.name}"
     }
 
     // Minecraft 26.1 runs on Java 25. Gradle provisions the toolchain through the foojay resolver.
     java.toolchain.languageVersion = JavaLanguageVersion.of(25)
-
-    neoForge {
-        version = rootProject.neo_version
-
-        mods {
-            "${project.mod_id}" {
-                sourceSet(sourceSets.main)
-            }
-        }
-
-        runs {
-            client {
-                client()
-                gameDirectory = project.file('runs/client')
-                // Dev clients talk to the local cloud, never to production by accident; HEAVYMATICA_CLOUD_URL picks another one.
-                systemProperty 'heavymatica.cloud.url', System.getenv('HEAVYMATICA_CLOUD_URL') ?: 'http://localhost:5180'
-                // Development aid: join a server straight away, for example HEAVYMATICA_QUICKPLAY=localhost:25599.
-                def quickPlay = System.getenv('HEAVYMATICA_QUICKPLAY')
-                if (quickPlay) {
-                    programArguments.addAll('--quickPlayMultiplayer', quickPlay)
-                }
-                // Development aid: open a singleplayer world straight away, for example HEAVYMATICA_QUICKPLAY_WORLD=Testworld.
-                def quickPlayWorld = System.getenv('HEAVYMATICA_QUICKPLAY_WORLD')
-                if (quickPlayWorld) {
-                    programArguments.addAll('--quickPlaySingleplayer', quickPlayWorld)
-                }
-                // Development aid: play as another offline player, for example HEAVYMATICA_DEV_USER=Newbie,<uuid>.
-                def devUser = System.getenv('HEAVYMATICA_DEV_USER')
-                if (devUser) {
-                    def (name, uuid) = (devUser.split(',', 2) as List) + [null]
-                    programArguments.addAll('--username', name)
-                    if (uuid) {
-                        programArguments.addAll('--uuid', uuid)
-                    }
-                }
-            }
-            server {
-                server()
-                programArgument '--nogui'
-                gameDirectory = project.file('runs/server')
-            }
-            configureEach {
-                logLevel = org.slf4j.event.Level.INFO
-                // Development aids (see ThumbnailSpike, DevScreens): forwarded from the environment when set.
-                ['HEAVYMATICA_THUMBNAIL_SPIKE', 'HEAVYMATICA_DEV_SCREEN'].each { name ->
-                    def value = System.getenv(name)
-                    if (value) {
-                        systemProperty name.toLowerCase().replace('_', '.'), value
-                    }
-                }
-            }
-        }
-    }
-
-    def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
-        def replaceProperties = [
-                minecraft_version      : rootProject.minecraft_version,
-                minecraft_version_range: rootProject.minecraft_version_range,
-                neo_version            : rootProject.neo_version,
-                loader_version_range   : rootProject.loader_version_range,
-                mod_id                 : project.mod_id,
-                mod_name               : project.mod_name,
-                mod_description        : project.mod_description,
-                mod_license            : rootProject.mod_license,
-                mod_version            : project.version.toString(),
-                mod_authors            : rootProject.mod_authors,
-        ]
-        inputs.properties replaceProperties
-        expand replaceProperties
-        from 'src/main/templates'
-        into 'build/generated/sources/modMetadata'
-    }
-    sourceSets.main.resources.srcDir generateModMetadata
-    neoForge.ideSyncTask generateModMetadata
 
     dependencies {
         testImplementation platform("org.junit:junit-bom:${rootProject.junit_version}")
@@ -148,6 +87,117 @@ subprojects {
         module {
             downloadSources = true
             downloadJavadoc = true
+        }
+    }
+}
+
+// Loader projects compile their common project's sources and resources into their own jar, so each jar is a whole mod.
+configure(modProjects.findAll { it.name != 'common' }) {
+    configurations {
+        commonJava {
+            canBeConsumed = false
+            canBeResolved = true
+        }
+        commonResources {
+            canBeConsumed = false
+            canBeResolved = true
+        }
+    }
+
+    dependencies {
+        commonJava project(path: "${project.parent.path}:common", configuration: 'commonJava')
+        commonResources project(path: "${project.parent.path}:common", configuration: 'commonResources')
+    }
+
+    tasks.named('compileJava', JavaCompile).configure {
+        dependsOn configurations.commonJava
+        source configurations.commonJava
+    }
+
+    tasks.named('processResources', ProcessResources).configure {
+        dependsOn configurations.commonResources
+        from configurations.commonResources
+    }
+}
+
+configure(modProjects.findAll { it.name == 'common' }) {
+    configurations {
+        commonJava {
+            canBeConsumed = true
+            canBeResolved = false
+        }
+        commonResources {
+            canBeConsumed = true
+            canBeResolved = false
+        }
+    }
+
+    artifacts {
+        commonJava file('src/main/java')
+        commonResources file('src/main/resources')
+    }
+}
+
+// Development aids shared by the loader projects' dev runs.
+ext.devClientArguments = {
+    def arguments = []
+    // Join a server straight away, for example HEAVYMATICA_QUICKPLAY=localhost:25599.
+    def quickPlay = System.getenv('HEAVYMATICA_QUICKPLAY')
+    if (quickPlay) {
+        arguments.addAll('--quickPlayMultiplayer', quickPlay)
+    }
+    // Open a singleplayer world straight away, for example HEAVYMATICA_QUICKPLAY_WORLD=Testworld.
+    def quickPlayWorld = System.getenv('HEAVYMATICA_QUICKPLAY_WORLD')
+    if (quickPlayWorld) {
+        arguments.addAll('--quickPlaySingleplayer', quickPlayWorld)
+    }
+    // Play as another offline player, for example HEAVYMATICA_DEV_USER=Newbie,<uuid>.
+    def devUser = System.getenv('HEAVYMATICA_DEV_USER')
+    if (devUser) {
+        def (name, uuid) = (devUser.split(',', 2) as List) + [null]
+        arguments.addAll('--username', name)
+        if (uuid) {
+            arguments.addAll('--uuid', uuid)
+        }
+    }
+    return arguments
+}
+
+// ThumbnailSpike and DevScreens read these system properties; they are forwarded from the environment when set.
+ext.devSystemProperties = {
+    def properties = [:]
+    ['HEAVYMATICA_THUMBNAIL_SPIKE', 'HEAVYMATICA_DEV_SCREEN'].each { name ->
+        def value = System.getenv(name)
+        if (value) {
+            properties[name.toLowerCase().replace('_', '.')] = value
+        }
+    }
+    return properties
+}
+
+// Fetches the Complementary Unbound shader pack for -PwithShaders dev runs. runs/ is git-ignored, so it is never committed.
+ext.registerShaderPackDownload = { Project target, File packDir ->
+    def packVersion = target.complementary_unbound_version
+    return target.tasks.register('downloadShaderPack') {
+        outputs.dir(packDir)
+        doLast {
+            if (packDir.listFiles()?.any { it.name.endsWith("_${packVersion}.zip") }) {
+                return
+            }
+            def versions = new groovy.json.JsonSlurper().parse(
+                    new URI('https://api.modrinth.com/v2/project/complementary-unbound/version').toURL())
+            def version = versions.find { it.version_number == packVersion }
+            if (version == null) {
+                throw new GradleException("Complementary Unbound ${packVersion} not found on Modrinth")
+            }
+            def file = version.files.find { it.primary } ?: version.files[0]
+            def packFile = new File(packDir, file.filename as String)
+            if (packFile.exists()) {
+                return
+            }
+            packDir.mkdirs()
+            new URI(file.url as String).toURL().withInputStream { input -> packFile.withOutputStream { it << input } }
+            logger.lifecycle("Downloaded ${packFile.name}")
         }
     }
 }
