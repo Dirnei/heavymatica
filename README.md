@@ -22,6 +22,7 @@
 
 Heavymatica shows a building plan as a ghost in your world and helps you build it, block by block. It does what
 Litematica does for most players, with far fewer menus: pick a schematic, put it where you want it, lock it, and build.
+It runs on Fabric and on NeoForge for Minecraft 26.1.2.
 
 Your schematics live in **Heavymatica Cloud**, so the library you open on one server is the same one you find in
 single player, on another server or on another computer.
@@ -45,6 +46,7 @@ single player, on another server or on another computer.
 - **Capture your own builds.** Mark two corners and save the area as a schematic, ready to upload. Export any entry to
   `.minecraft/schematics/` for other tools.
 - **Creative paste.** In creative single player, paste a placement into the world at once and undo it again.
+- **Fabric and NeoForge.** Both loaders get the same features from the same release.
 - **Works on any server.** Heavymatica runs on the client alone, vanilla servers included.
 - **Plays well with others.** Ghosts stay visible with Iris shader packs, and Jade shows the ghost under your
   crosshair.

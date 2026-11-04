@@ -103,12 +103,13 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           github-tag: ${{ github.ref_name }}
+          github-name: Heavymatica ${{ needs.meta.outputs.version }}
           curseforge-id: ${{ vars.CURSEFORGE_ID_HEAVYMATICA }}
           curseforge-token: ${{ vars.CURSEFORGE_ID_HEAVYMATICA != '' && secrets.CURSEFORGE_TOKEN || '' }}
           modrinth-id: ${{ vars.MODRINTH_ID_HEAVYMATICA }}
           modrinth-token: ${{ vars.MODRINTH_ID_HEAVYMATICA != '' && secrets.MODRINTH_TOKEN || '' }}
           files: src/mod/heavymatica/neoforge/build/libs/heavymatica-neoforge-${{ needs.meta.outputs.version }}.jar
-          name: Heavymatica ${{ needs.meta.outputs.version }}
+          name: Heavymatica ${{ needs.meta.outputs.version }} (NeoForge)
           version: ${{ needs.meta.outputs.version }}+neoforge
           version-type: ${{ needs.meta.outputs.type }}
           changelog: ${{ needs.meta.outputs.notes }}
@@ -122,12 +123,13 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           github-tag: ${{ github.ref_name }}
+          github-name: Heavymatica ${{ needs.meta.outputs.version }}
           curseforge-id: ${{ vars.CURSEFORGE_ID_HEAVYMATICA }}
           curseforge-token: ${{ vars.CURSEFORGE_ID_HEAVYMATICA != '' && secrets.CURSEFORGE_TOKEN || '' }}
           modrinth-id: ${{ vars.MODRINTH_ID_HEAVYMATICA }}
           modrinth-token: ${{ vars.MODRINTH_ID_HEAVYMATICA != '' && secrets.MODRINTH_TOKEN || '' }}
           files: src/mod/heavymatica/fabric/build/libs/heavymatica-fabric-${{ needs.meta.outputs.version }}.jar
-          name: Heavymatica ${{ needs.meta.outputs.version }}
+          name: Heavymatica ${{ needs.meta.outputs.version }} (Fabric)
           version: ${{ needs.meta.outputs.version }}+fabric
           version-type: ${{ needs.meta.outputs.type }}
           changelog: ${{ needs.meta.outputs.notes }}
