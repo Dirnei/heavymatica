@@ -1,0 +1,45 @@
+---
+title: Architecture
+description: How the mod, the cloud and the websites fit together.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+
+Heavymatica has three parts players touch: the **mod** in the game, the **Heavymatica Cloud** that stores schematics
+and accounts, and the **player website**. The cloud is the source of truth. The game and the website both fetch
+schematics from it; nothing streams from one client to another, and game servers don't need Heavymatica at all.
+
+The diagrams are interactive: drag to pan, scroll to zoom, and click an element to see its relationships. They come
+from the LikeC4 model in `docs/architecture/heavymatica.c4`, so a change to the model changes every diagram that shows
+it.
+
+## Landscape
+
+<Diagram view="index" />
+
+- The **mod** runs only on the client and talks to the cloud over HTTPS. To sign in, it joins Mojang's session server
+  the way a game client joins a server, and the cloud checks that join. No password reaches Heavymatica.
+- The **player website** is served by the cloud itself, so pages and API share one origin. Visitors sign in with
+  GitHub, or connect their game account with a link code.
+- The **admin site** runs on a separate listener and host name, with passkeys only.
+- Releases go to GitHub Releases, Modrinth and CurseForge from one tag.
+
+## The mod
+
+<Diagram view="mod" />
+
+Every feature lives in `common`, which compiles against vanilla Minecraft only. The loader parts implement the
+platform service (events, keys, HUD layers, render pipelines, carried containers, settings storage) and nothing else,
+so Fabric and NeoForge get the same features from the same code. See [Mod projects](/develop/mod-projects/).
+
+## The cloud
+
+<Diagram view="cloud" />
+
+One service with vertical slices. MongoDB holds accounts, identities, schematic metadata, folders, tags and the audit
+log; object storage holds the schematic files and thumbnails. See [Cloud](/develop/cloud/) and [API](/develop/api/).
+
+## Editing the model
+
+The model is plain text. Install the LikeC4 extension for VS Code to see the views while editing, or run the docs dev
+server (`npm run dev` in `docs`), which reloads the diagrams on save. `npm run check` validates the model.

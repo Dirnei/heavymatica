@@ -67,3 +67,11 @@ dependencies {
     compileOnly 'jakarta.annotation:jakarta.annotation-api:3.0.0'
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
 }
+
+// The docs' key reference is checked against the keys the mod registers; -PwriteDocs rewrites it instead.
+def docsKeys = rootProject.file('../../docs/src/data/keys.json')
+tasks.named('test') {
+    systemProperty 'heavymatica.docs.keys', docsKeys.absolutePath
+    systemProperty 'heavymatica.docs.write', providers.gradleProperty('writeDocs').isPresent()
+    inputs.files(docsKeys).optional().withPropertyName('docsKeys')
+}

@@ -1,0 +1,45 @@
+---
+title: Keys
+description: Every Heavymatica key, its default binding and when it acts.
+---
+
+import KeyReference from '../../../components/KeyReference.astro';
+
+All Heavymatica keys are in the **Heavymatica** category of **Options → Controls → Key Binds**. Change any of them
+there. Keys without a default are "not bound" until you give them one. The same keys and defaults apply on Fabric and
+NeoForge.
+
+## Sharing keys with vanilla
+
+Most keys only act while you hold the [remote](/play/remote/) (a stick by default). That means you can bind them to
+keys vanilla already uses: while you hold the remote, the Heavymatica key acts and the vanilla action doesn't; without
+the remote, the vanilla action works as usual.
+
+Keys of other mods are a different story. If one key does two things, check **Options → Controls** for a key another
+mod also uses, and move one of them. See [Compatibility](/play/compatibility/).
+
+## Shift variants
+
+Some keys do something different while you hold <kbd>Shift</kbd>. This keeps working after you rebind them, since
+Heavymatica checks Shift when you press the key:
+
+- **Rotate placement**: <kbd>Shift</kbd> rotates the other way.
+- **Cycle layer mode**: <kbd>Shift</kbd> cycles back.
+- **Move placement** keys: <kbd>Shift</kbd> moves 10 blocks at a time instead of 1.
+
+## All keys
+
+<KeyReference />
+
+The **When it acts** column tells you when a key does something:
+
+- **In the game, with no screen open**: anywhere in a world, whatever you hold.
+- **While you hold the remote**: only with the remote in your main hand.
+- **Without it while the selected placement is locked**: the layer keys also work without the remote once you have
+  [locked](/play/placement/) the selected placement. On a locked placement, the up and down arrows and numpad
+  <kbd>+</kbd> and <kbd>-</kbd> change the [layers](/play/layers/) instead of moving it.
+- **Without it while a placement is selected**: the wheel and its actions also work without the remote while a
+  placement is selected, but not while you are [capturing](/play/capture/).
+
+A key that seems to do nothing usually doesn't apply right now: you aren't holding the remote, no placement is
+selected, or the placement is locked and can't move. See [Troubleshooting](/play/troubleshooting/).

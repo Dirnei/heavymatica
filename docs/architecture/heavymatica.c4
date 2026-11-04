@@ -1,0 +1,206 @@
+specification {
+  element actor {
+    style {
+      shape person
+    }
+  }
+  element system
+  element container
+  element component
+  element store {
+    style {
+      shape storage
+    }
+  }
+  element external {
+    style {
+      color muted
+    }
+  }
+  tag optional
+}
+
+model {
+  player = actor 'Player' {
+    description 'Builds from schematics in the game and manages them on the website.'
+  }
+  admin = actor 'Admin' {
+    description 'Runs the Heavymatica Cloud.'
+  }
+
+  heavymatica = system 'Heavymatica' {
+    mod = container 'Heavymatica mod' {
+      technology 'Java 25, Minecraft 26.1.2'
+      description 'Client-only mod: ghosts, the remote, comparison, materials, capture and the library screen.'
+
+      common = component 'common' {
+        technology 'Java, vanilla Minecraft'
+        description 'Every feature and its tests. Talks to the loader only through the platform service.'
+      }
+      platform = component 'Platform service' {
+        technology 'Java ServiceLoader'
+        description 'Events, keys, HUD layers, render pipelines, item containers and settings storage.'
+      }
+      neoforge = component 'neoforge' {
+        technology 'NeoForge, ModDevGradle'
+        description 'NeoForge entry points and event hooks. Settings through ModConfigSpec.'
+      }
+      fabric = component 'fabric' {
+        technology 'Fabric Loader, Fabric API, Loom'
+        description 'Fabric entry points, Fabric API events and small mixins. Settings through NightConfig.'
+      }
+      settingsFile = store 'heavymatica-client.toml' {
+        technology 'TOML'
+        description 'The same settings file on both loaders.'
+      }
+      apiClient = component 'Cloud client' {
+        technology 'OpenAPI Generator, Jackson'
+        description 'Generated from the OpenAPI contract.'
+      }
+    }
+
+    cloud = container 'Heavymatica Cloud' {
+      technology '.NET, ASP.NET Core, Akka.NET'
+      description 'The source of truth for schematics and accounts. Serves the API and the built websites.'
+
+      identity = component 'Identity' {
+        technology 'Mojang session check, JWT, GitHub OAuth'
+        description 'Signs in game clients through Mojang and website visitors through GitHub.'
+      }
+      account = component 'Accounts' {
+        description 'Accounts, linked sign-ins, quotas.'
+      }
+      links = component 'Link codes' {
+        description 'Short codes that link a game sign-in to a website account.'
+      }
+      schematics = component 'Schematics' {
+        technology 'Akka.Streams'
+        description 'Upload, listing, folders, tags, details, delete, sharing links, blob sweeper.'
+      }
+      thumbnails = component 'Thumbnails' {
+        technology 'Akka.NET worker'
+        description 'Renders isometric thumbnails for versions without one.'
+      }
+      status = component 'Cloud status' {
+        description 'Tells clients whether the cloud is open.'
+      }
+      adminApi = component 'Admin' {
+        technology 'Passkeys, separate listener'
+        description 'Admin API on its own host name.'
+      }
+      web = component 'Web' {
+        description 'Serves the built player website and web sessions.'
+      }
+    }
+
+    playerSite = container 'Player website' {
+      technology 'Astro, Svelte'
+      description 'Library, upload, folders, tags and link codes in the browser.'
+    }
+    adminSite = container 'Admin site' {
+      technology 'Astro, Svelte'
+      description 'Admin sign-in with passkeys, accounts, audit.'
+    }
+    docsSite = container 'Documentation site' {
+      technology 'Astro, Starlight, LikeC4'
+      description 'docs.heavymatica.com, this site.'
+    }
+
+    mongo = store 'MongoDB' {
+      description 'Accounts, identities, schematic metadata, folders, tags, audit.'
+    }
+    blobs = store 'Object storage' {
+      technology 'S3-compatible (MinIO locally)'
+      description 'Schematic files and thumbnails.'
+    }
+  }
+
+  minecraft = external 'Minecraft client' {
+    technology 'Fabric or NeoForge'
+  }
+  mojang = external 'Mojang session server' {
+    description 'Confirms that a game client owns its Minecraft account.'
+  }
+  github = external 'GitHub' {
+    description 'Website sign-in (OAuth), source code, CI and the docs hosting.'
+  }
+  stores = external 'Modrinth, CurseForge, GitHub Releases' {
+    description 'Where players download the mod.'
+  }
+  iris = external 'Iris' {
+    #optional
+    description 'Shader packs. Ghosts stay visible with a pack active.'
+  }
+  jade = external 'Jade' {
+    #optional
+    description 'Shows the ghost under the crosshair.'
+  }
+  modmenu = external 'Mod Menu' {
+    #optional
+    description 'Opens the settings on Fabric.'
+  }
+
+  player -> minecraft 'plays'
+  player -> playerSite 'manages schematics'
+  player -> docsSite 'reads'
+  admin -> adminSite 'administers'
+  minecraft -> mod 'loads'
+  stores -> mod 'distributes'
+
+  mod.neoforge -> mod.platform 'implements'
+  mod.fabric -> mod.platform 'implements'
+  mod.common -> mod.platform 'uses'
+  mod.common -> mod.apiClient 'calls'
+  mod.neoforge -> mod.settingsFile 'reads and writes'
+  mod.fabric -> mod.settingsFile 'reads and writes'
+  mod.common -> iris 'detects shader packs'
+  mod.common -> jade 'adds a plugin'
+  mod.fabric -> modmenu 'adds a config entry'
+  mod.apiClient -> cloud 'HTTPS /v1'
+  mod.apiClient -> mojang 'joins the session'
+
+  playerSite -> cloud.web 'HTTPS /v1'
+  adminSite -> cloud.adminApi 'HTTPS /admin/v1'
+
+  cloud.identity -> mojang 'hasJoined'
+  cloud.identity -> github 'OAuth'
+  cloud.identity -> cloud.account 'signs in to'
+  cloud.links -> cloud.account 'links sign-ins'
+  cloud.web -> cloud.identity 'web sessions'
+  cloud.web -> cloud.schematics 'library'
+  cloud.schematics -> cloud.account 'checks quota'
+  cloud.thumbnails -> cloud.schematics 'renders for'
+  cloud.adminApi -> cloud.account 'manages'
+  cloud.identity -> mongo 'stores'
+  cloud.account -> mongo 'stores'
+  cloud.links -> mongo 'stores'
+  cloud.schematics -> mongo 'metadata'
+  cloud.schematics -> blobs 'files'
+  cloud.thumbnails -> blobs 'thumbnails'
+  cloud.adminApi -> mongo 'admins, audit'
+}
+
+views {
+  view index {
+    title 'Landscape'
+    description 'Every part of Heavymatica and the services around it.'
+    include player, admin, minecraft, mojang, github, stores
+    include heavymatica, heavymatica.*
+    exclude docsSite
+    autoLayout LeftRight
+  }
+
+  view mod of heavymatica.mod {
+    title 'The mod'
+    description 'One common part with every feature, two thin loader parts behind the platform service.'
+    include *, minecraft, iris, jade, modmenu, cloud, mojang
+    autoLayout TopBottom
+  }
+
+  view cloud of heavymatica.cloud {
+    title 'The cloud'
+    description 'Vertical slices in one service, MongoDB for data and object storage for files.'
+    include *, mod, playerSite, adminSite, mojang, github
+    autoLayout TopBottom
+  }
+}

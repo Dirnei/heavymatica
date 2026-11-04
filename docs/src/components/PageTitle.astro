@@ -1,0 +1,15 @@
+---
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+const unreleased = (Astro.locals.starlightRoute.entry.data as { unreleased?: boolean }).unreleased;
+---
+
+<Default />
+{
+  unreleased && (
+    <Aside type="caution" title="Next release">
+      This page describes a feature that is not in the latest release yet. It comes with the next one.
+    </Aside>
+  )
+}

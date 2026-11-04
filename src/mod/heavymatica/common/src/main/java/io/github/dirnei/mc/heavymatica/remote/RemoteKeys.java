@@ -29,6 +29,11 @@ public final class RemoteKeys {
         public boolean conflicts(KeyContext other) {
             return other == this || other == LAYER_KEYS || other == WITH_SELECTION;
         }
+
+        @Override
+        public String toString() {
+            return "HOLDING_REMOTE";
+        }
     };
 
     private static BooleanSupplier lockedSelected = () -> false;
@@ -45,6 +50,11 @@ public final class RemoteKeys {
         public boolean conflicts(KeyContext other) {
             return other == this || other == HOLDING_REMOTE || other == WITH_SELECTION;
         }
+
+        @Override
+        public String toString() {
+            return "LAYER_KEYS";
+        }
     };
 
     public static final KeyContext WITH_SELECTION = new KeyContext() {
@@ -56,6 +66,11 @@ public final class RemoteKeys {
         @Override
         public boolean conflicts(KeyContext other) {
             return other == this || other == HOLDING_REMOTE || other == LAYER_KEYS;
+        }
+
+        @Override
+        public String toString() {
+            return "WITH_SELECTION";
         }
     };
 

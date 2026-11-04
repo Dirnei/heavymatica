@@ -1,0 +1,53 @@
+---
+title: Install
+description: Install Heavymatica on Fabric or NeoForge.
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Heavymatica runs on Fabric and on NeoForge for Minecraft 26.1.2, with the same features on both. It only needs to be
+installed on your own game: servers don't need it, vanilla servers included.
+
+<Tabs syncKey="loader">
+  <TabItem label="Fabric">
+    <Steps>
+    1. Install [Fabric](https://fabricmc.net/use/) for Minecraft 26.1.2.
+    2. Put [Fabric API](https://modrinth.com/mod/fabric-api) into your `mods` folder. Heavymatica needs it.
+    3. Download the Fabric version of Heavymatica (`heavymatica-fabric-…jar`, or the version marked Fabric on Modrinth
+       or CurseForge) and put it into the `mods` folder.
+    4. Start the game.
+    </Steps>
+
+    Optional: install [Mod Menu](https://modrinth.com/mod/modmenu) to open Heavymatica's settings from the mods list.
+  </TabItem>
+  <TabItem label="NeoForge">
+    <Steps>
+    1. Install [NeoForge](https://neoforged.net/) for Minecraft 26.1.2.
+    2. Download the NeoForge version of Heavymatica (`heavymatica-neoforge-…jar`, or the version marked NeoForge on
+       Modrinth or CurseForge) and put it into your `mods` folder.
+    3. Start the game.
+    </Steps>
+  </TabItem>
+</Tabs>
+
+Downloads are on the [GitHub releases page](https://github.com/Dirnei/heavymatica/releases).
+
+## Mods that work with it
+
+None of these are needed. Heavymatica uses them when they are installed:
+
+- [Iris](https://modrinth.com/mod/iris) shader packs: ghosts stay visible with a pack active.
+- [Jade](https://modrinth.com/mod/jade): shows the ghost block under your crosshair.
+- [Mod Menu](https://modrinth.com/mod/modmenu) (Fabric): opens the settings from the mods list.
+
+See [Compatibility](/play/compatibility/) for details.
+
+## After installing
+
+Join a world and press <kbd>H</kbd> to open the library. Signing in to Heavymatica Cloud is only needed for the cloud
+library; local schematics work without it. Then follow [your first build](/play/first-build/).
+
+## Updating
+
+Replace the old jar in `mods` with the new one. Your settings in `config/heavymatica-client.toml` and your placements
+stay. A settings file from one loader also works on the other.

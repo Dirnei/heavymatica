@@ -1,0 +1,143 @@
+---
+title: Easy Place and placement restriction
+description: Place planned blocks by right-clicking their ghosts, and stop wrong blocks from going into your build.
+---
+
+Two build options help you build a [locked placement](/play/placement/) by hand:
+
+- **Easy Place**: right-click a ghost and the planned block lands there, turned the way the plan has it.
+- **Placement restriction**: blocks that don't match the plan are refused before they reach the world.
+
+Both are off by default. They are your own settings, not part of a placement, and they stay as you set them after a
+restart. They work on any server, also on vanilla servers without Heavymatica.
+
+## Turning them on and off
+
+| | Wheel | Key | Setting |
+| --- | --- | --- | --- |
+| Easy Place | **Options → Easy Place** | **Toggle Easy Place**, unbound | `[build] easyPlace` |
+| Placement restriction | **Options → Placement restriction** | **Toggle placement restriction**, unbound | `[build] placementRestriction` |
+
+- The **Options** sub-wheel offers both toggles while a locked placement is selected. A marked segment is on.
+- The keys have no default. Bind them in Options → Controls, in the Heavymatica category. A bound key works whenever no
+  screen is open, also without the remote in your hand. See [Keys](/play/keys/).
+- You can also change them in the [settings](/play/settings/).
+
+Each toggle shows `Easy Place: on` or `Easy Place: off` (or the same for placement restriction) in the action bar.
+
+While either option is on and a locked placement is in your dimension, a small icon for each option that is on shows
+above your hotbar, Easy Place first. It shows whether or not you hold the remote, and hides while a screen is open.
+
+## Easy Place
+
+With Easy Place on, hold the block a ghost needs and right-click the ghost. The planned block is placed at the ghost's
+position with its planned facing, axis, slab half, hinge and the like. Where you aim on the ghost and which way you face
+don't matter:
+
+- Stairs planned facing north and upside down are placed that way, even if you stand north of them facing south.
+- A log planned on its side is placed on its side, even if you click its top.
+- A top slab is placed as a top slab, wherever on the ghost you click. Click a bottom slab where a double slab is planned
+  to complete it.
+- A wall torch is placed on the wall the plan has it on.
+
+Your camera doesn't move.
+
+### When a right-click is an Easy Place click
+
+A right-click places through Easy Place when all of this holds:
+
+- Easy Place is on and no screen is open.
+- You are not in spectator mode.
+- The ghost under your crosshair is within your normal reach and is missing or not complete yet.
+- Your main hand holds an item for that ghost: its own item, or an item that the game turns into it, such as dirt for a
+  grass block. The remote never counts.
+
+Every other right-click behaves as without Easy Place. Holding cobblestone and clicking an oak stairs ghost places
+cobblestone the normal way. A block that already matches the plan is never a ghost target, so clicking it does what it
+always does.
+
+Hold the use key to place again and again at the normal repeat rate. Sweep the crosshair along a row of ghosts to fill
+it.
+
+### Sneaking
+
+Easy Place works the same whether you sneak or not: a sneaking right-click on a ghost with the right item still places
+the planned block. When a block needs a sneak click to come out as planned, for example a chest next to another chest
+that the plan keeps single, Easy Place sends that one click as sneaking for you and your real sneak state right after.
+
+### Pots, cakes and cauldrons
+
+Some blocks take two steps: first the base, then what goes into it. Place the flower pot, cake or cauldron first. Then
+right-click it with the plant, candle or bucket the plan asks for, and Easy Place puts it in. The wrong plant is not an
+Easy Place click.
+
+### Chests
+
+Easy Place places chests so they connect as planned. A single chest next to a chest with the same facing stays single
+when the plan has it single. To build a double chest, place one half, then click the ghost of the other half and the two
+connect.
+
+### What Easy Place leaves to you
+
+- **Open or closed**: doors, trapdoors and fence gates are placed the way the game places them. If the plan has them
+  open, the comparison shows them as turned the wrong way until you open them.
+- **Settings the game decides**: a repeater planned with a delay of 3 is placed with the planned facing and a delay of 1.
+  The comparison shows it as needing finishing until you set it.
+
+### When Easy Place can't help
+
+Easy Place follows the game's rules. A block that needs support is only placed where it can stay. When no click could
+place the planned block as planned, for example a wall torch with nothing behind it, nothing is placed and the action bar
+says `Easy Place can't place Wall Torch here`.
+
+If the server refuses a placement, for example in a protected area, the world shows what the server says and you don't
+lose the item.
+
+## Placement restriction
+
+With placement restriction on, a block you place inside a locked placement's visible layers is refused when it would be
+wrong there. Nothing is sent to the server and you keep the item. The action bar names the planned block, for example
+`Placement restriction: the plan has Oak Planks here`, or says the plan has air there.
+
+### What is refused
+
+A placement is refused when the result would be:
+
+- the wrong block, such as cobblestone where oak planks are planned
+- a block where the plan has air
+- turned the wrong way, such as stairs facing south where they should face north
+- too many, such as a third candle where two are planned
+
+It is allowed when the result matches, is a step toward the planned block, or only needs finishing:
+
+- the planned block itself
+- a block the game turns into it, such as dirt where a grass block is planned
+- a bottom slab where a double slab is planned
+- a repeater with the right facing but a different delay
+
+Heavymatica judges the block as the game would place it from your click: the face you click, where on it you aim and
+which way you face. With a top slab planned, clicking the upper half of a block's side places the slab; clicking the top
+of the block below is refused, because that would make a bottom slab.
+
+### Where it applies
+
+Only positions in locked placements in your dimension, and only in the layers they show, are restricted. Building
+outside a placement, in hidden layers, or inside a following or anchored placement works as usual. Scaffolding in a
+hidden layer is fine. When two locked placements overlap, the selected one decides.
+
+### What it leaves alone
+
+- **Using blocks**: right-clicking a chest, door, lever or button still uses it. Sneak if you want to place a block
+  against it; that click is judged.
+- **Items that don't place blocks**: buckets and other items work as usual. You can still empty a water bucket inside the
+  build.
+- **Two-step blocks**: putting a plant into a flower pot, a candle onto a cake or a bucket into a cauldron is judged. The
+  planned plant goes in; a different plant is refused, and so is any plant in a pot the plan has empty.
+- **Open or closed**: a door, trapdoor or fence gate is never refused only for being open or closed.
+- **Chests**: a chest the game would connect where the plan keeps it single is refused. Sneak while placing it to keep it
+  single. A single chest where half of a double chest is planned is allowed.
+
+## Using both
+
+Easy Place clicks are never refused, since they place the planned block. Other right-clicks are judged as usual. With
+both on, clicking an oak stairs ghost with cobblestone places nothing and the action bar names oak stairs.

@@ -1,0 +1,71 @@
+---
+title: Compatibility
+description: How Heavymatica works on Fabric and NeoForge, on servers, and with Iris, Jade and Mod Menu.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Fabric and NeoForge
+
+Heavymatica has one jar for Fabric and one for NeoForge, for the same Minecraft version. Both have the same features:
+the same keys and default bindings, the remote, the wheel, ghosts, layers, comparison, material list, Easy Place,
+capture, import, paste and the cloud library.
+
+<Tabs syncKey="loader">
+  <TabItem label="Fabric">
+    - Needs [Fabric API](https://modrinth.com/mod/fabric-api) and no other mod. Without it, Fabric says so before the
+      game starts.
+    - The settings open from the gear button in the library, and from [Mod Menu](https://modrinth.com/mod/modmenu) when
+      you have it.
+    - Changes you make to the settings file while the game runs take effect at the next start.
+  </TabItem>
+  <TabItem label="NeoForge">
+    - Needs no other mod.
+    - The settings open from the gear button in the library, and from **Config** in the Mods screen.
+    - Changes you make to the settings file while the game runs are picked up at once.
+  </TabItem>
+</Tabs>
+
+Use the jar for your loader. A jar for the other loader is not loaded as a mod. Both loaders use the same
+`config/heavymatica-client.toml`, so your settings carry over when you switch. See [Install](/play/install/) and
+[Settings](/play/settings/).
+
+## Servers
+
+Heavymatica runs on your game only. You can join any server with it: servers without Heavymatica, vanilla servers
+included, and servers that have it. There is no version check. Placements, ghosts, the comparison, Easy Place and the
+library all work there.
+
+The server still decides what happens in its world. If it refuses a block, for example in a protected area, the world
+shows what the server says.
+
+## Iris shader packs
+
+With [Iris](https://modrinth.com/mod/iris) and a shader pack, ghosts, mistake boxes and placement outlines stay
+visible. They are drawn on top of the shaded world, with the same opacity, layers and comparison as without shaders.
+
+- The shader pack's lighting, shadows and fog don't touch the ghosts, so they look the same by day and by night.
+- Real blocks in front of a ghost still hide it.
+- You can turn the pack on or off or switch packs without a restart. The ghosts stay visible. If a pack fails to
+  load and Iris falls back to normal rendering, the ghosts are drawn as without shaders.
+
+Heavymatica works the same with Iris installed but no pack selected, and without Iris.
+
+<Aside type="caution" title="Iris and the K key">
+  Iris turns shaders on and off with <kbd>K</kbd> by default. If a key does two things at once, open
+  **Options → Controls → Key Binds** and look for another mod using the same key, then move one of them.
+</Aside>
+
+## Jade
+
+With [Jade](https://modrinth.com/mod/jade), the Jade tooltip shows the ghost under your crosshair as its planned
+block, with a Heavymatica line that says its state, such as missing or wrong block. Heavymatica's own small HUD below
+the crosshair then stays hidden, so you don't see the same thing twice. Without Jade, Heavymatica's HUD shows it.
+
+## Mod Menu
+
+On Fabric, [Mod Menu](https://modrinth.com/mod/modmenu) adds a mods list with a config button for Heavymatica that
+opens the [settings](/play/settings/). It is optional: without it, open the settings from the gear button in the
+library.
+
+Iris, Jade and Mod Menu are all optional. Heavymatica works without any of them.

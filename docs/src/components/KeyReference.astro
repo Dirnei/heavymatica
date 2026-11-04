@@ -1,0 +1,26 @@
+---
+import { loadKeys } from '../lib/keys';
+
+const keys = loadKeys();
+---
+
+<table>
+  <thead>
+    <tr>
+      <th>Action</th>
+      <th>Default key</th>
+      <th>When it acts</th>
+    </tr>
+  </thead>
+  <tbody>
+    {
+      keys.map((key) => (
+        <tr>
+          <td>{key.name}</td>
+          <td>{key.defaultKey ? <kbd>{key.defaultKey}</kbd> : <em>not bound</em>}</td>
+          <td>{key.when}</td>
+        </tr>
+      ))
+    }
+  </tbody>
+</table>

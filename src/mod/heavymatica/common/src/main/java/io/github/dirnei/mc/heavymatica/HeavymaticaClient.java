@@ -79,14 +79,18 @@ public final class HeavymaticaClient {
     private HeavymaticaClient() {
     }
 
-    /** Registers keys, HUD layers, render pipelines and events. The loader calls this while it constructs the mod. */
-    public static void construct(String version) {
-        modVersion = version;
-        KeyRegistry keys = Platform.get().keys();
+    /** Registers the key category and every key mapping. */
+    public static void registerKeys(KeyRegistry keys) {
         keys.registerCategory(CATEGORY);
         keys.register(OPEN_LIBRARY);
         RemoteKeys.register(keys);
         BuildKeys.register(keys);
+    }
+
+    /** Registers keys, HUD layers, render pipelines and events. The loader calls this while it constructs the mod. */
+    public static void construct(String version) {
+        modVersion = version;
+        registerKeys(Platform.get().keys());
         GhostPipeline.register();
         new PlacementOverlay(HeavymaticaClient::placements).register();
         new KeyHints(HeavymaticaClient::placements).register();

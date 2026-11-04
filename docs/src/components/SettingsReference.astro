@@ -1,0 +1,42 @@
+---
+import { loadSettings } from '../lib/settings';
+
+const sections = loadSettings();
+---
+
+{
+  sections.map((section) => (
+    <section>
+      <h3 id={`settings-${section.name}`}>
+        <code>[{section.name}]</code>
+      </h3>
+      {section.description && <p>{section.description}</p>}
+      <table>
+        <thead>
+          <tr>
+            <th>Setting</th>
+            <th>What it does</th>
+            <th>Default</th>
+          </tr>
+        </thead>
+        <tbody>
+          {section.settings.map((setting) => (
+            <tr>
+              <td>
+                <code>{setting.name}</code>
+              </td>
+              <td>
+                {setting.description}
+                {setting.range && <> Range: {setting.range}.</>}
+                {setting.allowed && <> Values: {setting.allowed.map((value, i) => <>{i > 0 && ', '}<code>{value}</code></>)}.</>}
+              </td>
+              <td>
+                <code>{setting.value}</code>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  ))
+}

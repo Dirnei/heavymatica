@@ -1,0 +1,27 @@
+{
+  "name": "heavymatica-docs",
+  "private": true,
+  "type": "module",
+  "description": "The Heavymatica documentation site, docs.heavymatica.com.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check && likec4 validate architecture"
+  },
+  "dependencies": {
+    "@astrojs/react": "7.1.2",
+    "@astrojs/starlight": "0.42.8",
+    "astro": "7.4.5",
+    "likec4": "1.60.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "sharp": "0.35.5",
+    "starlight-links-validator": "0.27.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@types/react": "19.3.0",
+    "typescript": "5.9.3"
+  }
+}

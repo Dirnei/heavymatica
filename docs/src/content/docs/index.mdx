@@ -1,0 +1,52 @@
+---
+title: Heavymatica
+description: Schematics for Minecraft with a simple placement UI and a cloud library that follows you to every world and server.
+template: splash
+hero:
+  tagline: Schematics for Minecraft with a simple placement UI and a cloud library that follows you to every world and server.
+  image:
+    file: ../../../../src/branding/heavymatica-512.png
+  actions:
+    - text: Install
+      link: /play/install/
+      icon: right-arrow
+    - text: Your first build
+      link: /play/first-build/
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Heavymatica shows a building plan as a ghost in your world and helps you build it, block by block. It does what
+Litematica does for most players, with far fewer menus: pick a schematic, put it where you want it, lock it, and build.
+It runs on Fabric and on NeoForge for Minecraft 26.1.2, on the client alone, so it works on any server.
+
+:::caution[Alpha]
+Heavymatica is in alpha. Things change between versions, and some Litematica features are still missing.
+:::
+
+<CardGrid>
+  <Card title="One library everywhere" icon="open-book">
+    Your schematics live in Heavymatica Cloud. The library you open on one server is the same one you find in single
+    player, on another server or on another computer.
+  </Card>
+  <Card title="Simple placement" icon="puzzle">
+    Hold the remote, move, rotate and mirror the ghost, then lock it in place. Everything else is on one wheel.
+  </Card>
+  <Card title="See what is wrong" icon="warning">
+    A locked placement compares itself with the world and marks wrong and missing blocks. A pointer leads you to the
+    nearest mistake.
+  </Card>
+  <Card title="Build in layers" icon="list-format">
+    Show one layer, a range of layers or the layer at your feet, and only the blocks you hold if you like.
+  </Card>
+  <Card title="Materials" icon="seti:json">
+    See what the build still needs, what you carry and what you are short of. Swap block types per placement.
+  </Card>
+  <Card title="Easy Place" icon="rocket">
+    Right-click a ghost to place exactly the planned block, or let the mod stop you from placing a wrong one.
+  </Card>
+</CardGrid>
+
+<LinkCard title="Install Heavymatica" href="/play/install/" description="Fabric or NeoForge, in three steps." />
+<LinkCard title="All keys" href="/play/keys/" description="Every key, its default and when it acts." />

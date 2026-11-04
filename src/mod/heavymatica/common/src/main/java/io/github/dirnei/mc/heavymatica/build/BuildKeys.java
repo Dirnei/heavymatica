@@ -24,6 +24,11 @@ public final class BuildKeys {
             return other == this || other == KeyContext.IN_GAME || other == RemoteKeys.HOLDING_REMOTE
                     || other == RemoteKeys.LAYER_KEYS || other == RemoteKeys.WITH_SELECTION;
         }
+
+        @Override
+        public String toString() {
+            return "NO_SCREEN";
+        }
     };
 
     public static final KeyMapping TOGGLE_EASY_PLACE = key("toggle_easy_place");

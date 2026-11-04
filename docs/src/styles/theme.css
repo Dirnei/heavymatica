@@ -1,0 +1,36 @@
+/* The player website's palette, so the docs and the website read as one product. */
+:root {
+  --sl-color-accent-low: #1f3a1d;
+  --sl-color-accent: #4f9a48;
+  --sl-color-accent-high: #c9e8c4;
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #e9e8e2;
+  --sl-color-gray-2: #c4c5bd;
+  --sl-color-gray-3: #a3a59b;
+  --sl-color-gray-4: #5d5f57;
+  --sl-color-gray-5: #3a3c35;
+  --sl-color-gray-6: #2a2c27;
+  --sl-color-black: #171815;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #e5f3e2;
+  --sl-color-accent: #3f7d3a;
+  --sl-color-accent-high: #1f3a1d;
+  --sl-color-white: #22231f;
+  --sl-color-gray-1: #2a2c27;
+  --sl-color-gray-2: #3a3c35;
+  --sl-color-gray-3: #5d5f57;
+  --sl-color-gray-4: #8a8c83;
+  --sl-color-gray-5: #c4c5bd;
+  --sl-color-gray-6: #efede6;
+  --sl-color-gray-7: #f6f5f1;
+  --sl-color-black: #ffffff;
+}
+
+.likec4-frame {
+  height: 32rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}

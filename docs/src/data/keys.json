@@ -1,0 +1,73 @@
+[ {
+  "id" : "key.heavymatica.open_library",
+  "default" : "key.keyboard.h",
+  "context" : "IN_GAME"
+}, {
+  "id" : "key.heavymatica.move_forward",
+  "default" : "key.keyboard.up",
+  "context" : "LAYER_KEYS"
+}, {
+  "id" : "key.heavymatica.move_back",
+  "default" : "key.keyboard.down",
+  "context" : "LAYER_KEYS"
+}, {
+  "id" : "key.heavymatica.move_left",
+  "default" : "key.keyboard.left",
+  "context" : "HOLDING_REMOTE"
+}, {
+  "id" : "key.heavymatica.move_right",
+  "default" : "key.keyboard.right",
+  "context" : "HOLDING_REMOTE"
+}, {
+  "id" : "key.heavymatica.move_up",
+  "default" : "key.keyboard.keypad.add",
+  "context" : "LAYER_KEYS"
+}, {
+  "id" : "key.heavymatica.move_down",
+  "default" : "key.keyboard.keypad.subtract",
+  "context" : "LAYER_KEYS"
+}, {
+  "id" : "key.heavymatica.rotate",
+  "default" : "key.keyboard.r",
+  "context" : "HOLDING_REMOTE"
+}, {
+  "id" : "key.heavymatica.mirror",
+  "default" : "key.keyboard.m",
+  "context" : "HOLDING_REMOTE"
+}, {
+  "id" : "key.heavymatica.wheel",
+  "default" : "key.keyboard.v",
+  "context" : "WITH_SELECTION"
+}, {
+  "id" : "key.heavymatica.remove",
+  "default" : null,
+  "context" : "WITH_SELECTION"
+}, {
+  "id" : "key.heavymatica.lock",
+  "default" : null,
+  "context" : "WITH_SELECTION"
+}, {
+  "id" : "key.heavymatica.in_hand",
+  "default" : null,
+  "context" : "WITH_SELECTION"
+}, {
+  "id" : "key.heavymatica.materials",
+  "default" : null,
+  "context" : "WITH_SELECTION"
+}, {
+  "id" : "key.heavymatica.cycle_layers",
+  "default" : null,
+  "context" : "LAYER_KEYS"
+}, {
+  "id" : "key.heavymatica.swap_corner",
+  "default" : null,
+  "context" : "HOLDING_REMOTE"
+}, {
+  "id" : "key.heavymatica.toggle_easy_place",
+  "default" : null,
+  "context" : "NO_SCREEN"
+}, {
+  "id" : "key.heavymatica.toggle_restriction",
+  "default" : null,
+  "context" : "NO_SCREEN"
+} ]

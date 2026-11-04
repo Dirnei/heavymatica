@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <a href="https://docs.heavymatica.com"><img alt="Documentation" src="https://img.shields.io/badge/docs-docs.heavymatica.com-3f7d3a"></a>
   <a href="https://github.com/Dirnei/heavymatica/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/Dirnei/heavymatica?include_prereleases&label=release"></a>
   <img alt="Minecraft 26.1.2" src="https://img.shields.io/badge/Minecraft-26.1.2-62B47A">
   <img alt="Fabric" src="https://img.shields.io/badge/loader-Fabric-DBD0B4">
@@ -61,14 +62,14 @@ Heavymatica runs on Fabric and on NeoForge, with the same features on both.
    [releases](https://github.com/Dirnei/heavymatica/releases) and put it into your `mods` folder.
 3. Start the game, join a world and press `H` to open the library and sign in.
 
-Keys can be changed in Options → Controls, settings in the library (gear icon) or in the mods list: Mods → Heavymatica
-→ Config on NeoForge, Heavymatica's config button in [Mod Menu](https://modrinth.com/mod/modmenu) on Fabric. Both
-loaders keep the settings in `config/heavymatica-client.toml`.
+Everything else, from your first build to every key and setting, is in the documentation at
+**[docs.heavymatica.com](https://docs.heavymatica.com)**.
 
 ## Feedback
 
 Found a bug or missing something? [Open an issue](https://github.com/Dirnei/heavymatica/issues).
-Want to build it yourself or help out? See [CONTRIBUTING.md](CONTRIBUTING.md).
+Want to build it yourself or help out? See [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[developer documentation](https://docs.heavymatica.com/develop/contributing/).
 
 ## License
 

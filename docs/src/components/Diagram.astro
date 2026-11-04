@@ -1,0 +1,13 @@
+---
+import { LikeC4View, type LikeC4ViewId } from 'likec4:react';
+
+interface Props {
+  view: LikeC4ViewId;
+}
+
+const { view } = Astro.props;
+---
+
+<div class="likec4-frame not-content">
+  <LikeC4View viewId={view} browser={true} client:only="react" />
+</div>

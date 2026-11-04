@@ -1,0 +1,76 @@
+---
+title: Creative paste
+description: Put a whole locked placement into your creative world at once, and undo the last paste.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+In creative mode in your own world, you don't have to build block by block. Paste puts the whole placement into the
+world as its ghost shows it, and Undo paste takes the last paste back.
+
+## Where paste works
+
+Paste and Undo paste only work when both are true:
+
+- you are in creative mode
+- you play your own single-player world, also when you have opened it to LAN
+
+They don't work on servers, as a guest in someone else's LAN world, or in survival, adventure or spectator mode. There,
+the wheel shows no Paste segment.
+
+## Pasting
+
+<Steps>
+1. Place the schematic and [lock it](/play/placement/) where you want it.
+2. Hold the remote and open the [placement wheel](/play/remote/) (<kbd>V</kbd>).
+3. Pick **Paste**. It sits after Materials.
+4. Pick a mode. The paste starts and the wheel closes.
+</Steps>
+
+Press <kbd>Esc</kbd> or click the centre of the wheel to close it without pasting.
+
+| Mode | What it does |
+| --- | --- |
+| **Replace all** | Sets every position to the planned block, air included. The box matches the plan afterwards. |
+| **Only into air** | Places blocks only where the world has air or something replaceable such as grass or water. Nothing else changes. |
+| **Skip air** | Places every planned block and replaces what is there, but leaves the world alone where the plan has air. |
+
+For example, where the plan has air and the world has dirt, Replace all removes the dirt and Skip air keeps it. Where the
+plan has oak planks and the world has stone, Only into air keeps the stone.
+
+## What a paste places
+
+- The placement as its ghost shows it: rotated, mirrored and with your [material swaps](/play/materials/).
+- All of it, also layers you have hidden.
+- Container contents and other block data from the schematic. A chest with 5 diamonds in the schematic holds 5
+  diamonds after the paste.
+- Blocks exactly as planned. Sand and gravel don't fall, water and lava don't flow, and redstone keeps its planned power
+  while the paste runs. Afterwards the world behaves normally again.
+
+It leaves out:
+
+- blocks the game doesn't know, for example from a mod you haven't installed. The world stays as it was there.
+- structure voids. The world stays as it was there too.
+- entities such as item frames and armor stands.
+
+Large pastes run over several ticks so the game keeps running. The overlay shows the progress, and when it is done the
+action bar says how many blocks changed. Only one paste or undo runs at a time: while one runs, Paste and Undo paste are
+greyed out.
+
+If pasting the build completes it, the placement finishes and is removed, as when you build it by hand.
+
+## Undo paste
+
+After a paste, the wheel shows **Undo paste** as its last segment, also with no placement selected. Pick it to put back
+everything the last paste changed, including chest contents it replaced.
+
+- Only the last paste can be undone. A new paste replaces it, and once you undo, Undo paste is gone.
+- Leaving the world forgets the paste. When you join again, there is nothing to undo.
+- If leaving the world stops a paste halfway, what it placed so far stays.
+- If the paste finished and removed your placement, Undo paste also brings the placement back: same position, swaps and
+  layers, locked and selected.
+
+:::caution
+Undo paste only covers the last paste, and only until you leave the world. Make a backup of your world before pasting
+over something you care about.
+:::

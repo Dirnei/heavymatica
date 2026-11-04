@@ -1,0 +1,105 @@
+---
+title: Troubleshooting
+description: Fixes for common problems with Heavymatica, and where to report the rest.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## The game doesn't start, or Heavymatica is missing
+
+- **Wrong jar.** There is one jar for Fabric (`heavymatica-fabric-…jar`) and one for NeoForge
+  (`heavymatica-neoforge-…jar`). A jar for the other loader is not loaded. Put the one for your loader into `mods`.
+- **Fabric API missing.** On Fabric, Heavymatica needs [Fabric API](https://modrinth.com/mod/fabric-api). Without it,
+  Fabric names it as a missing mod before the game starts. Put it into `mods` too.
+- **Wrong Minecraft version.** Heavymatica is built for one Minecraft version. Check the version on the download.
+
+See [Install](/play/install/).
+
+## There is no Sign in button
+
+The Heavymatica Cloud is in alpha and may not be open to the public yet. Until it is, the library shows your local
+schematics only, with no Sign in and no error. Everything that doesn't need the cloud still works.
+
+Also check the **Heavymatica Cloud** setting in the Library section of the [settings](/play/settings/):
+
+- **Never** hides the cloud completely. Set it back to **Automatic**.
+- **Always** shows Sign in without asking whether the cloud is open. Use it only if you have been asked to test the
+  cloud.
+
+If the library says "This Heavymatica is too old for the cloud. Please update the mod.", install the newest version.
+
+## The library says it is offline
+
+"Offline: showing the last known list" means the cloud couldn't be reached. Your local schematics and every cloud
+version you used before still work, since they are in the cache. Versions you never downloaded say "Not available
+offline: needs a connection". Check your internet connection and click **Refresh** in the library.
+
+## Sign-in fails
+
+The game says why:
+
+| Message | What to do |
+| --- | --- |
+| Cloud sign-in needs a Microsoft-authenticated Minecraft account. | Start the game with your Microsoft account. Offline-mode games can't sign in. |
+| Mojang's session service is unavailable. | Mojang's servers have a problem. Try again later. |
+| Heavymatica Cloud is unreachable. | Check your connection, or try again later. Your local schematics still work. |
+| Sign-in failed unexpectedly. | Try again later. If it keeps happening, report it. |
+
+If the library says "Signed out, sign in again", your session ended. Click **Sign in** again. If you start the game with
+a different Minecraft account, you are signed out until you sign in with that account.
+
+## Ghosts are not visible
+
+- **Opacity.** Ghosts may be almost see-through. Pick a higher **Opacity** on the [wheel](/play/remote/), or raise
+  **Ghost opacity** in the [settings](/play/settings/).
+- **Layers.** The placement may show only some of its layers. See [Layers](/play/layers/).
+- **In-hand filter.** With the in-hand filter on, only ghosts of the block you hold show fully, blocks from your hotbar
+  show dimmed, and the rest are hidden. Turn it off on the wheel.
+- **Already built.** On a locked placement, positions where the right block already stands show no ghost. See
+  [Comparison](/play/comparison/).
+- **Block budget.** Heavymatica draws at most 300,000 ghost blocks across all placements. Placements beyond that show
+  only their outline. Raise **Ghost block budget** in the Performance section of the settings, or remove placements
+  you don't need.
+- **Unknown blocks.** Blocks the game doesn't know, for example from a mod you don't have installed, show as
+  missing-texture cubes. If you set the wheel to "Unknown blocks: hidden", or turned off **Show unknown blocks** in the
+  settings, they don't show at all.
+- **Shader packs.** Ghosts stay visible with Iris shader packs. See [Compatibility](/play/compatibility/).
+
+## A key does nothing
+
+Most Heavymatica keys only act in certain situations. The [keys page](/play/keys/) lists when each one acts.
+
+- **You aren't holding the remote.** Most keys need the remote in your main hand. It is a stick unless you changed
+  **Remote item** in the settings.
+- **No placement is selected.** The wheel and its action keys need a selected placement when you don't hold the remote.
+- **The placement is locked.** A locked placement doesn't move, rotate, mirror or get removed by keys. On a locked
+  placement, the up and down arrows and numpad <kbd>+</kbd> and <kbd>-</kbd> change the layers instead. Unlock it on
+  the wheel first. See [Placement](/play/placement/).
+- **The key is not bound.** Several keys, such as Toggle Easy Place, have no default. Bind them in
+  **Options → Controls → Key Binds**.
+- **Another mod uses the key.** If a key does two things, or the wrong thing, look in **Options → Controls** for
+  another mod on the same key. Iris, for example, uses <kbd>K</kbd> to toggle shaders.
+
+## Changes to the settings file are ignored
+
+On Fabric, the settings file is read when the game starts. Edits you make while the game runs take effect after a
+restart. Use the settings screen in the game to change things at once. See [Settings](/play/settings/).
+
+## Finding the log
+
+The game writes its log to `logs/latest.log` in your game folder. When something goes wrong, the lines mentioning
+Heavymatica there usually say why.
+
+## Reporting a bug
+
+Report bugs at [github.com/Dirnei/heavymatica/issues](https://github.com/Dirnei/heavymatica/issues). It helps a lot if
+you include:
+
+- your loader (Fabric or NeoForge) and the Heavymatica and Minecraft versions
+- what you did, what you expected and what happened
+- your `logs/latest.log`
+
+<Aside type="caution">
+  Before you share a log, look through it for anything you'd rather keep private, such as your computer's user name in
+  file paths.
+</Aside>

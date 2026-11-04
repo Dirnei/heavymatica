@@ -1,0 +1,115 @@
+---
+title: Import and export
+description: Bring Litematica, WorldEdit and vanilla structure files into your library, and export entries for other tools.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Heavymatica reads the schematic files you already have, so switching costs nothing. Imported files are copied into your
+library and the originals stay where they are. Export writes an entry back out as a file that other tools can open.
+
+## Supported formats
+
+| Format | File | Made by |
+| --- | --- | --- |
+| Litematica | `.litematic` | Litematica, and Heavymatica's own captures |
+| Sponge schematic, versions 2 and 3 | `.schem` | WorldEdit and other tools |
+| Vanilla structure | `.nbt` | Structure blocks |
+
+Heavymatica looks at what is inside the file, not at its name. A Sponge schematic named `castle.nbt` is still read as a
+Sponge schematic.
+
+Good to know:
+
+- **Modded blocks** are kept as they are. If you don't have the mod, they show as unknown blocks. See
+  [Materials](/play/materials/).
+- **Entities** such as item frames and armor stands are left out.
+- **Old files** from earlier Minecraft versions work. Their blocks are upgraded when you use them, the way the game
+  upgrades old worlds. Files that don't say which version they come from are used as they are.
+- **Structure files with several palettes** use the first one.
+
+### Multi-region Litematica files
+
+A `.litematic` file can have several regions. Heavymatica reads them as one schematic covering all regions. Where regions
+overlap, the region listed later in the file wins. The gaps between regions are left empty: they don't change the world
+and don't count as blocks. Air saved inside a region stays air.
+
+### Limits
+
+A file is rejected when it is:
+
+- larger than 16 MiB
+- too large when unpacked
+- wider than 1024 blocks on any side
+- more than 16,777,216 blocks in all
+- damaged, for example cut off or with broken block data
+
+A rejected file leaves your library unchanged, and the file itself is never touched.
+
+## Importing
+
+### Drop files onto the library
+
+Open the library (<kbd>H</kbd>) and drag schematic files from your file browser onto it. Each file becomes its own
+entry. Drop several at once to import them all. Files that can't be imported are reported with the reason, for example
+`not a schematic file` or `the file is damaged`.
+
+The import screen accepts dropped files too, anywhere on the screen.
+
+### Import from your schematic folders
+
+<Steps>
+1. Open the library and choose **Import**.
+2. The import screen lists the schematic files in your game directory's `schematics` folder, where Litematica keeps its
+   files, and in `heavymatica/import/`, including subfolders. Each file shows its folder, format and size.
+3. Tick the files you want.
+4. Choose **Import selected**.
+</Steps>
+
+**Open folder** opens the `schematics` folder in your file browser, and creates it first if it doesn't exist yet.
+
+When your library is empty, it opens on the import screen right away, with a short explanation of how to import or
+[capture](/play/capture/) your first schematic.
+
+### Local entries
+
+An imported file becomes a local entry, marked `Local only: not uploaded to the cloud`. It works without signing in. It
+keeps its own copy of the file, so you can move or delete the original and the entry still works. A thumbnail is made for
+it when you import it.
+
+Deleting a local entry removes it from your library only. The file you imported it from is not touched.
+
+### Same file twice
+
+If a file is identical to an entry you already have, Heavymatica tells you which one, for example
+`It matches your cloud schematic "Barn" version 2.` Choose **Skip** or **Import anyway**.
+
+### Uploading
+
+Signed in, select a local entry and choose **Upload**, as a new schematic or as a new version of one of your cloud
+schematics. A thumbnail is attached to the new version. If the upload fails, for example because it doesn't fit your
+storage quota, the entry stays local. See [Library](/play/library/).
+
+## Exporting
+
+To open a schematic in Litematica, WorldEdit or another tool, export it.
+
+<Steps>
+1. Open the library and select the entry. For a cloud schematic, pick the version you want.
+2. Choose **Export** in the details.
+</Steps>
+
+The file is written to your game directory's `schematics` folder, which is `.minecraft/schematics/` in a standard
+install. It is named after the entry, with the file's own extension, and you are told where it went.
+
+- The file is written exactly as it is stored, in its own format. A version uploaded as `.schem` is exported as
+  `.schem`, and a capture as `.litematic`. Old files are not upgraded on export.
+- Characters that aren't allowed in file names are replaced. `Tower: v2/final` is written straight into `schematics/`.
+- If the file already exists, you choose: **Overwrite**, **Keep both**, which saves it as `Starter Hut (2).litematic`,
+  or cancel. Nothing is written until you choose.
+- A cloud version you haven't downloaded yet is downloaded first. Offline, Export only works for versions already in your
+  cache. Otherwise it is disabled and says the version needs a connection.
+
+:::tip
+Litematica reads its schematics from the same `schematics` folder, so you can load an exported entry there.
+:::

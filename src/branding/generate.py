@@ -16,7 +16,8 @@ except ImportError:
     sys.exit("Pillow is missing: python -m pip install pillow")
 
 HERE = Path(__file__).resolve().parent
-MOD_LOGO = HERE.parent / "mod" / "heavymatica" / "src" / "main" / "resources" / "heavymatica.png"
+DOCS_FAVICON = HERE.parent.parent / "docs" / "public" / "favicon.svg"
+MOD_LOGO = HERE.parent / "mod" / "heavymatica" / "common" / "src" / "main" / "resources" / "heavymatica.png"
 
 SIZE = 512
 CYAN = "#7FD8FF"
@@ -170,11 +171,12 @@ def main():
     large, small = shapes(small=False), shapes(small=True)
     (HERE / "heavymatica.svg").write_text(svg(large), encoding="utf-8", newline="\n")
     (HERE / "heavymatica-small.svg").write_text(svg(small), encoding="utf-8", newline="\n")
+    DOCS_FAVICON.write_text(svg(small), encoding="utf-8", newline="\n")
     raster(large, 512).save(HERE / "heavymatica-512.png", optimize=True)
     raster(small, 64).save(HERE / "heavymatica-small-64.png", optimize=True)
     raster(large, 256).save(MOD_LOGO, optimize=True)
     print("Wrote", HERE / "heavymatica.svg", HERE / "heavymatica-small.svg", HERE / "heavymatica-512.png",
-          HERE / "heavymatica-small-64.png", MOD_LOGO, sep="\n  ")
+          HERE / "heavymatica-small-64.png", MOD_LOGO, DOCS_FAVICON, sep="\n  ")
 
 
 if __name__ == "__main__":
