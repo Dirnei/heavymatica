@@ -64,6 +64,7 @@ public sealed class AdminListenerTests : IDisposable
     [InlineData("/alive")]
     [InlineData("/openapi/v1.yaml")]
     [InlineData("/dev/mojang/session/minecraft/hasJoined?username=x&serverId=y")]
+    [InlineData("/dev/web/sign-in?minecraft=00000000-0000-0000-0000-000000000001")]
     public async Task The_player_site_and_api_are_not_found_on_the_admin_listener(string path)
     {
         using var client = new HttpClient { BaseAddress = site.Admin };

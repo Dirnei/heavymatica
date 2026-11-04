@@ -18,8 +18,11 @@ Dev client runs always talk to `http://localhost:5180`, whatever the config file
 opens; the local cloud always says open. To test against a cloud that says closed, set `access = "ON"` in the `[cloud]`
 section of the client config.
 
-DevMojang (`/dev/mojang`) stands in for Mojang's session server and accepts every join. It exists only when the
-service runs in the Development environment.
+DevMojang (`/dev/mojang`) stands in for Mojang's session server and accepts every join. Its counterpart for the
+website, `/dev/web/sign-in?minecraft=<profile id>&returnTo=/library/`, signs a browser in to the account of a Minecraft
+identity without GitHub, for example `http://localhost:5180/dev/web/sign-in?minecraft=<uuid>` for the player of
+`HEAVYMATICA_DEV_USER`. Open the website afterwards on the cloud's origin or the website's dev server; browsers send
+localhost cookies to every port. Both exist only when the service runs in the Development environment.
 
 The websites' local setup, including GitHub sign-in, is on [Websites](/develop/websites/). The dev client's scripting
 and other aids are on [Development aids](/develop/dev-aids/).

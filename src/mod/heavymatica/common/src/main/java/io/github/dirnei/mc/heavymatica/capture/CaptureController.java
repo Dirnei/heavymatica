@@ -95,6 +95,11 @@ public final class CaptureController {
         }
     }
 
+    /** Sets the active corner on a block, as a right-click on it does. */
+    public void clickAt(int x, int y, int z) {
+        box().ifPresent(box -> box.click(x, y, z));
+    }
+
     /** Capture on the wheel: checks the box, then asks for a name and starts reading the world. */
     public void capture() {
         Minecraft minecraft = Minecraft.getInstance();

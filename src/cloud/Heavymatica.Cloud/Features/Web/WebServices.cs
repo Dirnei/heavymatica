@@ -13,6 +13,7 @@ internal static class WebServices
     public static WebApplication MapWeb(this WebApplication app)
     {
         app.MapGitHubSignIn();
+        app.MapDevWebSignIn();
         return app;
     }
 }

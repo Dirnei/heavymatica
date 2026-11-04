@@ -20,11 +20,21 @@ Example:
 HEAVYMATICA_DEV_SCREEN="signin;library;wait=60;screenshot=library;quit" ./gradlew :heavymatica:fabric:runClient
 ```
 
+Longer scripts go into a file: `HEAVYMATICA_DEV_SCREEN=@path/to/file.steps` reads one step per line and skips blank
+lines and lines starting with `#`. The [screenshot script](/develop/screenshots/) works this way.
+
 ## Screen steps
 
 `details` opens the selected entry's details page, `materials` the materials screen and `pick=<block>` its block picker
 (the first row when empty), `settings` and `settingsSection=<section>` the settings screen, and `mods` with
 `selectMod=<mod id>` and `modConfig=<mod id>` the mods list (Mod Menu on Fabric).
+
+## World and capture steps
+
+`createWorld=<name>,<seed>` creates and enters a creative, peaceful world with cheats from the seed; `command=<command>`
+then runs any command in it. `capture=<start|click|capture|swap|reset|cancel>` drives capture mode, and
+`captureCorner=<x>,<y>,<z>` sets the active corner on a block. `setText=<text>` replaces the text of the open screen's
+first text box, for example the name of a capture.
 
 ## Building steps
 

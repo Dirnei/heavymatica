@@ -1,0 +1,175 @@
+# The documentation's game screenshots, run by docs/screenshots/run.mjs on a fresh Fabric client (runs/docs).
+# One step per line, see DevScreens. Coordinates belong to the world of the seed below.
+
+# --- World: seed, fixed time and weather, no mobs, a meadow cleared in the forest ---
+createWorld=Heavymatica Docs,8675309
+waitWorld
+wait=200
+command=gamerule advance_time false
+command=gamerule advance_weather false
+command=gamerule spawn_mobs false
+command=gamerule send_command_feedback false
+command=gamerule show_advancement_messages false
+command=time set 2000
+command=weather clear
+command=fill 4 70 62 34 89 92 air
+command=fill 4 69 62 34 69 92 grass_block
+command=fill 4 66 62 34 68 92 dirt
+command=kill @e[type=!player]
+
+# --- The house: built with commands, then captured ---
+command=fill 16 69 80 22 69 86 cobblestone
+command=fill 16 70 80 22 73 86 oak_planks hollow
+command=fill 16 70 80 16 73 80 oak_log
+command=fill 22 70 80 22 73 80 oak_log
+command=fill 16 70 86 16 73 86 oak_log
+command=fill 22 70 86 22 73 86 oak_log
+command=fill 18 71 80 18 72 80 glass_pane
+command=fill 20 71 80 20 72 80 glass_pane
+command=fill 16 71 82 16 72 84 glass_pane
+command=fill 22 71 82 22 72 84 glass_pane
+command=setblock 19 70 80 oak_door[half=lower,facing=north]
+command=setblock 19 71 80 oak_door[half=upper,facing=north]
+command=fill 15 74 79 23 74 87 spruce_planks
+command=fill 16 75 80 22 75 86 spruce_planks
+command=fill 17 76 81 21 76 85 spruce_planks
+command=fill 18 77 82 20 77 84 spruce_planks
+command=setblock 19 72 79 wall_torch[facing=north]
+command=fill 17 70 79 18 70 79 flower_pot
+command=setblock 17 70 79 potted_red_tulip
+command=setblock 21 70 79 potted_oxeye_daisy
+command=kill @e[type=item]
+
+# --- The remote and the cloud account ---
+command=item replace entity @p hotbar.0 with minecraft:stick
+command=item replace entity @p hotbar.1 with minecraft:oak_planks 64
+command=item replace entity @p hotbar.2 with minecraft:cobblestone 64
+command=item replace entity @p hotbar.3 with minecraft:oak_log 16
+command=item replace entity @p hotbar.4 with minecraft:glass_pane 16
+command=item replace entity @p hotbar.5 with minecraft:spruce_planks 64
+hotbar=0
+command=tp @p 19 70 66 0 10
+wait=40
+signin
+wait=80
+screenshot=account-choice
+clickButton=heavymatica.account.choice.create
+wait=80
+closeScreen
+wait=20
+
+# --- Capture ---
+capture=start
+wait=10
+captureCorner=15,69,79
+captureCorner=23,77,87
+command=tp @p 10 72 64 0 0
+lookAt=19,72,83
+wait=40
+screenshot=capture-box
+capture=capture
+wait=10
+setText=Forest cottage
+clickButton=gui.done
+wait=100
+logLocal
+
+# --- Upload and library ---
+library
+wait=60
+clickCard=0
+wait=20
+screenshot=library-local
+clickButton=heavymatica.upload.button
+wait=20
+screenshot=upload
+clickButton=heavymatica.upload.as_new
+wait=20
+clickButton=heavymatica.upload.button
+wait=200
+screenshot=library
+clickCard=0
+wait=20
+details
+wait=60
+screenshot=details
+closeScreen
+wait=20
+
+# --- The house goes, the ghost comes ---
+command=fill 15 69 79 23 78 87 air
+command=fill 15 69 79 23 69 87 grass_block
+command=kill @e[type=item]
+library
+wait=40
+clickCard=0
+wait=20
+clickButton=heavymatica.library.place
+wait=40
+command=tp @p 10 72 64 0 0
+lookAt=19,72,83
+wait=40
+alignSelected=15,69,79
+wait=20
+press=key.use
+wait=20
+screenshot=placement-anchored
+press=key.heavymatica.wheel
+wait=20
+screenshot=wheel
+escape
+wait=20
+lockSelected
+wait=60
+logPlacements
+screenshot=placement-locked
+
+# --- Building: a partial build with mistakes ---
+command=fill 16 69 80 22 69 86 cobblestone
+command=fill 16 70 80 22 70 86 oak_planks hollow
+command=fill 16 70 80 16 71 80 oak_log
+command=fill 22 70 80 22 71 80 oak_log
+command=setblock 17 70 86 stone
+command=setblock 22 70 86 oak_log[axis=x]
+command=setblock 19 70 83 dirt
+command=setblock 19 70 80 air
+wait=100
+logComparison
+command=tp @p 10 72 64 0 0
+lookAt=19,71,83
+wait=40
+screenshot=comparison
+mistakePointer=MISTAKES
+lookAt=19,70,80
+wait=40
+screenshot=mistake-pointer
+mistakePointer=OFF
+
+# --- Materials ---
+materials
+wait=40
+screenshot=materials
+closeScreen
+wait=20
+
+# --- Targeting ---
+command=tp @p 19 71 75 0 0
+lookAt=20,72,79
+wait=40
+screenshot=target-hud
+
+# --- Layers ---
+command=tp @p 10 72 64 0 0
+lookAt=19,71,83
+layerWindow=1,1
+wait=40
+screenshot=layer-single
+
+# --- Settings ---
+settings
+wait=40
+screenshot=settings
+closeScreen
+wait=20
+
+quit

@@ -44,6 +44,7 @@ export default defineConfig({
             'api',
             'local-development',
             'dev-aids',
+            'screenshots',
             'releasing',
           ]),
         },

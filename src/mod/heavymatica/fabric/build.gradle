@@ -22,6 +22,14 @@ loom {
             // Loom's dev launcher drops double quotes from property values, so they are escaped.
             rootProject.ext.devSystemProperties().each { name, value -> property name, value.replace('"', '\\"') }
         }
+        // The documentation screenshots: its own run folder, which the screenshot script resets, and a fixed window size.
+        docs {
+            client()
+            runDir 'runs/docs'
+            property 'heavymatica.cloud.url', System.getenv('HEAVYMATICA_CLOUD_URL') ?: 'http://localhost:5190'
+            programArgs('--width', '1600', '--height', '900', *rootProject.ext.devClientArguments())
+            rootProject.ext.devSystemProperties().each { name, value -> property name, value.replace('"', '\\"') }
+        }
         server {
             server()
             runDir 'runs/server'

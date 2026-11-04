@@ -37,6 +37,7 @@ import io.github.dirnei.mc.heavymatica.remote.Remotes;
 import io.github.dirnei.mc.heavymatica.targeting.GhostTargeting;
 import io.github.dirnei.mc.heavymatica.targeting.TargetHud;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,6 +55,7 @@ import io.github.dirnei.mc.heavymatica.account.CloudClient;
 import io.github.dirnei.mc.heavymatica.thumbnail.BlockColorExport;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -66,13 +68,20 @@ import net.minecraft.util.Util;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.LevelSettings;
+import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.levelgen.WorldOptions;
+import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import org.jetbrains.annotations.Nullable;
 
 /**
  * Development aid: runs a script of UI steps once the game has loaded, so screens can be checked on a real client
  * without clicking. The {@code heavymatica.dev.screen} system property (set from {@code HEAVYMATICA_DEV_SCREEN} by the
- * dev runs) holds steps separated by {@code ;}:
+ * dev runs) holds steps separated by {@code ;}, or {@code @<file>} for a file with one step per line ({@code #} starts a
+ * comment line):
  * <ul>
  *     <li>{@code signin}: sign in (use with {@code devSessionJoinUrl} in the client config); opens the account choice when the
  *     Minecraft account has no cloud account yet</li>
@@ -90,7 +99,8 @@ import org.jetbrains.annotations.Nullable;
  *     that row; {@code pickSearch=<text>}: search in the open picker</li>
  *     <li>{@code settings}: open the settings screen; {@code settingsSection=<section>}: show that section</li>
  *     <li>{@code mods}: open the mods list; {@code selectMod=<mod id>}: select a mod in it</li>
- *     <li>{@code search=<text>}: type into the search box, character by character</li>
+ *     <li>{@code search=<text>}: type into the search box, character by character; {@code setText=<text>}: replace the text of the
+ *     open screen's first text box</li>
  *     <li>{@code clickSidebar=<label>}, {@code clickCard=<index>}, {@code clickVersion=<index>}: click there; card indexes
  *     count the up and folder cards too</li>
  *     <li>{@code openFolder=<path>}: open a folder of the library explorer ({@code openFolder=} for the top level)</li>
@@ -157,7 +167,8 @@ import org.jetbrains.annotations.Nullable;
  *     <li>{@code paste=<mode>}: paste the selected placement in that {@code PasteMode}; {@code undoPaste}: undo the last paste</li>
  *     <li>{@code creativeItem=<item>}: put the item into the selected hotbar slot through the creative inventory, which works on
  *     any server while in creative mode</li>
- *     <li>{@code leaveWorld}: leave the world like the pause menu does; {@code openWorld=<folder>}: open a singleplayer world</li>
+ *     <li>{@code leaveWorld}: leave the world like the pause menu does; {@code openWorld=<folder>}: open a singleplayer world;
+ *     {@code createWorld=<name>,<seed>}: create and enter a creative, peaceful world with cheats from the seed</li>
  *     <li>{@code placeLocal=<name>}: start a following placement of the local entry with that name at the player's feet</li>
  *     <li>{@code logPaste}: log whether paste is available, running and undoable, and the progress</li>
  *     <li>{@code waitPaste}: wait until no paste or undo runs, logging progress, frame rate and server tick time</li>
@@ -169,6 +180,8 @@ import org.jetbrains.annotations.Nullable;
  *     a pack of the shaderpacks folder and reload; both do nothing without Iris</li>
  *     <li>{@code modConfig=<mod id>}: open that mod's config screen from the open mods list, as its config button does</li>
  *     <li>{@code scrollWorld=<rows>}: scroll the mouse wheel in the world, through the game's mouse handling</li>
+ *     <li>{@code capture=<start|click|capture|swap|reset|cancel>}: drive capture mode as the wheel and a right-click do;
+ *     {@code captureCorner=<x>,<y>,<z>}: set the active corner on that block</li>
  *     <li>{@code quit}: stop the game</li>
  * </ul>
  */
@@ -185,10 +198,23 @@ public final class DevScreens {
     public static void registerIfRequested() {
         String script = System.getProperty("heavymatica.dev.screen");
         if (script != null && !script.isBlank()) {
-            Arrays.stream(script.split(";")).map(String::trim).filter(step -> !step.isEmpty()).forEach(STEPS::add);
+            steps(script).forEach(STEPS::add);
             Heavymatica.LOGGER.info("Dev screen script: {}", STEPS);
             Platform.get().clientEvents().onTickEnd(DevScreens::tick);
         }
+    }
+
+    /** The steps of a script: separated by {@code ;}, or with {@code @<file>} one per line, blank lines and {@code #} comments skipped. */
+    static List<String> steps(String script) {
+        if (script.startsWith("@")) {
+            try {
+                return Files.readAllLines(Path.of(script.substring(1).trim())).stream().map(String::trim)
+                        .filter(step -> !step.isEmpty() && !step.startsWith("#")).toList();
+            } catch (IOException e) {
+                throw new UncheckedIOException("Cannot read the dev screen script " + script.substring(1), e);
+            }
+        }
+        return Arrays.stream(script.split(";")).map(String::trim).filter(step -> !step.isEmpty()).toList();
     }
 
     private static void tick() {
@@ -405,6 +431,8 @@ public final class DevScreens {
                 minecraft.player.setXRot(Float.parseFloat(angles[1]));
             }
             case "type" -> argument.codePoints().forEach(codepoint -> minecraft.screen.charTyped(new CharacterEvent(codepoint)));
+            case "setText" -> minecraft.screen.children().stream().filter(child -> child instanceof EditBox).findFirst()
+                    .ifPresent(box -> ((EditBox) box).setValue(argument));
             case "chooseAll" -> {
                 if (minecraft.screen instanceof ImportScreen screen) {
                     screen.chooseAll();
@@ -485,10 +513,15 @@ public final class DevScreens {
                     minecraft.player.getXRot(), minecraft.player.input.getClass().getSimpleName(), minecraft.player.input.keyPresses);
             case "logSpecialGeometry" -> logSpecialGeometry();
             case "logResolve" -> logResolve(Path.of(argument));
+            case "captureCorner" -> {
+                String[] corner = argument.split(",");
+                HeavymaticaClient.capture().clickAt(Integer.parseInt(corner[0].trim()), Integer.parseInt(corner[1].trim()), Integer.parseInt(corner[2].trim()));
+            }
             case "capture" -> {
                 CaptureController capture = HeavymaticaClient.capture();
                 switch (argument) {
                     case "start" -> capture.start();
+                    case "click" -> capture.click();
                     case "capture" -> capture.capture();
                     case "swap" -> capture.swap();
                     case "reset" -> capture.reset();
@@ -542,6 +575,10 @@ public final class DevScreens {
                 Heavymatica.LOGGER.info("Dev creative item: {} in slot {}, game mode {}", argument, slot, minecraft.gameMode.getPlayerMode());
             }
             case "leaveWorld" -> minecraft.disconnectFromWorld(net.minecraft.client.multiplayer.ClientLevel.DEFAULT_QUIT_MESSAGE);
+            case "createWorld" -> {
+                String[] parts = argument.split(",", 2);
+                createWorld(minecraft, parts[0], Long.parseLong(parts[1].trim()));
+            }
             case "openWorld" -> minecraft.createWorldOpenFlows().openWorld(argument, () -> minecraft.setScreen(null));
             case "placeLocal" -> HeavymaticaClient.library().local().entries().stream().filter(entry -> entry.name().equals(argument)).findFirst()
                     .ifPresent(entry -> {
@@ -760,7 +797,7 @@ public final class DevScreens {
         io.github.dirnei.mc.heavymatica.blocks.SpecialGeometry special = io.github.dirnei.mc.heavymatica.blocks.SpecialGeometry.get();
         special.prepare(states);
         for (net.minecraft.world.level.block.state.BlockState state : states) {
-            java.util.List<String> parts = special.summary(state);
+            List<String> parts = special.summary(state);
             Heavymatica.LOGGER.info("Dev special geometry {}: {}", state, parts.isEmpty() ? "none" : String.join("; ", parts));
         }
     }
@@ -1031,5 +1068,15 @@ public final class DevScreens {
         } catch (IOException e) {
             Heavymatica.LOGGER.error("Dev import failed", e);
         }
+    }
+
+    /** Creates and enters a creative singleplayer world with cheats on, peaceful, from the default world type and the seed. */
+    private static void createWorld(Minecraft minecraft, String name, long seed) {
+        LevelSettings settings = new LevelSettings(name,
+                GameType.CREATIVE,
+                new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true,
+                WorldDataConfiguration.DEFAULT);
+        minecraft.createWorldOpenFlows().createFreshLevel(name, settings, new WorldOptions(seed, true, false),
+                WorldPresets::createNormalWorldDimensions, minecraft.screen);
     }
 }
