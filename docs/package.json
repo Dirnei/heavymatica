@@ -11,8 +11,11 @@
     "screenshots": "node screenshots/run.mjs"
   },
   "dependencies": {
+    "@astrojs/markdown-satteri": "^0.4.6",
     "@astrojs/react": "7.1.2",
     "@astrojs/starlight": "0.42.8",
+    "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
+    "@fontsource/pixelify-sans": "^5.3.0",
     "astro": "7.4.5",
     "likec4": "1.60.0",
     "react": "19.3.1",
@@ -24,6 +27,7 @@
     "@astrojs/check": "0.9.10",
     "@types/react": "19.3.0",
     "playwright": "1.64.1",
+    "svgo": "^3.3.2",
     "typescript": "5.9.3"
   }
 }

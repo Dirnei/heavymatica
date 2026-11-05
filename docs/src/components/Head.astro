@@ -1,0 +1,9 @@
+---
+import Default from '@astrojs/starlight/components/Head.astro';
+import pixel from '@fontsource/pixelify-sans/files/pixelify-sans-latin-500-normal.woff2?url';
+import body from '@fontsource-variable/atkinson-hyperlegible-next/files/atkinson-hyperlegible-next-latin-wght-normal.woff2?url';
+---
+
+<link rel="preload" href={pixel} as="font" type="font/woff2" crossorigin />
+<link rel="preload" href={body} as="font" type="font/woff2" crossorigin />
+<Default {...Astro.props} />
